@@ -1,0 +1,96 @@
+import { useState, useEffect } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, BookOpen, Trash2, Plus } from "lucide-react";
+import { motion } from "framer-motion";
+import { api } from "../api.js";
+import { useAuth } from "../contexts/AuthContext.jsx";
+import Sidebar from "../components/Sidebar.jsx";
+
+export default function FolderView() {
+  const { id } = useParams();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  const [folder, setFolder] = useState(null);
+  const [guides, setGuides] = useState([]);
+
+  useEffect(() => {
+    load();
+  }, [id]);
+
+  async function load() {
+    const [folders, g] = await Promise.all([api.folders.list(), api.guides.list(id)]);
+    setFolder(folders.find(f => f.id === id));
+    setGuides(g);
+  }
+
+  const deleteGuide = async (e, guideId) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!confirm("Delete this guide?")) return;
+    await api.guides.delete(guideId);
+    setGuides(g => g.filter(x => x.id !== guideId));
+  };
+
+  return (
+    <div className="flex min-h-screen bg-slate-950">
+      <Sidebar onLogout={logout} />
+      <main className="flex-1 ml-64 p-8">
+        <Link to="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
+          <ArrowLeft size={18} /> Back to Dashboard
+        </Link>
+
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-white">
+              {folder?.icon} {folder?.name}
+            </h1>
+            <p className="text-gray-400 mt-1">{guides.length} guide{guides.length !== 1 ? "s" : ""}</p>
+          </div>
+          <Link to="/dashboard" onClick={e => { e.preventDefault(); navigate("/dashboard", { state: { openCreate: true } }); }}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold text-sm transition-colors">
+            <Plus size={16} /> New Guide
+          </Link>
+        </div>
+
+        {guides.length === 0 ? (
+          <div className="text-center py-16 text-gray-500 border border-dashed border-white/10 rounded-2xl">
+            <BookOpen size={40} className="mx-auto mb-3 opacity-30" />
+            <p className="font-medium">No guides in this folder yet.</p>
+            <p className="text-sm mt-1">Create a new guide from the dashboard and save it here.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {guides.map((guide, i) => (
+              <motion.div key={guide.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                <Link to={`/guide/${guide.id}`}
+                  className="group relative bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-2xl p-5 transition-all hover:bg-white/8 block">
+                  <button onClick={e => deleteGuide(e, guide.id)}
+                    className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all">
+                    <Trash2 size={15} />
+                  </button>
+                  <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider mb-2 block">{guide.type}</span>
+                  <h3 className="text-white font-semibold leading-tight mb-3 group-hover:text-indigo-300 transition-colors">{guide.title}</h3>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{new Date(guide.created_at).toLocaleDateString()}</span>
+                    {guide.best_quiz_score > 0 && <span className="text-yellow-400">⭐ Best: {guide.best_quiz_score}/{guide.quiz_questions?.length || 5}</span>}
+                  </div>
+                  {guide.quiz_attempts > 0 && (
+                    <div className="mt-3">
+                      <div className="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>Best score</span>
+                        <span>{Math.round((guide.best_quiz_score / (guide.quiz_questions?.length || 5)) * 100)}%</span>
+                      </div>
+                      <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
+                          style={{ width: `${Math.round((guide.best_quiz_score / (guide.quiz_questions?.length || 5)) * 100)}%` }} />
+                      </div>
+                    </div>
+                  )}
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

@@ -1,0 +1,20 @@
+# Environment
+.env
+*.env
+
+# Dependencies
+node_modules
+server/node_modules
+client/node_modules
+
+# Build
+client/dist
+
+# Database (keep out of git)
+server/data.db
+server/data.db-shm
+server/data.db-wal
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,74 @@
+import Database from "better-sqlite3";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const db = new Database(join(__dirname, "data.db"));
+
+db.pragma("journal_mode = WAL");
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    streak INTEGER DEFAULT 0,
+    last_study_date TEXT,
+    total_guides INTEGER DEFAULT 0,
+    total_quizzes INTEGER DEFAULT 0,
+    xp INTEGER DEFAULT 0,
+    level INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS folders (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    color TEXT DEFAULT 'indigo',
+    icon TEXT DEFAULT '📁',
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS guides (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    folder_id TEXT,
+    title TEXT NOT NULL,
+    type TEXT DEFAULT 'text',
+    summary TEXT NOT NULL,
+    key_terms TEXT NOT NULL,
+    quiz_questions TEXT NOT NULL,
+    best_quiz_score INTEGER DEFAULT 0,
+    quiz_attempts INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS chat_messages (
+    id TEXT PRIMARY KEY,
+    guide_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (guide_id) REFERENCES guides(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS quiz_attempts (
+    id TEXT PRIMARY KEY,
+    guide_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    total INTEGER NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (guide_id) REFERENCES guides(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+`);
+
+export default db;
