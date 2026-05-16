@@ -4,12 +4,10 @@ import OpenAI from "openai";
 import multer from "multer";
 import mammoth from "mammoth";
 import { parseOffice } from "officeparser";
-import { createRequire } from "module";
 import { requireAuth } from "../middleware/auth.js";
 
-// pdf-parse 1.1.1 — use lib path to bypass its internal test-runner check
-const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse/lib/pdf-parse.js");
+// ESM-native import of CJS pdf-parse — module.exports becomes .default
+const { default: pdfParse } = await import("pdf-parse/lib/pdf-parse.js");
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB
