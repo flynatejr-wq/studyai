@@ -3,7 +3,13 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const db = new Database(join(__dirname, "data.db"));
+
+// Use DATABASE_PATH env var if set (e.g. a Railway persistent volume at /data/data.db)
+// Fall back to local file for development
+const DB_PATH = process.env.DATABASE_PATH || join(__dirname, "data.db");
+console.log(`[db] opening database at ${DB_PATH}`);
+
+const db = new Database(DB_PATH);
 
 db.pragma("journal_mode = WAL");
 
