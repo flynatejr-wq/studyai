@@ -2,14 +2,14 @@ import express from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import multer from "multer";
+import mammoth from "mammoth";
+import { parseOffice } from "officeparser";
 import { createRequire } from "module";
 import { requireAuth } from "../middleware/auth.js";
 
+// pdf-parse 1.1.1 — use lib path to bypass its internal test-runner check
 const require = createRequire(import.meta.url);
-const _pdfParse = require("pdf-parse");
-const pdfParse = _pdfParse.default || _pdfParse;
-const mammoth = require("mammoth");
-const officeParser = require("officeparser");
+const pdfParse = require("pdf-parse/lib/pdf-parse.js");
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB
@@ -133,9 +133,7 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
 
     // ── PowerPoint (.pptx) ───────────────────────────────────────────────────
     else if (ext === "pptx" || mimetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
-      text = await new Promise((resolve, reject) => {
-        officeParser.parseOfficeAsync(buffer, { outputErrorToConsole: false }).then(resolve).catch(reject);
-      });
+      text = await parseOffice(buffer, { outputErrorToConsole: false });
     }
 
     // ── Plain text, Markdown, CSV, RTF ───────────────────────────────────────
