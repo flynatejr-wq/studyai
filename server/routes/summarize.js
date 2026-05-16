@@ -6,7 +6,8 @@ import { createRequire } from "module";
 import { requireAuth } from "../middleware/auth.js";
 
 const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse");
+const _pdfParse = require("pdf-parse");
+const pdfParse = _pdfParse.default || _pdfParse;
 const mammoth = require("mammoth");
 const officeParser = require("officeparser");
 
