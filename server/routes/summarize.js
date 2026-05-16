@@ -11,7 +11,7 @@ const mammoth = require("mammoth");
 const officeParser = require("officeparser");
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB
 
 const STUDY_GUIDE_PROMPT = `You are a helpful study assistant. Analyze the following lecture content and return a JSON response with exactly this structure:
 {

@@ -15,7 +15,13 @@ function headers(extra = {}) {
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, options);
-  const data = await res.json();
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`Server error (${res.status}). Please try again.`);
+  }
   if (!res.ok) throw new Error(data.error || "Something went wrong");
   return data;
 }
