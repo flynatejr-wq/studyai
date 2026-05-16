@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard.jsx";
 import FolderView from "./pages/FolderView.jsx";
 import GuideView from "./pages/GuideView.jsx";
 import AllGuides from "./pages/AllGuides.jsx";
+import Progress from "./pages/Progress.jsx";
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -33,7 +34,8 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/folder/:id" element={<ProtectedRoute><FolderView /></ProtectedRoute>} />
       <Route path="/guide/:id" element={<ProtectedRoute><GuideView /></ProtectedRoute>} />
-      <Route path="/guides" element={<ProtectedRoute><AllGuides /></ProtectedRoute>} />
+      <Route path="/guides"   element={<ProtectedRoute><AllGuides /></ProtectedRoute>} />
+      <Route path="/progress" element={<ProtectedRoute><Progress /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

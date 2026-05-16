@@ -5,7 +5,6 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Use DATABASE_PATH env var if set (e.g. a Railway persistent volume at /data/data.db)
-// Fall back to local file for development
 const DB_PATH = process.env.DATABASE_PATH || join(__dirname, "data.db");
 console.log(`[db] opening database at ${DB_PATH}`);
 
@@ -75,6 +74,29 @@ db.exec(`
     FOREIGN KEY (guide_id) REFERENCES guides(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS study_sessions (
+    id TEXT PRIMARY KEY,
+    guide_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    duration_seconds INTEGER NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (guide_id) REFERENCES guides(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS achievements (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    earned_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, type),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
 `);
+
+// Safely add new columns to existing tables (ignore if already exists)
+const safeAlter = (sql) => { try { db.exec(sql); } catch (_) {} };
+safeAlter("ALTER TABLE users ADD COLUMN total_study_time INTEGER DEFAULT 0");
 
 export default db;

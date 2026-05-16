@@ -6,6 +6,7 @@ import authRoute from "./routes/auth.js";
 import foldersRoute from "./routes/folders.js";
 import guidesRoute from "./routes/guides.js";
 import chatRoute from "./routes/chat.js";
+import progressRoute from "./routes/progress.js";
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ app.use("/api/summarize", summarizeRoute);
 app.use("/api/folders", foldersRoute);
 app.use("/api/guides", guidesRoute);
 app.use("/api/chat", chatRoute);
+app.use("/api/progress", progressRoute);
 
 app.get("/health", (_, res) => res.json({ status: "ok" }));
 

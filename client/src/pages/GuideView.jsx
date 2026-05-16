@@ -1,11 +1,299 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, MessageCircle, X, Send, RotateCcw, Trophy, ChevronDown, ChevronUp, Zap, RefreshCw } from "lucide-react";
+import {
+  ArrowLeft, MessageCircle, X, Send, RotateCcw, Trophy,
+  ChevronDown, ChevronUp, Zap, RefreshCw, ChevronLeft,
+  ChevronRight, CheckCircle, XCircle, Clock, BarChart2
+} from "lucide-react";
 import { api } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 
+// ── Study Timer (auto-logs on unmount) ───────────────────────────────────────
+function useStudyTimer(guideId) {
+  const startRef = useRef(Date.now());
+  useEffect(() => {
+    startRef.current = Date.now();
+    return () => {
+      const secs = Math.floor((Date.now() - startRef.current) / 1000);
+      if (secs >= 10 && guideId) {
+        // beacon so it fires even if page is closing
+        const url = (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api")
+          + `/guides/${guideId}/session`;
+        const token = localStorage.getItem("token");
+        navigator.sendBeacon
+          ? navigator.sendBeacon(url, new Blob(
+              [JSON.stringify({ duration_seconds: secs })],
+              { type: "application/json" }
+            ))
+          : fetch(url, {
+              method: "POST", keepalive: true,
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ duration_seconds: secs }),
+            });
+      }
+    };
+  }, [guideId]);
+}
+
+// ── Flashcard Mode ───────────────────────────────────────────────────────────
+function FlashcardMode({ terms }) {
+  const [idx, setIdx] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [known, setKnown] = useState(new Set());
+  const [unknown, setUnknown] = useState(new Set());
+
+  const card = terms[idx];
+  const total = terms.length;
+
+  const mark = (correct) => {
+    if (correct) setKnown(s => new Set([...s, idx]));
+    else setUnknown(s => new Set([...s, idx]));
+    setFlipped(false);
+    setTimeout(() => setIdx(i => (i + 1) % total), 150);
+  };
+
+  const reset = () => { setIdx(0); setFlipped(false); setKnown(new Set()); setUnknown(new Set()); };
+
+  const done = known.size + unknown.size === total;
+
+  return (
+    <div className="flex flex-col items-center gap-6 py-4">
+      {/* Progress */}
+      <div className="flex items-center gap-4 text-sm text-gray-400 w-full max-w-lg">
+        <span className="text-green-400 font-medium">✓ {known.size} known</span>
+        <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all"
+            style={{ width: `${((known.size + unknown.size) / total) * 100}%` }} />
+        </div>
+        <span className="text-gray-500">{idx + 1}/{total}</span>
+      </div>
+
+      {done ? (
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+          className="text-center bg-white/5 border border-white/10 rounded-2xl p-10 w-full max-w-lg">
+          <div className="text-5xl mb-3">{known.size === total ? "🏆" : "💪"}</div>
+          <p className="text-2xl font-bold text-white mb-1">{known.size}/{total} cards known</p>
+          <p className="text-gray-400 mb-6">{known.size === total ? "You know all of them!" : `${unknown.size} to review.`}</p>
+          <button onClick={reset}
+            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold text-sm transition-all">
+            <RotateCcw size={14} className="inline mr-2" />Restart
+          </button>
+        </motion.div>
+      ) : (
+        <>
+          {/* Card */}
+          <div className="w-full max-w-lg cursor-pointer" onClick={() => setFlipped(f => !f)}
+            style={{ perspective: 1000 }}>
+            <motion.div animate={{ rotateY: flipped ? 180 : 0 }}
+              transition={{ duration: 0.45, ease: "easeInOut" }}
+              style={{ transformStyle: "preserve-3d", position: "relative", height: 240 }}>
+              {/* Front */}
+              <div style={{ backfaceVisibility: "hidden", position: "absolute", inset: 0 }}
+                className="bg-gradient-to-br from-indigo-600/30 to-violet-600/20 border border-indigo-500/40 rounded-2xl flex flex-col items-center justify-center p-8 text-center">
+                <p className="text-gray-400 text-xs uppercase tracking-widest mb-3">Term</p>
+                <p className="text-white text-2xl font-bold leading-tight">{card.term}</p>
+                <p className="text-indigo-400 text-xs mt-4">Tap to reveal definition</p>
+              </div>
+              {/* Back */}
+              <div style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", position: "absolute", inset: 0 }}
+                className="bg-gradient-to-br from-violet-600/30 to-indigo-600/20 border border-violet-500/40 rounded-2xl flex flex-col items-center justify-center p-8 text-center">
+                <p className="text-gray-400 text-xs uppercase tracking-widest mb-3">Definition</p>
+                <p className="text-white text-lg leading-relaxed">{card.definition}</p>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Controls */}
+          <div className="flex items-center gap-4">
+            <button onClick={() => { setIdx(i => (i - 1 + total) % total); setFlipped(false); }}
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+              <ChevronLeft size={20} />
+            </button>
+            {flipped && (
+              <>
+                <button onClick={() => mark(false)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 rounded-xl font-semibold text-sm transition-all">
+                  <XCircle size={15} /> Still learning
+                </button>
+                <button onClick={() => mark(true)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-green-500/20 border border-green-500/30 text-green-400 hover:bg-green-500/30 rounded-xl font-semibold text-sm transition-all">
+                  <CheckCircle size={15} /> Got it!
+                </button>
+              </>
+            )}
+            {!flipped && (
+              <button onClick={() => setFlipped(true)}
+                className="px-6 py-2.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/30 rounded-xl font-semibold text-sm transition-all">
+                Reveal
+              </button>
+            )}
+            <button onClick={() => { setIdx(i => (i + 1) % total); setFlipped(false); }}
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Multiple Choice Quiz ─────────────────────────────────────────────────────
+function MCQMode({ guideId, onXpEarned }) {
+  const [count, setCount] = useState(10);
+  const [questions, setQuestions] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [answers, setAnswers] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const [score, setScore] = useState(0);
+  const [error, setError] = useState("");
+  const { refreshUser } = useAuth();
+
+  const generate = async () => {
+    setLoading(true); setError(""); setQuestions(null); setAnswers({}); setSubmitted(false);
+    try {
+      const { questions: qs } = await api.guides.generateQuiz(guideId, count, "mcq");
+      setQuestions(qs);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  const selectAnswer = (qi, opt) => {
+    if (submitted) return;
+    setAnswers(a => ({ ...a, [qi]: opt }));
+  };
+
+  const submit = async () => {
+    const correct = questions.filter((q, i) => answers[i] === q.correctIndex).length;
+    setScore(correct);
+    setSubmitted(true);
+    try {
+      await api.guides.submitQuiz(guideId, correct, questions.length);
+      await refreshUser();
+      onXpEarned(correct * 10);
+    } catch (_) {}
+  };
+
+  const reset = () => { setQuestions(null); setAnswers({}); setSubmitted(false); setScore(0); };
+
+  const allAnswered = questions && Object.keys(answers).length === questions.length;
+
+  if (!questions) return (
+    <div className="flex flex-col items-center gap-5 py-8">
+      <div className="text-center">
+        <p className="text-white font-bold text-lg mb-1">Multiple Choice Quiz</p>
+        <p className="text-gray-400 text-sm">AI generates unique questions with 4 options each time.</p>
+      </div>
+      <div className="flex items-center gap-3 flex-wrap justify-center">
+        <span className="text-gray-400 text-sm">Questions:</span>
+        {[5, 10, 15, 20].map(n => (
+          <button key={n} onClick={() => setCount(n)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${count === n ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"}`}>
+            {n}
+          </button>
+        ))}
+      </div>
+      {error && <p className="text-red-400 text-sm">{error}</p>}
+      <button onClick={generate} disabled={loading}
+        className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-xl text-white font-bold transition-all">
+        {loading ? <><span className="animate-spin">⏳</span> Generating...</> : <><Zap size={16} /> Start Quiz</>}
+      </button>
+    </div>
+  );
+
+  if (submitted) return (
+    <div>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className={`rounded-2xl p-6 mb-6 text-center ${score === questions.length ? "bg-green-500/10 border border-green-500/20" : score >= questions.length * 0.6 ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
+        <div className="text-5xl mb-2">{score === questions.length ? "🏆" : score >= questions.length * 0.6 ? "⭐" : "💪"}</div>
+        <p className="text-3xl font-bold text-white mb-1">{score}/{questions.length}</p>
+        <p className="text-gray-400 mb-1">{Math.round((score / questions.length) * 100)}% correct</p>
+        <p className="text-indigo-400 text-sm">+{score * 10} XP earned</p>
+      </motion.div>
+      <div className="space-y-4 mb-6">
+        {questions.map((q, qi) => {
+          const chosen = answers[qi];
+          const correct = q.correctIndex;
+          return (
+            <div key={qi} className={`border rounded-xl p-4 ${chosen === correct ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5"}`}>
+              <p className="text-white font-medium mb-3">{qi + 1}. {q.question}</p>
+              <div className="space-y-2">
+                {q.options.map((opt, oi) => (
+                  <div key={oi} className={`px-3 py-2 rounded-lg text-sm ${oi === correct ? "bg-green-500/20 text-green-300 font-medium" : oi === chosen && chosen !== correct ? "bg-red-500/20 text-red-300 line-through" : "text-gray-500"}`}>
+                    {["A", "B", "C", "D"][oi]}. {opt}
+                    {oi === correct && " ✓"}
+                  </div>
+                ))}
+              </div>
+              {q.explanation && <p className="text-indigo-300 text-xs mt-3 italic">💡 {q.explanation}</p>}
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={reset} className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-semibold transition-all flex items-center justify-center gap-2">
+        <RotateCcw size={14} /> Try Again
+      </button>
+    </div>
+  );
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <p className="text-gray-400 text-sm">{Object.keys(answers).length}/{questions.length} answered</p>
+        <div className="flex-1 mx-4 h-1.5 bg-white/10 rounded-full overflow-hidden">
+          <div className="h-full bg-indigo-500 rounded-full transition-all"
+            style={{ width: `${(Object.keys(answers).length / questions.length) * 100}%` }} />
+        </div>
+      </div>
+      <div className="space-y-5">
+        {questions.map((q, qi) => (
+          <div key={qi} className="border border-white/10 rounded-xl p-4">
+            <p className="text-white font-medium mb-3">{qi + 1}. {q.question}</p>
+            <div className="space-y-2">
+              {q.options.map((opt, oi) => {
+                const chosen = answers[qi] === oi;
+                return (
+                  <button key={oi} onClick={() => selectAnswer(qi, oi)}
+                    className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-all ${chosen ? "bg-indigo-600/30 border border-indigo-500/60 text-indigo-200 font-medium" : "bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20"}`}>
+                    <span className="text-gray-500 mr-2">{["A", "B", "C", "D"][oi]}.</span> {opt}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+      {allAnswered && (
+        <button onClick={submit}
+          className="w-full mt-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white transition-all">
+          Submit & Earn XP ⚡
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Quiz History Sparkline ───────────────────────────────────────────────────
+function QuizHistoryBar({ attempts }) {
+  if (!attempts.length) return null;
+  return (
+    <div className="flex items-end gap-1">
+      {attempts.slice(-10).map((a, i) => {
+        const pct = a.total > 0 ? Math.round((a.score / a.total) * 100) : 0;
+        const color = pct >= 80 ? "bg-green-500" : pct >= 60 ? "bg-yellow-500" : "bg-red-500";
+        return (
+          <div key={i} className="flex flex-col items-center gap-0.5" title={`${pct}% — ${new Date(a.created_at).toLocaleDateString()}`}>
+            <div className={`w-4 ${color} rounded-sm`} style={{ height: `${Math.max(4, pct * 0.4)}px` }} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Main Component ───────────────────────────────────────────────────────────
 export default function GuideView() {
   const { id } = useParams();
   const { logout, refreshUser } = useAuth();
@@ -14,19 +302,24 @@ export default function GuideView() {
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
-  const [quizMode, setQuizMode] = useState(false);
+  const [studyMode, setStudyMode] = useState("notes"); // notes | flashcards | mcq | quiz
+  const [expandedTerms, setExpandedTerms] = useState(true);
+  // Self-grade quiz state
+  const [activeQuestions, setActiveQuestions] = useState(null);
+  const [quizCount, setQuizCount] = useState(10);
+  const [generatingQuiz, setGeneratingQuiz] = useState(false);
+  const [quizError, setQuizError] = useState("");
   const [flipped, setFlipped] = useState({});
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [score, setScore] = useState(0);
-  const [expandedTerms, setExpandedTerms] = useState(true);
-  const [activeQuestions, setActiveQuestions] = useState(null); // null = use saved questions
-  const [quizCount, setQuizCount] = useState(10);
-  const [generatingQuiz, setGeneratingQuiz] = useState(false);
-  const [quizError, setQuizError] = useState("");
+  const [quizHistory, setQuizHistory] = useState([]);
+  const [xpToast, setXpToast] = useState(null);
   const chatEndRef = useRef(null);
 
-  useEffect(() => { loadGuide(); }, [id]);
+  useStudyTimer(id);
+
+  useEffect(() => { loadGuide(); api.guides.quizHistory(id).then(setQuizHistory).catch(() => {}); }, [id]);
   useEffect(() => { if (showChat) loadChat(); }, [showChat]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -50,46 +343,40 @@ export default function GuideView() {
     try {
       const reply = await api.chat.send(id, msg);
       setMessages(prev => [...prev, reply]);
-    } catch (err) {
-      setMessages(prev => [...prev, { id: Date.now(), role: "assistant", content: "Sorry, I couldn't respond. Please try again." }]);
+    } catch {
+      setMessages(prev => [...prev, { id: Date.now(), role: "assistant", content: "Sorry, couldn't respond. Try again." }]);
     } finally { setChatLoading(false); }
   };
 
-  const clearChat = async () => {
-    await api.chat.clear(id);
-    setMessages([]);
+  const showXpToast = useCallback((xp) => {
+    setXpToast(xp);
+    setTimeout(() => setXpToast(null), 3000);
+  }, []);
+
+  const resetQuiz = () => { setQuizAnswers({}); setQuizSubmitted(false); setScore(0); setFlipped({}); };
+
+  const generateQuiz = async () => {
+    setGeneratingQuiz(true); setQuizError(""); resetQuiz();
+    try {
+      const { questions } = await api.guides.generateQuiz(id, quizCount, "self-grade");
+      setActiveQuestions(questions);
+    } catch (e) { setQuizError(e.message); }
+    finally { setGeneratingQuiz(false); }
   };
 
   const submitQuiz = async () => {
-    const questions = guide.quiz_questions;
-    let correct = 0;
-    questions.forEach((_, i) => { if (quizAnswers[i] === "correct") correct++; });
+    const questions = activeQuestions || guide.quiz_questions;
+    const correct = questions.filter((_, i) => quizAnswers[i] === "correct").length;
     setScore(correct);
     setQuizSubmitted(true);
-    await api.guides.submitQuiz(id, correct, questions.length);
-    await refreshUser();
-    await loadGuide();
-  };
-
-  const resetQuiz = () => {
-    setQuizAnswers({});
-    setQuizSubmitted(false);
-    setScore(0);
-    setFlipped({});
-  };
-
-  const generateQuiz = async () => {
-    setGeneratingQuiz(true);
-    setQuizError("");
-    resetQuiz();
     try {
-      const { questions } = await api.guides.generateQuiz(id, quizCount);
-      setActiveQuestions(questions);
-    } catch (err) {
-      setQuizError(err.message);
-    } finally {
-      setGeneratingQuiz(false);
-    }
+      await api.guides.submitQuiz(id, correct, questions.length);
+      await refreshUser();
+      showXpToast(correct * 10);
+      const history = await api.guides.quizHistory(id);
+      setQuizHistory(history);
+      await loadGuide();
+    } catch (_) {}
   };
 
   if (!guide) return (
@@ -101,187 +388,237 @@ export default function GuideView() {
   const questions = activeQuestions || guide.quiz_questions || [];
   const terms = guide.key_terms || [];
 
+  const MODES = [
+    { id: "notes",      label: "📝 Notes",       desc: "Summary & key terms" },
+    { id: "flashcards", label: "🃏 Flashcards",   desc: `${terms.length} key terms` },
+    { id: "mcq",        label: "🎯 Multiple Choice", desc: "AI-generated MCQ" },
+    { id: "quiz",       label: "✏️ Self-Grade",   desc: "Reveal & mark answers" },
+  ];
+
   return (
     <div className="flex min-h-screen bg-slate-950">
       <Sidebar onLogout={logout} />
+
       <main className={`flex-1 ml-64 transition-all ${showChat ? "mr-96" : ""}`}>
         <div className="p-8 max-w-3xl mx-auto">
-          <Link to="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
-            <ArrowLeft size={18} /> Dashboard
+          <Link to="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors text-sm">
+            <ArrowLeft size={16} /> Dashboard
           </Link>
 
           {/* Title */}
-          <div className="flex items-start justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-2">{guide.title}</h1>
-              <p className="text-gray-400 text-sm">{new Date(guide.created_at).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
-              {guide.best_quiz_score > 0 && (
-                <div className="flex items-center gap-2 mt-2">
-                  <Trophy size={15} className="text-yellow-400" />
-                  <span className="text-yellow-400 text-sm font-medium">Best score: {guide.best_quiz_score}/{questions.length} ({Math.round(guide.best_quiz_score / questions.length * 100)}%)</span>
-                </div>
-              )}
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex-1 min-w-0 mr-4">
+              <h1 className="text-2xl font-bold text-white mb-1 leading-tight">{guide.title}</h1>
+              <div className="flex items-center gap-3 flex-wrap">
+                <p className="text-gray-500 text-sm">{new Date(guide.created_at).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+                {guide.best_quiz_score > 0 && (
+                  <span className="flex items-center gap-1 text-yellow-400 text-sm font-medium">
+                    <Trophy size={13} /> Best: {guide.best_quiz_score}/{questions.length} ({Math.round(guide.best_quiz_score / questions.length * 100)}%)
+                  </span>
+                )}
+                {quizHistory.length > 1 && (
+                  <div className="flex items-center gap-2">
+                    <BarChart2 size={12} className="text-gray-500" />
+                    <QuizHistoryBar attempts={[...quizHistory].reverse()} />
+                  </div>
+                )}
+              </div>
             </div>
             <button onClick={() => setShowChat(!showChat)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all ${showChat ? "bg-indigo-600 text-white" : "bg-white/5 border border-white/10 text-gray-300 hover:border-indigo-500/40"}`}>
-              <MessageCircle size={16} /> AI Tutor
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all shrink-0 ${showChat ? "bg-indigo-600 text-white" : "bg-white/5 border border-white/10 text-gray-300 hover:border-indigo-500/40"}`}>
+              <MessageCircle size={15} /> AI Tutor
             </button>
           </div>
 
-          {/* Summary */}
-          <section className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-5">
-            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">📝 Summary</h2>
-            <ul className="space-y-2">
-              {guide.summary.map((point, i) => (
-                <motion.li key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-                  className="flex items-start gap-3 text-gray-300">
-                  <span className="text-indigo-400 mt-0.5 shrink-0">•</span>
-                  <span className="leading-relaxed">{point}</span>
-                </motion.li>
-              ))}
-            </ul>
-          </section>
+          {/* Mode Tabs */}
+          <div className="flex gap-1 p-1 bg-white/5 border border-white/10 rounded-xl mb-6">
+            {MODES.map(m => (
+              <button key={m.id} onClick={() => { setStudyMode(m.id); resetQuiz(); }}
+                className={`flex-1 py-2 px-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${studyMode === m.id ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-white"}`}>
+                {m.label}
+              </button>
+            ))}
+          </div>
 
-          {/* Key Terms */}
-          <section className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-5">
-            <button className="w-full flex items-center justify-between text-lg font-bold text-white"
-              onClick={() => setExpandedTerms(!expandedTerms)}>
-              <span>🔑 Key Terms</span>
-              {expandedTerms ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
-            </button>
-            <AnimatePresence>
-              {expandedTerms && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                  {terms.map((item, i) => (
-                    <div key={i} className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3">
-                      <p className="font-semibold text-indigo-300 text-sm">{item.term}</p>
-                      <p className="text-gray-400 text-sm mt-1 leading-relaxed">{item.definition}</p>
-                    </div>
+          {/* XP Toast */}
+          <AnimatePresence>
+            {xpToast !== null && (
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                className="flex items-center gap-2 bg-indigo-600/20 border border-indigo-500/30 rounded-xl px-4 py-3 mb-4 text-indigo-300 font-semibold text-sm">
+                <Zap size={15} className="text-indigo-400" /> +{xpToast} XP earned!
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ── NOTES MODE ── */}
+          {studyMode === "notes" && (
+            <>
+              <section className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-5">
+                <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2">📝 Summary</h2>
+                <ul className="space-y-2">
+                  {guide.summary.map((point, i) => (
+                    <motion.li key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.04 }} className="flex items-start gap-3 text-gray-300">
+                      <span className="text-indigo-400 mt-0.5 shrink-0">•</span>
+                      <span className="leading-relaxed text-sm">{point}</span>
+                    </motion.li>
                   ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </section>
+                </ul>
+              </section>
 
-          {/* Quiz */}
-          <section className="bg-white/5 border border-white/10 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-white">🧠 Quiz</h2>
-              {quizSubmitted && (
-                <button onClick={resetQuiz} className="flex items-center gap-1 text-gray-400 hover:text-white text-sm transition-colors">
-                  <RotateCcw size={14} /> Retry
+              <section className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                <button className="w-full flex items-center justify-between text-base font-bold text-white"
+                  onClick={() => setExpandedTerms(!expandedTerms)}>
+                  <span>🔑 Key Terms</span>
+                  {expandedTerms ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                 </button>
-              )}
-            </div>
+                <AnimatePresence>
+                  {expandedTerms && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }} className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                      {terms.map((item, i) => (
+                        <div key={i} className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3">
+                          <p className="font-semibold text-indigo-300 text-sm">{item.term}</p>
+                          <p className="text-gray-400 text-sm mt-1 leading-relaxed">{item.definition}</p>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </section>
+            </>
+          )}
 
-            {/* Quiz Generator */}
-            {!quizSubmitted && (
-              <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 mb-5">
-                <p className="text-indigo-300 text-sm font-semibold mb-3 flex items-center gap-2">
-                  <RefreshCw size={14} /> Generate a Custom Quiz
-                </p>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="text-gray-400 text-sm">Questions:</span>
-                  <div className="flex gap-2">
+          {/* ── FLASHCARD MODE ── */}
+          {studyMode === "flashcards" && (
+            <section className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <h2 className="text-base font-bold text-white mb-5">🃏 Flashcards — {terms.length} terms</h2>
+              {terms.length === 0
+                ? <p className="text-gray-500 text-sm text-center py-8">No key terms found in this guide.</p>
+                : <FlashcardMode terms={terms} />}
+            </section>
+          )}
+
+          {/* ── MCQ MODE ── */}
+          {studyMode === "mcq" && (
+            <section className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <MCQMode guideId={id} onXpEarned={showXpToast} />
+            </section>
+          )}
+
+          {/* ── SELF-GRADE QUIZ MODE ── */}
+          {studyMode === "quiz" && (
+            <section className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-base font-bold text-white">✏️ Self-Grade Quiz</h2>
+                {quizSubmitted && (
+                  <button onClick={resetQuiz} className="flex items-center gap-1 text-gray-400 hover:text-white text-sm transition-colors">
+                    <RotateCcw size={13} /> Retry
+                  </button>
+                )}
+              </div>
+
+              {/* Generator */}
+              {!quizSubmitted && (
+                <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 mb-5">
+                  <p className="text-indigo-300 text-sm font-semibold mb-3 flex items-center gap-2">
+                    <RefreshCw size={13} /> Generate Custom Quiz
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-gray-400 text-sm">Questions:</span>
                     {[5, 10, 15, 20].map(n => (
                       <button key={n} onClick={() => setQuizCount(n)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${quizCount === n ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"}`}>
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${quizCount === n ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}>
                         {n}
                       </button>
                     ))}
-                    <div className="flex items-center gap-1 bg-white/5 rounded-lg px-2">
-                      <span className="text-gray-500 text-xs">Custom:</span>
-                      <input type="number" min={3} max={30} value={quizCount}
-                        onChange={e => setQuizCount(Math.min(30, Math.max(3, parseInt(e.target.value) || 3)))}
-                        className="w-12 bg-transparent text-white text-sm text-center focus:outline-none py-1.5" />
-                    </div>
+                    <input type="number" min={3} max={30} value={quizCount}
+                      onChange={e => setQuizCount(Math.min(30, Math.max(3, parseInt(e.target.value) || 3)))}
+                      className="w-14 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-center focus:outline-none px-2 py-1.5" />
+                    <button onClick={generateQuiz} disabled={generatingQuiz}
+                      className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-lg text-white text-sm font-semibold transition-all">
+                      {generatingQuiz ? "Generating..." : <><Zap size={13} /> Generate</>}
+                    </button>
                   </div>
-                  <button onClick={generateQuiz} disabled={generatingQuiz}
-                    className="flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-lg text-white text-sm font-semibold transition-all">
-                    {generatingQuiz ? <><span className="animate-spin inline-block">⏳</span> Generating...</> : <><Zap size={14} /> Generate</>}
-                  </button>
+                  {quizError && <p className="text-red-400 text-xs mt-2">{quizError}</p>}
+                  {activeQuestions && <p className="text-green-400 text-xs mt-2">✓ {activeQuestions.length} fresh questions ready.</p>}
                 </div>
-                {quizError && <p className="text-red-400 text-xs mt-2">{quizError}</p>}
-                {activeQuestions && (
-                  <p className="text-green-400 text-xs mt-2">✓ {activeQuestions.length}-question quiz ready — saved questions replaced below.</p>
-                )}
+              )}
+
+              {/* Score banner */}
+              {quizSubmitted && (
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                  className={`rounded-2xl p-5 mb-5 text-center ${score === questions.length ? "bg-green-500/10 border border-green-500/20" : score >= questions.length * 0.6 ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
+                  <div className="text-4xl mb-2">{score === questions.length ? "🏆" : score >= questions.length * 0.6 ? "⭐" : "💪"}</div>
+                  <p className="text-2xl font-bold text-white mb-1">{score}/{questions.length} correct</p>
+                  <p className="text-gray-400 text-sm">{score === questions.length ? "Perfect score!" : score >= questions.length * 0.6 ? "Great job! Keep it up!" : "Keep studying — you've got this!"}</p>
+                </motion.div>
+              )}
+
+              {/* Questions */}
+              <div className="space-y-4">
+                {questions.map((q, i) => (
+                  <div key={i} className="border border-white/10 rounded-xl p-4">
+                    <p className="text-white font-medium text-sm mb-3">{i + 1}. {q.question}</p>
+                    {!quizSubmitted ? (
+                      <div className="flex flex-col gap-2">
+                        <button onClick={() => setFlipped(f => ({ ...f, [i]: !f[i] }))}
+                          className="text-sm text-indigo-400 hover:text-indigo-300 underline underline-offset-2 w-fit transition-colors">
+                          {flipped[i] ? "Hide answer" : "Show answer"}
+                        </button>
+                        {flipped[i] && (
+                          <div>
+                            <p className="text-gray-300 text-sm mb-3 bg-white/5 rounded-lg px-3 py-2">{q.answer}</p>
+                            {!quizAnswers[i] ? (
+                              <div className="flex gap-2">
+                                <button onClick={() => setQuizAnswers(a => ({ ...a, [i]: "correct" }))}
+                                  className="px-3 py-1.5 bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/30 transition-colors">✓ Got it</button>
+                                <button onClick={() => setQuizAnswers(a => ({ ...a, [i]: "wrong" }))}
+                                  className="px-3 py-1.5 bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/30 transition-colors">✗ Missed it</button>
+                              </div>
+                            ) : (
+                              <span className={`text-xs font-medium px-2 py-1 rounded-lg ${quizAnswers[i] === "correct" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+                                {quizAnswers[i] === "correct" ? "✓ Marked correct" : "✗ Marked wrong"}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <p className="text-gray-400 text-sm flex-1">{q.answer}</p>
+                        <span className="text-base">{quizAnswers[i] === "correct" ? "✅" : "❌"}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-            )}
 
-            {/* Score banner */}
-            {quizSubmitted && (
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                className={`rounded-2xl p-5 mb-5 text-center ${score === questions.length ? "bg-green-500/10 border border-green-500/20" : score >= questions.length * 0.6 ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
-                <div className="text-4xl mb-2">{score === questions.length ? "🏆" : score >= questions.length * 0.6 ? "⭐" : "💪"}</div>
-                <p className="text-2xl font-bold text-white mb-1">{score}/{questions.length} correct</p>
-                <p className="text-gray-400">{score === questions.length ? "Perfect score! You're a master!" : score >= questions.length * 0.6 ? "Great job! Keep it up!" : "Keep studying — you've got this!"}</p>
-                <p className="text-indigo-400 text-sm mt-2">+{score * 10} XP earned</p>
-              </motion.div>
-            )}
-
-            {/* Questions */}
-            <div className="space-y-4">
-              {questions.map((q, i) => (
-                <div key={i} className="border border-white/10 rounded-xl p-4">
-                  <p className="text-white font-medium mb-3">{i + 1}. {q.question}</p>
-                  {!quizSubmitted ? (
-                    <div className="flex gap-2 flex-col">
-                      <button onClick={() => setFlipped(f => ({ ...f, [i]: !f[i] }))}
-                        className="text-sm text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors w-fit">
-                        {flipped[i] ? "Hide answer" : "Show answer"}
-                      </button>
-                      {flipped[i] && (
-                        <div>
-                          <p className="text-gray-300 text-sm mb-3 bg-white/5 rounded-lg px-3 py-2">{q.answer}</p>
-                          {!quizAnswers[i] && (
-                            <div className="flex gap-2">
-                              <button onClick={() => setQuizAnswers(a => ({ ...a, [i]: "correct" }))}
-                                className="px-3 py-1.5 bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/30 transition-colors">✓ Got it</button>
-                              <button onClick={() => setQuizAnswers(a => ({ ...a, [i]: "wrong" }))}
-                                className="px-3 py-1.5 bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/30 transition-colors">✗ Missed it</button>
-                            </div>
-                          )}
-                          {quizAnswers[i] && (
-                            <span className={`text-xs font-medium px-2 py-1 rounded-lg ${quizAnswers[i] === "correct" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
-                              {quizAnswers[i] === "correct" ? "✓ Marked correct" : "✗ Marked wrong"}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <p className="text-gray-400 text-sm flex-1">{q.answer}</p>
-                      <span className="text-lg">{quizAnswers[i] === "correct" ? "✅" : "❌"}</span>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {!quizSubmitted && questions.length > 0 && Object.keys(quizAnswers).length === questions.length && (
-              <button onClick={submitQuiz}
-                className="w-full mt-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white transition-all">
-                Submit Quiz & Earn XP ⚡
-              </button>
-            )}
-          </section>
+              {!quizSubmitted && questions.length > 0 && Object.keys(quizAnswers).length === questions.length && (
+                <button onClick={submitQuiz}
+                  className="w-full mt-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white transition-all">
+                  Submit Quiz & Earn XP ⚡
+                </button>
+              )}
+            </section>
+          )}
         </div>
       </main>
 
       {/* Chat Panel */}
       <AnimatePresence>
         {showChat && (
-          <motion.aside initial={{ x: 384 }} animate={{ x: 0 }} exit={{ x: 384 }} transition={{ type: "spring", damping: 25 }}
+          <motion.aside initial={{ x: 384 }} animate={{ x: 0 }} exit={{ x: 384 }}
+            transition={{ type: "spring", damping: 25 }}
             className="fixed right-0 top-0 bottom-0 w-96 bg-slate-900 border-l border-white/10 flex flex-col z-40">
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
               <div>
-                <h3 className="font-bold text-white flex items-center gap-2"><MessageCircle size={16} className="text-indigo-400" /> AI Tutor</h3>
+                <h3 className="font-bold text-white flex items-center gap-2"><MessageCircle size={15} className="text-indigo-400" /> AI Tutor</h3>
                 <p className="text-xs text-gray-400 mt-0.5">Ask anything about this lecture</p>
               </div>
               <div className="flex gap-2">
-                <button onClick={clearChat} className="text-gray-500 hover:text-gray-300 text-xs transition-colors">Clear</button>
+                <button onClick={async () => { await api.chat.clear(id); setMessages([]); }}
+                  className="text-gray-500 hover:text-gray-300 text-xs transition-colors">Clear</button>
                 <button onClick={() => setShowChat(false)} className="text-gray-500 hover:text-white transition-colors"><X size={18} /></button>
               </div>
             </div>
@@ -292,7 +629,7 @@ export default function GuideView() {
                   <MessageCircle size={32} className="mx-auto mb-3 opacity-30" />
                   <p>Ask me anything about <span className="text-indigo-400">{guide.title}</span>.</p>
                   <div className="mt-4 space-y-2">
-                    {["Can you explain the first summary point?", "Give me an example of a key term", "What should I focus on for the exam?"].map(s => (
+                    {["Explain the key concepts simply", "What's most important for the exam?", "Give me a real-world example"].map(s => (
                       <button key={s} onClick={() => setChatInput(s)}
                         className="block w-full text-left px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs text-gray-400 hover:text-gray-200 transition-colors">
                         "{s}"
@@ -310,9 +647,7 @@ export default function GuideView() {
               ))}
               {chatLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-white/10 rounded-2xl px-4 py-3 text-sm text-gray-400">
-                    <span className="animate-pulse">Thinking...</span>
-                  </div>
+                  <div className="bg-white/10 rounded-2xl px-4 py-3 text-sm text-gray-400 animate-pulse">Thinking...</div>
                 </div>
               )}
               <div ref={chatEndRef} />
@@ -323,7 +658,7 @@ export default function GuideView() {
                 className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500 transition-colors" />
               <button type="submit" disabled={!chatInput.trim() || chatLoading}
                 className="p-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 rounded-xl text-white transition-colors">
-                <Send size={16} />
+                <Send size={15} />
               </button>
             </form>
           </motion.aside>

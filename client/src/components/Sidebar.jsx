@@ -1,10 +1,11 @@
 import { Link, useLocation } from "react-router-dom";
-import { BookOpen, LayoutDashboard, FolderOpen, LogOut, Zap } from "lucide-react";
+import { BookOpen, LayoutDashboard, BarChart2, LogOut, Zap } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/guides", icon: BookOpen, label: "All Guides" },
+  { to: "/guides",    icon: BookOpen,         label: "All Guides" },
+  { to: "/progress",  icon: BarChart2,        label: "Progress" },
 ];
 
 export default function Sidebar({ onLogout }) {
@@ -32,7 +33,11 @@ export default function Sidebar({ onLogout }) {
           const active = pathname === to || (to !== "/dashboard" && pathname.startsWith(to));
           return (
             <Link key={to} to={to}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${active ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${
+                active
+                  ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
+                  : "text-gray-400 hover:text-white hover:bg-white/5"
+              }`}>
               <Icon size={18} />
               {label}
             </Link>
@@ -45,7 +50,7 @@ export default function Sidebar({ onLogout }) {
         <div className="bg-white/5 rounded-2xl p-3 mb-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-gray-400 font-medium">Level {level}</span>
-            <span className="text-xs text-indigo-400 flex items-center gap-1"><Zap size={11} /> {xp} XP</span>
+            <span className="text-xs text-indigo-400 flex items-center gap-1"><Zap size={11} /> {xp.toLocaleString()} XP</span>
           </div>
           <div className="h-2 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all"
