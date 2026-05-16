@@ -37,6 +37,10 @@ export const api = {
       const fd = new FormData(); fd.append("audio", file);
       return request("/summarize/audio", { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd });
     },
+    file: (file) => {
+      const fd = new FormData(); fd.append("file", file);
+      return request("/summarize/file", { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd });
+    },
   },
   folders: {
     list: () => request("/folders", { headers: headers() }),

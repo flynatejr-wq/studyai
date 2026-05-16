@@ -2,6 +2,9 @@ import express from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import multer from "multer";
+import pdfParse from "pdf-parse/lib/pdf-parse.js";
+import mammoth from "mammoth";
+import officeParser from "officeparser";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -85,6 +88,56 @@ router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong processing your audio." });
+  }
+});
+
+// ── POST /api/summarize/file — PDF, DOCX, PPTX, TXT, CSV, MD ────────────────
+router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file provided." });
+
+  const { mimetype, originalname, buffer } = req.file;
+  const ext = originalname.split(".").pop().toLowerCase();
+
+  try {
+    let text = "";
+
+    // ── PDF ──────────────────────────────────────────────────────────────────
+    if (mimetype === "application/pdf" || ext === "pdf") {
+      const data = await pdfParse(buffer);
+      text = data.text;
+      if (!text?.trim()) throw new Error("Could not extract text from this PDF. It may be a scanned image — try uploading a photo instead.");
+    }
+
+    // ── Word (.docx) ─────────────────────────────────────────────────────────
+    else if (ext === "docx" || mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+      const result = await mammoth.extractRawText({ buffer });
+      text = result.value;
+    }
+
+    // ── PowerPoint (.pptx) ───────────────────────────────────────────────────
+    else if (ext === "pptx" || mimetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+      text = await new Promise((resolve, reject) => {
+        officeParser.parseOfficeAsync(buffer, { outputErrorToConsole: false }).then(resolve).catch(reject);
+      });
+    }
+
+    // ── Plain text, Markdown, CSV, RTF ───────────────────────────────────────
+    else if (["txt", "md", "csv", "rtf", "text"].includes(ext) || mimetype.startsWith("text/")) {
+      text = buffer.toString("utf-8");
+    }
+
+    else {
+      return res.status(400).json({ error: `Unsupported file type: .${ext}. Supported: PDF, DOCX, PPTX, TXT, MD, CSV` });
+    }
+
+    if (!text?.trim()) return res.status(400).json({ error: "The file appears to be empty or could not be read." });
+
+    // Trim to avoid token limits (roughly 15k words max)
+    const trimmed = text.trim().slice(0, 60000);
+    res.json(await generateFromText(trimmed));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "Something went wrong processing your file." });
   }
 });
 

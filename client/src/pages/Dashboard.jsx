@@ -48,7 +48,8 @@ export default function Dashboard() {
       let data;
       if (type === "text") data = await api.summarize.text(transcript);
       else if (type === "image") data = await api.summarize.image(file);
-      else data = await api.summarize.audio(file);
+      else if (type === "audio") data = await api.summarize.audio(file);
+      else data = await api.summarize.file(file);
       setResults(data);
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
