@@ -6,7 +6,7 @@ import { createRequire } from "module";
 import { requireAuth } from "../middleware/auth.js";
 
 const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse/lib/pdf-parse.js"); // use lib path to skip test runner
+const pdfParse = require("pdf-parse");
 const mammoth = require("mammoth");
 const officeParser = require("officeparser");
 
