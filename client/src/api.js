@@ -1,6 +1,6 @@
 const BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
 
-function getToken() {
+export function getToken() {
   return localStorage.getItem("token");
 }
 
@@ -17,52 +17,49 @@ async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, options);
   const text = await res.text();
   let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error(`Server error (${res.status}). Please try again.`);
-  }
+  try { data = JSON.parse(text); }
+  catch { throw new Error(`Server error (${res.status}). Please try again.`); }
   if (!res.ok) throw new Error(data.error || "Something went wrong");
   return data;
 }
 
 export const api = {
   auth: {
-    signup: (body) => request("/auth/signup", { method: "POST", headers: headers(), body: JSON.stringify(body) }),
-    login:  (body) => request("/auth/login",  { method: "POST", headers: headers(), body: JSON.stringify(body) }),
-    me:     ()     => request("/auth/me", { headers: headers() }),
+    signup:         (body) => request("/auth/signup",         { method: "POST",   headers: headers(), body: JSON.stringify(body) }),
+    login:          (body) => request("/auth/login",          { method: "POST",   headers: headers(), body: JSON.stringify(body) }),
+    me:             ()     => request("/auth/me",              { headers: headers() }),
+    updateProfile:  (body) => request("/auth/profile",        { method: "PUT",    headers: headers(), body: JSON.stringify(body) }),
+    deleteAccount:  (body) => request("/auth/account",        { method: "DELETE", headers: headers(), body: JSON.stringify(body) }),
+    forgotPassword: (body) => request("/auth/forgot-password",{ method: "POST",   headers: headers(), body: JSON.stringify(body) }),
+    resetPassword:  (body) => request("/auth/reset-password", { method: "POST",   headers: headers(), body: JSON.stringify(body) }),
   },
   summarize: {
     text:  (transcript) => request("/summarize", { method: "POST", headers: headers(), body: JSON.stringify({ transcript }) }),
-    image: (file) => {
-      const fd = new FormData(); fd.append("image", file);
-      return request("/summarize/image", { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd });
-    },
-    audio: (file) => {
-      const fd = new FormData(); fd.append("audio", file);
-      return request("/summarize/audio", { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd });
-    },
-    file: (file) => {
-      const fd = new FormData(); fd.append("file", file);
-      return request("/summarize/file", { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd });
-    },
+    image: (file) => { const fd = new FormData(); fd.append("image", file); return request("/summarize/image", { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd }); },
+    audio: (file) => { const fd = new FormData(); fd.append("audio", file); return request("/summarize/audio", { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd }); },
+    file:  (file) => { const fd = new FormData(); fd.append("file",  file); return request("/summarize/file",  { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd }); },
   },
   folders: {
-    list:   ()         => request("/folders", { headers: headers() }),
-    create: (body)     => request("/folders", { method: "POST",  headers: headers(), body: JSON.stringify(body) }),
-    update: (id, body) => request(`/folders/${id}`, { method: "PATCH",  headers: headers(), body: JSON.stringify(body) }),
-    delete: (id)       => request(`/folders/${id}`, { method: "DELETE", headers: headers() }),
+    list:   ()         => request("/folders",      { headers: headers() }),
+    create: (body)     => request("/folders",      { method: "POST",   headers: headers(), body: JSON.stringify(body) }),
+    update: (id, body) => request(`/folders/${id}`,{ method: "PATCH",  headers: headers(), body: JSON.stringify(body) }),
+    delete: (id)       => request(`/folders/${id}`,{ method: "DELETE", headers: headers() }),
   },
   guides: {
-    list:         (folder_id) => request(`/guides${folder_id ? `?folder_id=${folder_id}` : ""}`, { headers: headers() }),
-    get:          (id)        => request(`/guides/${id}`, { headers: headers() }),
-    save:         (body)      => request("/guides", { method: "POST",   headers: headers(), body: JSON.stringify(body) }),
-    move:         (id, folder_id) => request(`/guides/${id}/move`,  { method: "PATCH",  headers: headers(), body: JSON.stringify({ folder_id }) }),
-    delete:       (id)        => request(`/guides/${id}`,           { method: "DELETE", headers: headers() }),
-    submitQuiz:   (id, score, total) => request(`/guides/${id}/quiz`, { method: "POST", headers: headers(), body: JSON.stringify({ score, total }) }),
+    // Legacy (returns array) — used by Dashboard, FolderView
+    list:         (folder_id)          => request(`/guides${folder_id ? `?folder_id=${folder_id}` : ""}`, { headers: headers() }),
+    // Paginated + searchable — used by AllGuides
+    listPaged:    (offset = 0, search = "") => request(`/guides?limit=24&offset=${offset}${search ? `&search=${encodeURIComponent(search)}` : ""}`, { headers: headers() }),
+    get:          (id)                 => request(`/guides/${id}`, { headers: headers() }),
+    save:         (body)               => request("/guides",           { method: "POST",   headers: headers(), body: JSON.stringify(body) }),
+    move:         (id, folder_id)      => request(`/guides/${id}/move`,{ method: "PATCH",  headers: headers(), body: JSON.stringify({ folder_id }) }),
+    delete:       (id)                 => request(`/guides/${id}`,     { method: "DELETE", headers: headers() }),
+    submitQuiz:   (id, score, total)   => request(`/guides/${id}/quiz`,{ method: "POST",   headers: headers(), body: JSON.stringify({ score, total }) }),
     generateQuiz: (id, count, mode = "self-grade") => request(`/guides/${id}/generate-quiz`, { method: "POST", headers: headers(), body: JSON.stringify({ count, mode }) }),
-    quizHistory:  (id)        => request(`/guides/${id}/quiz-history`, { headers: headers() }),
+    quizHistory:  (id)                 => request(`/guides/${id}/quiz-history`, { headers: headers() }),
     logSession:   (id, duration_seconds) => request(`/guides/${id}/session`, { method: "POST", headers: headers(), body: JSON.stringify({ duration_seconds }) }),
+    share:        (id)                 => request(`/guides/${id}/share`, { method: "POST",   headers: headers() }),
+    revokeShare:  (id)                 => request(`/guides/${id}/share`, { method: "DELETE", headers: headers() }),
   },
   chat: {
     history: (guideId)          => request(`/chat/${guideId}`, { headers: headers() }),
@@ -71,5 +68,8 @@ export const api = {
   },
   progress: {
     get: () => request("/progress", { headers: headers() }),
+  },
+  public: {
+    getGuide: (token) => request(`/public/guide/${token}`),
   },
 };

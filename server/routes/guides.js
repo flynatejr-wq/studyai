@@ -61,9 +61,41 @@ function checkAchievements(userId) {
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 
-// Get all guides (optionally by folder)
+// Get guides — supports ?folder_id for legacy, ?limit+?offset+?search for AllGuides
 router.get("/", (req, res) => {
-  const { folder_id } = req.query;
+  const { folder_id, limit, offset, search } = req.query;
+
+  if (limit !== undefined) {
+    // Paginated + searchable response (used by AllGuides)
+    const limitNum = Math.min(Math.max(parseInt(limit) || 24, 1), 100);
+    const offsetNum = Math.max(parseInt(offset) || 0, 0);
+    const searchTerm = search ? `%${search}%` : null;
+
+    let guides, total;
+    if (searchTerm) {
+      guides = db.prepare(
+        "SELECT * FROM guides WHERE user_id = ? AND title LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?"
+      ).all(req.user.id, searchTerm, limitNum, offsetNum);
+      total = db.prepare(
+        "SELECT COUNT(*) as c FROM guides WHERE user_id = ? AND title LIKE ?"
+      ).get(req.user.id, searchTerm).c;
+    } else {
+      guides = db.prepare(
+        "SELECT * FROM guides WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?"
+      ).all(req.user.id, limitNum, offsetNum);
+      total = db.prepare(
+        "SELECT COUNT(*) as c FROM guides WHERE user_id = ?"
+      ).get(req.user.id).c;
+    }
+
+    return res.json({
+      guides: guides.map(parseGuide),
+      total,
+      hasMore: offsetNum + limitNum < total,
+    });
+  }
+
+  // Legacy: return plain array (used by Dashboard, FolderView)
   const guides = folder_id
     ? db.prepare("SELECT * FROM guides WHERE user_id = ? AND folder_id = ? ORDER BY created_at DESC").all(req.user.id, folder_id)
     : db.prepare("SELECT * FROM guides WHERE user_id = ? ORDER BY created_at DESC").all(req.user.id);
@@ -80,14 +112,16 @@ router.get("/:id", (req, res) => {
 // Save a guide
 router.post("/", (req, res) => {
   const { title, folder_id, type, summary, key_terms, quiz_questions } = req.body;
-  if (!title || !summary || !key_terms || !quiz_questions)
+  if (!title?.trim() || !summary || !key_terms || !quiz_questions)
     return res.status(400).json({ error: "Missing required fields." });
+  if (title.trim().length > 200)
+    return res.status(400).json({ error: "Title is too long." });
 
   const id = uuid();
   db.prepare(
     `INSERT INTO guides (id, user_id, folder_id, title, type, summary, key_terms, quiz_questions)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, req.user.id, folder_id || null, title, type || "text",
+  ).run(id, req.user.id, folder_id || null, title.trim(), type || "text",
     JSON.stringify(summary), JSON.stringify(key_terms), JSON.stringify(quiz_questions));
 
   const today = new Date().toISOString().split("T")[0];
@@ -115,23 +149,30 @@ router.delete("/:id", (req, res) => {
   res.json({ success: true });
 });
 
-// Submit quiz attempt
+// Submit quiz attempt — with server-side score validation
 router.post("/:id/quiz", (req, res) => {
-  const { score, total } = req.body;
   const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
-  db.prepare("INSERT INTO quiz_attempts (id, guide_id, user_id, score, total) VALUES (?, ?, ?, ?, ?)")
-    .run(uuid(), guide.id, req.user.id, score, total);
+  const scoreNum = parseInt(req.body.score);
+  const totalNum = parseInt(req.body.total);
+  if (
+    isNaN(scoreNum) || isNaN(totalNum) ||
+    scoreNum < 0 || totalNum < 1 ||
+    scoreNum > totalNum || totalNum > 50
+  ) return res.status(400).json({ error: "Invalid quiz score." });
 
-  if (score > guide.best_quiz_score) {
+  db.prepare("INSERT INTO quiz_attempts (id, guide_id, user_id, score, total) VALUES (?, ?, ?, ?, ?)")
+    .run(uuid(), guide.id, req.user.id, scoreNum, totalNum);
+
+  if (scoreNum > guide.best_quiz_score) {
     db.prepare("UPDATE guides SET best_quiz_score = ?, quiz_attempts = quiz_attempts + 1 WHERE id = ?")
-      .run(score, guide.id);
+      .run(scoreNum, guide.id);
   } else {
     db.prepare("UPDATE guides SET quiz_attempts = quiz_attempts + 1 WHERE id = ?").run(guide.id);
   }
 
-  const xpGained = score * 10;
+  const xpGained = scoreNum * 10;
   db.prepare("UPDATE users SET xp = xp + ?, total_quizzes = total_quizzes + 1 WHERE id = ?")
     .run(xpGained, req.user.id);
   updateLevel(req.user.id);
@@ -140,17 +181,19 @@ router.post("/:id/quiz", (req, res) => {
   res.json({ success: true, xpGained });
 });
 
-// Log a study session (frontend sends duration on page unload)
+// Log a study session
 router.post("/:id/session", (req, res) => {
   const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
   const duration = Math.max(0, Math.min(parseInt(req.body.duration_seconds) || 0, 7200));
-  if (duration < 10) return res.json({ success: true }); // ignore micro-visits
+  if (duration < 10) return res.json({ success: true });
 
   db.prepare("INSERT INTO study_sessions (id, guide_id, user_id, duration_seconds) VALUES (?, ?, ?, ?)")
     .run(uuid(), guide.id, req.user.id, duration);
 
+  const now = new Date().toISOString();
+  db.prepare("UPDATE guides SET last_studied_at = ? WHERE id = ?").run(now, guide.id);
   db.prepare("UPDATE users SET total_study_time = COALESCE(total_study_time, 0) + ? WHERE id = ?")
     .run(duration, req.user.id);
 
@@ -158,7 +201,7 @@ router.post("/:id/session", (req, res) => {
   res.json({ success: true });
 });
 
-// Get quiz attempt history for a guide
+// Get quiz history
 router.get("/:id/quiz-history", (req, res) => {
   const attempts = db.prepare(
     "SELECT score, total, created_at FROM quiz_attempts WHERE guide_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT 20"
@@ -166,7 +209,29 @@ router.get("/:id/quiz-history", (req, res) => {
   res.json(attempts);
 });
 
-// Generate a fresh quiz — supports self-grade and multiple-choice modes
+// Get or create a public share link
+router.post("/:id/share", (req, res) => {
+  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+  if (!guide) return res.status(404).json({ error: "Guide not found." });
+
+  let token = guide.share_token;
+  if (!token) {
+    token = uuid();
+    db.prepare("UPDATE guides SET share_token = ? WHERE id = ?").run(token, guide.id);
+  }
+
+  res.json({ token });
+});
+
+// Revoke share link
+router.delete("/:id/share", (req, res) => {
+  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+  if (!guide) return res.status(404).json({ error: "Guide not found." });
+  db.prepare("UPDATE guides SET share_token = NULL WHERE id = ?").run(guide.id);
+  res.json({ success: true });
+});
+
+// Generate quiz
 router.post("/:id/generate-quiz", async (req, res) => {
   const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
   if (!guide) return res.status(404).json({ error: "Guide not found." });
@@ -177,35 +242,13 @@ router.post("/:id/generate-quiz", async (req, res) => {
   const summary = JSON.parse(guide.summary);
   const keyTerms = JSON.parse(guide.key_terms);
 
-  const context = `Title: ${guide.title}
-
-Summary:
-${summary.map((s, i) => `${i + 1}. ${s}`).join("\n")}
-
-Key Terms:
-${keyTerms.map((t) => `- ${t.term}: ${t.definition}`).join("\n")}`;
+  const context = `Title: ${guide.title}\n\nSummary:\n${summary.map((s, i) => `${i + 1}. ${s}`).join("\n")}\n\nKey Terms:\n${keyTerms.map((t) => `- ${t.term}: ${t.definition}`).join("\n")}`;
 
   let prompt;
   if (mode === "mcq") {
-    prompt = `Based on this study guide, generate exactly ${count} multiple-choice questions.
-
-${context}
-
-Return ONLY a valid JSON array with exactly ${count} objects. Each object must have:
-- "question": the question text
-- "options": array of exactly 4 answer choices (strings)
-- "correctIndex": 0-based index of the correct option (0, 1, 2, or 3)
-- "explanation": one sentence explaining why the answer is correct
-
-Vary the difficulty. Make wrong options plausible but clearly incorrect on reflection.
-Return ONLY the JSON array, no extra text.`;
+    prompt = `Based on this study guide, generate exactly ${count} multiple-choice questions.\n\n${context}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have:\n- "question": the question text\n- "options": array of exactly 4 answer choices (strings)\n- "correctIndex": 0-based index of the correct option (0, 1, 2, or 3)\n- "explanation": one sentence explaining why the answer is correct\n\nVary the difficulty. Make wrong options plausible but clearly incorrect on reflection.\nReturn ONLY the JSON array, no extra text.`;
   } else {
-    prompt = `Based on this study guide, generate exactly ${count} quiz questions.
-
-${context}
-
-Return ONLY a valid JSON array with exactly ${count} objects, each with "question" and "answer" fields.
-Return ONLY the JSON array, no extra text.`;
+    prompt = `Based on this study guide, generate exactly ${count} quiz questions.\n\n${context}\n\nReturn ONLY a valid JSON array with exactly ${count} objects, each with "question" and "answer" fields.\nReturn ONLY the JSON array, no extra text.`;
   }
 
   try {

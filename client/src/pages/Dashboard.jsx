@@ -3,10 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, FolderOpen, BookOpen, Flame, Star, Zap, Trash2, X, ChevronRight } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { useToast } from "../contexts/ToastContext.jsx";
 import { api } from "../api.js";
 import UploadForm from "../components/UploadForm.jsx";
 import Results from "../components/Results.jsx";
 import Sidebar from "../components/Sidebar.jsx";
+import ConfirmModal from "../components/ConfirmModal.jsx";
 
 const FOLDER_COLORS = {
   indigo: "from-indigo-500 to-indigo-700", violet: "from-violet-500 to-violet-700",
@@ -20,6 +22,7 @@ function xpForNextLevel(level) { return level * level * 100; }
 
 export default function Dashboard() {
   const { user, refreshUser, logout } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const [folders, setFolders] = useState([]);
   const [recentGuides, setRecentGuides] = useState([]);
@@ -31,10 +34,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [saveFolder, setSaveFolder] = useState("");
+  const [deleteFolderTarget, setDeleteFolderTarget] = useState(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   async function loadData() {
     const [f, g] = await Promise.all([api.folders.list(), api.guides.list()]);
@@ -70,22 +72,37 @@ export default function Dashboard() {
       await loadData();
       setResults(null);
       setShowCreate(false);
+      toast({ message: "Guide saved!", type: "success" });
       navigate(`/guide/${guide.id}`);
-    } catch (err) { setError(err.message); }
+    } catch (err) {
+      setError(err.message);
+      toast({ message: err.message, type: "error" });
+    }
   };
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
-    await api.folders.create({ name: newFolderName, icon: newFolderIcon });
-    setNewFolderName(""); setNewFolderIcon("📁"); setShowNewFolder(false);
-    loadData();
+    try {
+      await api.folders.create({ name: newFolderName, icon: newFolderIcon });
+      setNewFolderName(""); setNewFolderIcon("📁"); setShowNewFolder(false);
+      toast({ message: `Folder "${newFolderName}" created!`, type: "success" });
+      loadData();
+    } catch (err) {
+      toast({ message: err.message, type: "error" });
+    }
   };
 
-  const handleDeleteFolder = async (e, id) => {
-    e.stopPropagation(); e.preventDefault();
-    if (!confirm("Delete this folder and all its guides?")) return;
-    await api.folders.delete(id);
-    loadData();
+  const confirmDeleteFolder = async () => {
+    if (!deleteFolderTarget) return;
+    try {
+      await api.folders.delete(deleteFolderTarget.id);
+      toast({ message: `Folder deleted.`, type: "success" });
+      loadData();
+    } catch (err) {
+      toast({ message: err.message, type: "error" });
+    } finally {
+      setDeleteFolderTarget(null);
+    }
   };
 
   const xpNext = xpForNextLevel(user?.level || 1);
@@ -177,7 +194,8 @@ export default function Dashboard() {
               <input value={newFolderIcon} onChange={e => setNewFolderIcon(e.target.value)}
                 className="w-14 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-center focus:outline-none focus:border-indigo-500" placeholder="📁" />
               <input value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Folder name..."
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 min-w-48" />
+                onKeyDown={e => e.key === "Enter" && handleCreateFolder()}
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 min-w-40" />
               <button onClick={handleCreateFolder} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold text-sm">Create</button>
               <button onClick={() => setShowNewFolder(false)} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 text-sm">Cancel</button>
             </motion.div>
@@ -193,14 +211,15 @@ export default function Dashboard() {
               {folders.map(folder => (
                 <Link key={folder.id} to={`/folder/${folder.id}`}
                   className="group relative bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-2xl p-4 transition-all hover:bg-white/8">
-                  <button onClick={e => handleDeleteFolder(e, folder.id)}
-                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all">
+                  <button
+                    onClick={e => { e.stopPropagation(); e.preventDefault(); setDeleteFolderTarget({ id: folder.id, name: folder.name }); }}
+                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all p-1">
                     <Trash2 size={14} />
                   </button>
                   <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${FOLDER_COLORS[folder.color] || FOLDER_COLORS.indigo} flex items-center justify-center text-xl mb-3`}>
                     {folder.icon}
                   </div>
-                  <p className="text-white font-semibold text-sm truncate">{folder.name}</p>
+                  <p className="text-white font-semibold text-sm truncate pr-4">{folder.name}</p>
                   <p className="text-gray-500 text-xs mt-0.5">{folder.guide_count} guide{folder.guide_count !== 1 ? "s" : ""}</p>
                 </Link>
               ))}
@@ -239,6 +258,15 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+
+      <ConfirmModal
+        open={!!deleteFolderTarget}
+        title="Delete this folder?"
+        message={`"${deleteFolderTarget?.name}" and all guides inside it will be permanently deleted.`}
+        confirmText="Delete Folder"
+        onConfirm={confirmDeleteFolder}
+        onCancel={() => setDeleteFolderTarget(null)}
+      />
     </div>
   );
 }

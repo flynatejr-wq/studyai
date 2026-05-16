@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Prevent unintended horizontal overflow on mobile */
+/* Prevent unintended horizontal overflow */
 html {
   overflow-x: hidden;
 }
@@ -12,8 +12,45 @@ body {
   min-height: 100dvh;
 }
 
-/* Make sure nothing bleeds outside the viewport */
 #root {
   overflow-x: hidden;
   position: relative;
+}
+
+/* ── Print / Save as PDF ──────────────────────────────────────────────────── */
+@media print {
+  /* Hide everything except guide content */
+  aside,
+  header,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 13px;
+  }
+
+  main {
+    margin: 0 !important;
+    padding: 16px !important;
+    max-width: 100% !important;
+  }
+
+  /* Force colors for legibility */
+  .text-white { color: #111 !important; }
+  .text-gray-300, .text-gray-400 { color: #444 !important; }
+  .text-indigo-300, .text-indigo-400 { color: #4338ca !important; }
+  .bg-white\/5 { background: #f9f9f9 !important; }
+  .border-white\/10 { border-color: #ddd !important; }
+  .bg-indigo-500\/10 { background: #eef2ff !important; }
+  .border-indigo-500\/20 { border-color: #c7d2fe !important; }
+
+  /* Remove animations */
+  * { animation: none !important; transition: none !important; }
+
+  /* Ensure page breaks nicely */
+  section { break-inside: avoid; }
 }

@@ -49,20 +49,41 @@ function ActivityHeatmap({ activity }) {
     days.push({ date: key, seconds: map[key] || 0 });
   }
   const max = Math.max(...days.map(d => d.seconds), 1);
+  // Split into 2 rows of 15 on mobile, single row on larger screens
   return (
-    <div className="flex gap-1 flex-wrap">
-      {days.map(({ date, seconds }) => {
-        const intensity = seconds / max;
-        const bg = seconds === 0
-          ? "bg-white/5"
-          : intensity < 0.33 ? "bg-indigo-900/60"
-          : intensity < 0.66 ? "bg-indigo-600/70"
-          : "bg-indigo-500";
-        return (
-          <div key={date} title={`${date}: ${fmtTime(seconds)}`}
-            className={`w-7 h-7 rounded-md ${bg} cursor-default`} />
-        );
-      })}
+    <div className="space-y-1 sm:space-y-0">
+      {/* Mobile: 2 rows of 15 */}
+      <div className="flex gap-1 sm:hidden">
+        {days.slice(0, 15).map(({ date, seconds }) => {
+          const intensity = seconds / max;
+          const bg = seconds === 0 ? "bg-white/5"
+            : intensity < 0.33 ? "bg-indigo-900/60"
+            : intensity < 0.66 ? "bg-indigo-600/70"
+            : "bg-indigo-500";
+          return <div key={date} title={`${date}: ${fmtTime(seconds)}`} className={`flex-1 h-6 rounded ${bg} cursor-default min-w-0`} />;
+        })}
+      </div>
+      <div className="flex gap-1 sm:hidden">
+        {days.slice(15).map(({ date, seconds }) => {
+          const intensity = seconds / max;
+          const bg = seconds === 0 ? "bg-white/5"
+            : intensity < 0.33 ? "bg-indigo-900/60"
+            : intensity < 0.66 ? "bg-indigo-600/70"
+            : "bg-indigo-500";
+          return <div key={date} title={`${date}: ${fmtTime(seconds)}`} className={`flex-1 h-6 rounded ${bg} cursor-default min-w-0`} />;
+        })}
+      </div>
+      {/* Desktop: single row */}
+      <div className="hidden sm:flex gap-1 flex-wrap">
+        {days.map(({ date, seconds }) => {
+          const intensity = seconds / max;
+          const bg = seconds === 0 ? "bg-white/5"
+            : intensity < 0.33 ? "bg-indigo-900/60"
+            : intensity < 0.66 ? "bg-indigo-600/70"
+            : "bg-indigo-500";
+          return <div key={date} title={`${date}: ${fmtTime(seconds)}`} className={`w-7 h-7 rounded-md ${bg} cursor-default`} />;
+        })}
+      </div>
     </div>
   );
 }

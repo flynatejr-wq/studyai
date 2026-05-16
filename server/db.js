@@ -98,5 +98,9 @@ db.exec(`
 // Safely add new columns to existing tables (ignore if already exists)
 const safeAlter = (sql) => { try { db.exec(sql); } catch (_) {} };
 safeAlter("ALTER TABLE users ADD COLUMN total_study_time INTEGER DEFAULT 0");
+safeAlter("ALTER TABLE users ADD COLUMN reset_token TEXT");
+safeAlter("ALTER TABLE users ADD COLUMN reset_token_expires TEXT");
+safeAlter("ALTER TABLE guides ADD COLUMN share_token TEXT");
+safeAlter("ALTER TABLE guides ADD COLUMN last_studied_at TEXT");
 
 export default db;

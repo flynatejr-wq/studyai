@@ -1,17 +1,25 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import summarizeRoute from "./routes/summarize.js";
 import authRoute from "./routes/auth.js";
 import foldersRoute from "./routes/folders.js";
 import guidesRoute from "./routes/guides.js";
 import chatRoute from "./routes/chat.js";
 import progressRoute from "./routes/progress.js";
+import publicRoute from "./routes/public.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Security headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 
 const allowedOrigins = [
   "http://localhost:5173",
@@ -27,14 +35,41 @@ app.use(cors({
   credentials: true,
 }));
 
+// Rate limiting
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please wait a moment and try again." },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many login attempts. Please wait 15 minutes and try again." },
+});
+
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many AI requests. Please wait a moment." },
+});
+
+app.use(generalLimiter);
 app.use(express.json({ limit: "10mb" }));
 
-app.use("/api/auth", authRoute);
-app.use("/api/summarize", summarizeRoute);
+app.use("/api/auth", authLimiter, authRoute);
+app.use("/api/summarize", aiLimiter, summarizeRoute);
 app.use("/api/folders", foldersRoute);
 app.use("/api/guides", guidesRoute);
-app.use("/api/chat", chatRoute);
+app.use("/api/chat", aiLimiter, chatRoute);
 app.use("/api/progress", progressRoute);
+app.use("/api/public", publicRoute);
 
 app.get("/health", (_, res) => res.json({ status: "ok" }));
 

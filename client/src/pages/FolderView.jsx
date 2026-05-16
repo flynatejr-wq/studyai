@@ -4,18 +4,20 @@ import { ArrowLeft, BookOpen, Trash2, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { api } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { useToast } from "../contexts/ToastContext.jsx";
 import Sidebar from "../components/Sidebar.jsx";
+import ConfirmModal from "../components/ConfirmModal.jsx";
 
 export default function FolderView() {
   const { id } = useParams();
   const { logout } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const [folder, setFolder] = useState(null);
   const [guides, setGuides] = useState([]);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
-  useEffect(() => {
-    load();
-  }, [id]);
+  useEffect(() => { load(); }, [id]);
 
   async function load() {
     const [folders, g] = await Promise.all([api.folders.list(), api.guides.list(id)]);
@@ -23,32 +25,39 @@ export default function FolderView() {
     setGuides(g);
   }
 
-  const deleteGuide = async (e, guideId) => {
-    e.preventDefault(); e.stopPropagation();
-    if (!confirm("Delete this guide?")) return;
-    await api.guides.delete(guideId);
-    setGuides(g => g.filter(x => x.id !== guideId));
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.guides.delete(deleteTarget.id);
+      setGuides(g => g.filter(x => x.id !== deleteTarget.id));
+      toast({ message: "Guide deleted.", type: "success" });
+    } catch (err) {
+      toast({ message: err.message, type: "error" });
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
   return (
     <div className="flex min-h-screen bg-slate-950">
       <Sidebar onLogout={logout} />
       <main className="flex-1 md:ml-64 p-4 md:p-8 pt-16 md:pt-8">
-        <Link to="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
-          <ArrowLeft size={18} /> Back to Dashboard
+        <Link to="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors text-sm">
+          <ArrowLeft size={16} /> Back to Dashboard
         </Link>
 
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-white">
               {folder?.icon} {folder?.name}
             </h1>
             <p className="text-gray-400 mt-1">{guides.length} guide{guides.length !== 1 ? "s" : ""}</p>
           </div>
-          <Link to="/dashboard" onClick={e => { e.preventDefault(); navigate("/dashboard", { state: { openCreate: true } }); }}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold text-sm transition-colors">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold text-sm transition-colors self-start sm:self-auto">
             <Plus size={16} /> New Guide
-          </Link>
+          </button>
         </div>
 
         {guides.length === 0 ? (
@@ -63,12 +72,13 @@ export default function FolderView() {
               <motion.div key={guide.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                 <Link to={`/guide/${guide.id}`}
                   className="group relative bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-2xl p-5 transition-all hover:bg-white/8 block">
-                  <button onClick={e => deleteGuide(e, guide.id)}
-                    className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all">
+                  <button
+                    onClick={e => { e.preventDefault(); e.stopPropagation(); setDeleteTarget({ id: guide.id, title: guide.title }); }}
+                    className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all p-1">
                     <Trash2 size={15} />
                   </button>
                   <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider mb-2 block">{guide.type}</span>
-                  <h3 className="text-white font-semibold leading-tight mb-3 group-hover:text-indigo-300 transition-colors">{guide.title}</h3>
+                  <h3 className="text-white font-semibold leading-tight mb-3 group-hover:text-indigo-300 transition-colors pr-6">{guide.title}</h3>
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>{new Date(guide.created_at).toLocaleDateString()}</span>
                     {guide.best_quiz_score > 0 && <span className="text-yellow-400">⭐ Best: {guide.best_quiz_score}/{guide.quiz_questions?.length || 5}</span>}
@@ -91,6 +101,15 @@ export default function FolderView() {
           </div>
         )}
       </main>
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Delete this guide?"
+        message={`"${deleteTarget?.title}" will be permanently deleted along with all quiz history.`}
+        confirmText="Delete Guide"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
