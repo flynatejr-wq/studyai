@@ -2,10 +2,13 @@ import express from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import multer from "multer";
-import pdfParse from "pdf-parse/lib/pdf-parse.js";
-import mammoth from "mammoth";
-import officeParser from "officeparser";
+import { createRequire } from "module";
 import { requireAuth } from "../middleware/auth.js";
+
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
+const mammoth = require("mammoth");
+const officeParser = require("officeparser");
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
@@ -23,13 +26,23 @@ async function generateFromText(text) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const message = await client.messages.create({
     model: "claude-opus-4-5",
-    max_tokens: 1500,
+    max_tokens: 2000,
     messages: [{ role: "user", content: `${STUDY_GUIDE_PROMPT}\n\nLecture content:\n${text}` }],
   });
-  const raw = message.content[0].text;
-  const match = raw.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("Invalid AI response");
-  return JSON.parse(match[0]);
+  const raw = message.content[0].text.trim();
+  // Find the outermost JSON object
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start === -1 || end === -1) {
+    console.error("No JSON found in response:", raw.slice(0, 300));
+    throw new Error("AI returned an unexpected response. Please try again.");
+  }
+  try {
+    return JSON.parse(raw.slice(start, end + 1));
+  } catch (e) {
+    console.error("JSON parse failed:", raw.slice(start, end + 1).slice(0, 300));
+    throw new Error("AI response could not be parsed. Please try again.");
+  }
 }
 
 // ── POST /api/summarize — paste text ────────────────────────────────────────
