@@ -1,5 +1,6 @@
 import express from "express";
 import { v4 as uuid } from "uuid";
+import Anthropic from "@anthropic-ai/sdk";
 import db from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -103,6 +104,50 @@ router.post("/:id/quiz", (req, res) => {
   updateLevel(req.user.id);
 
   res.json({ success: true, xpGained });
+});
+
+// Generate a fresh quiz with a custom question count
+router.post("/:id/generate-quiz", async (req, res) => {
+  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+  if (!guide) return res.status(404).json({ error: "Guide not found." });
+
+  const count = Math.min(Math.max(parseInt(req.body.count) || 5, 3), 30);
+
+  const summary = JSON.parse(guide.summary);
+  const keyTerms = JSON.parse(guide.key_terms);
+
+  const prompt = `Based on the following study guide content, generate exactly ${count} quiz questions.
+
+Title: ${guide.title}
+
+Summary:
+${summary.map((s, i) => `${i + 1}. ${s}`).join("\n")}
+
+Key Terms:
+${keyTerms.map(t => `- ${t.term}: ${t.definition}`).join("\n")}
+
+Return ONLY a valid JSON array with exactly ${count} objects, each with "question" and "answer" fields. No extra text.
+Example format: [{"question": "...", "answer": "..."}, ...]`;
+
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const message = await client.messages.create({
+      model: "claude-opus-4-5",
+      max_tokens: 2000,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const raw = message.content[0].text.trim();
+    const start = raw.indexOf("[");
+    const end = raw.lastIndexOf("]");
+    if (start === -1 || end === -1) throw new Error("Invalid AI response");
+
+    const questions = JSON.parse(raw.slice(start, end + 1));
+    res.json({ questions });
+  } catch (err) {
+    console.error("[generate-quiz error]", err?.message);
+    res.status(500).json({ error: "Could not generate quiz. Please try again." });
+  }
 });
 
 // Get quiz history for a guide

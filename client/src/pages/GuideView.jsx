@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, MessageCircle, X, Send, RotateCcw, Trophy, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, MessageCircle, X, Send, RotateCcw, Trophy, ChevronDown, ChevronUp, Zap, RefreshCw } from "lucide-react";
 import { api } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import Sidebar from "../components/Sidebar.jsx";
@@ -20,6 +20,10 @@ export default function GuideView() {
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [score, setScore] = useState(0);
   const [expandedTerms, setExpandedTerms] = useState(true);
+  const [activeQuestions, setActiveQuestions] = useState(null); // null = use saved questions
+  const [quizCount, setQuizCount] = useState(10);
+  const [generatingQuiz, setGeneratingQuiz] = useState(false);
+  const [quizError, setQuizError] = useState("");
   const chatEndRef = useRef(null);
 
   useEffect(() => { loadGuide(); }, [id]);
@@ -74,13 +78,27 @@ export default function GuideView() {
     setFlipped({});
   };
 
+  const generateQuiz = async () => {
+    setGeneratingQuiz(true);
+    setQuizError("");
+    resetQuiz();
+    try {
+      const { questions } = await api.guides.generateQuiz(id, quizCount);
+      setActiveQuestions(questions);
+    } catch (err) {
+      setQuizError(err.message);
+    } finally {
+      setGeneratingQuiz(false);
+    }
+  };
+
   if (!guide) return (
     <div className="flex min-h-screen bg-slate-950 items-center justify-center">
       <div className="text-indigo-400 animate-pulse text-lg">Loading guide...</div>
     </div>
   );
 
-  const questions = guide.quiz_questions || [];
+  const questions = activeQuestions || guide.quiz_questions || [];
   const terms = guide.key_terms || [];
 
   return (
@@ -148,7 +166,7 @@ export default function GuideView() {
 
           {/* Quiz */}
           <section className="bg-white/5 border border-white/10 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-white">🧠 Quiz</h2>
               {quizSubmitted && (
                 <button onClick={resetQuiz} className="flex items-center gap-1 text-gray-400 hover:text-white text-sm transition-colors">
@@ -157,6 +175,41 @@ export default function GuideView() {
               )}
             </div>
 
+            {/* Quiz Generator */}
+            {!quizSubmitted && (
+              <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 mb-5">
+                <p className="text-indigo-300 text-sm font-semibold mb-3 flex items-center gap-2">
+                  <RefreshCw size={14} /> Generate a Custom Quiz
+                </p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-gray-400 text-sm">Questions:</span>
+                  <div className="flex gap-2">
+                    {[5, 10, 15, 20].map(n => (
+                      <button key={n} onClick={() => setQuizCount(n)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${quizCount === n ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"}`}>
+                        {n}
+                      </button>
+                    ))}
+                    <div className="flex items-center gap-1 bg-white/5 rounded-lg px-2">
+                      <span className="text-gray-500 text-xs">Custom:</span>
+                      <input type="number" min={3} max={30} value={quizCount}
+                        onChange={e => setQuizCount(Math.min(30, Math.max(3, parseInt(e.target.value) || 3)))}
+                        className="w-12 bg-transparent text-white text-sm text-center focus:outline-none py-1.5" />
+                    </div>
+                  </div>
+                  <button onClick={generateQuiz} disabled={generatingQuiz}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-lg text-white text-sm font-semibold transition-all">
+                    {generatingQuiz ? <><span className="animate-spin inline-block">⏳</span> Generating...</> : <><Zap size={14} /> Generate</>}
+                  </button>
+                </div>
+                {quizError && <p className="text-red-400 text-xs mt-2">{quizError}</p>}
+                {activeQuestions && (
+                  <p className="text-green-400 text-xs mt-2">✓ {activeQuestions.length}-question quiz ready — saved questions replaced below.</p>
+                )}
+              </div>
+            )}
+
+            {/* Score banner */}
             {quizSubmitted && (
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                 className={`rounded-2xl p-5 mb-5 text-center ${score === questions.length ? "bg-green-500/10 border border-green-500/20" : score >= questions.length * 0.6 ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
@@ -167,18 +220,19 @@ export default function GuideView() {
               </motion.div>
             )}
 
+            {/* Questions */}
             <div className="space-y-4">
               {questions.map((q, i) => (
                 <div key={i} className="border border-white/10 rounded-xl p-4">
                   <p className="text-white font-medium mb-3">{i + 1}. {q.question}</p>
                   {!quizSubmitted ? (
-                    <div className="flex gap-2">
-                      <button onClick={() => { setFlipped(f => ({ ...f, [i]: true })); }}
-                        className="text-sm text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors">
+                    <div className="flex gap-2 flex-col">
+                      <button onClick={() => setFlipped(f => ({ ...f, [i]: !f[i] }))}
+                        className="text-sm text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors w-fit">
                         {flipped[i] ? "Hide answer" : "Show answer"}
                       </button>
                       {flipped[i] && (
-                        <div className="flex-1">
+                        <div>
                           <p className="text-gray-300 text-sm mb-3 bg-white/5 rounded-lg px-3 py-2">{q.answer}</p>
                           {!quizAnswers[i] && (
                             <div className="flex gap-2">
@@ -199,14 +253,14 @@ export default function GuideView() {
                   ) : (
                     <div className="flex items-center gap-2">
                       <p className="text-gray-400 text-sm flex-1">{q.answer}</p>
-                      <span className={`text-lg`}>{quizAnswers[i] === "correct" ? "✅" : "❌"}</span>
+                      <span className="text-lg">{quizAnswers[i] === "correct" ? "✅" : "❌"}</span>
                     </div>
                   )}
                 </div>
               ))}
             </div>
 
-            {!quizSubmitted && Object.keys(quizAnswers).length === questions.length && (
+            {!quizSubmitted && questions.length > 0 && Object.keys(quizAnswers).length === questions.length && (
               <button onClick={submitQuiz}
                 className="w-full mt-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white transition-all">
                 Submit Quiz & Earn XP ⚡

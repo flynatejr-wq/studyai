@@ -61,6 +61,7 @@ export const api = {
     move: (id, folder_id) => request(`/guides/${id}/move`, { method: "PATCH", headers: headers(), body: JSON.stringify({ folder_id }) }),
     delete: (id) => request(`/guides/${id}`, { method: "DELETE", headers: headers() }),
     submitQuiz: (id, score, total) => request(`/guides/${id}/quiz`, { method: "POST", headers: headers(), body: JSON.stringify({ score, total }) }),
+    generateQuiz: (id, count) => request(`/guides/${id}/generate-quiz`, { method: "POST", headers: headers(), body: JSON.stringify({ count }) }),
   },
   chat: {
     history: (guideId) => request(`/chat/${guideId}`, { headers: headers() }),
