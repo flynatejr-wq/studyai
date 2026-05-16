@@ -400,7 +400,7 @@ export default function GuideView() {
       <Sidebar onLogout={logout} />
 
       <main className={`flex-1 md:ml-64 transition-all pt-14 md:pt-0 ${showChat ? "md:mr-96" : ""}`}>
-        <div className="p-8 max-w-3xl mx-auto">
+        <div className="p-4 md:p-8 max-w-3xl mx-auto w-full min-w-0">
           <Link to="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors text-sm">
             <ArrowLeft size={16} /> Dashboard
           </Link>
@@ -508,7 +508,7 @@ export default function GuideView() {
 
           {/* ── SELF-GRADE QUIZ MODE ── */}
           {studyMode === "quiz" && (
-            <section className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <section className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-6">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-base font-bold text-white">✏️ Self-Grade Quiz</h2>
                 {quizSubmitted && (

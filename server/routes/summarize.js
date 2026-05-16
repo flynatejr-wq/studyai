@@ -88,8 +88,6 @@ router.post("/image", requireAuth, upload.single("image"), async (req, res) => {
 // ── POST /api/summarize/audio — upload audio ─────────────────────────────────
 router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No audio provided." });
-  if (!process.env.OPENAI_API_KEY)
-    return res.status(400).json({ error: "Audio requires an OpenAI API key in your .env file." });
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const audioFile = new File([req.file.buffer], req.file.originalname, { type: req.file.mimetype });

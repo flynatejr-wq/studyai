@@ -141,7 +141,7 @@ export default function Progress() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           {[
             { icon: <Clock size={18} className="text-blue-400" />, label: "Study Time", value: fmtTime(user.total_study_time), bg: "from-blue-500/10 to-blue-600/5 border-blue-500/20" },
             { icon: <BookOpen size={18} className="text-indigo-400" />, label: "Guides Created", value: user.total_guides, bg: "from-indigo-500/10 to-indigo-600/5 border-indigo-500/20" },
@@ -187,7 +187,7 @@ export default function Progress() {
             <div className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full"
               style={{ width: `${(earnedTypes.size / ACHIEVEMENT_DEFS.length) * 100}%` }} />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3">
             {ACHIEVEMENT_DEFS.map(a => {
               const earned = earnedTypes.has(a.type);
               const earnedAt = achievements.find(e => e.type === a.type)?.earned_at;

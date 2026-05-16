@@ -98,7 +98,6 @@ export default function UploadForm({ onSubmit, loading, dark }) {
         <span className="text-4xl mb-3">🎙️</span>
         <p className={`font-medium text-sm ${dark ? "text-gray-300" : "text-gray-500"}`}>Drag & drop or click to upload</p>
         <p className={`text-xs mt-1 ${base.sub}`}>MP3, M4A, WAV — up to 25MB</p>
-        <p className={`text-xs mt-2 text-amber-500`}>⚠️ Requires OpenAI API key</p>
       </>
     );
   };
