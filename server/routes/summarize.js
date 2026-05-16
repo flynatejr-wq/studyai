@@ -6,7 +6,7 @@ import { createRequire } from "module";
 import { requireAuth } from "../middleware/auth.js";
 
 const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse");
+const pdfParse = require("pdf-parse/lib/pdf-parse.js"); // use lib path to skip test runner
 const mammoth = require("mammoth");
 const officeParser = require("officeparser");
 
@@ -110,14 +110,17 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
 
   const { mimetype, originalname, buffer } = req.file;
   const ext = originalname.split(".").pop().toLowerCase();
+  console.log(`[file upload] name=${originalname} ext=${ext} mime=${mimetype} size=${buffer.length}`);
 
   try {
     let text = "";
 
     // ── PDF ──────────────────────────────────────────────────────────────────
     if (mimetype === "application/pdf" || ext === "pdf") {
+      console.log("[pdf] parsing...");
       const data = await pdfParse(buffer);
       text = data.text;
+      console.log(`[pdf] extracted ${text.length} chars`);
       if (!text?.trim()) throw new Error("Could not extract text from this PDF. It may be a scanned image — try uploading a photo instead.");
     }
 
@@ -149,8 +152,8 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
     const trimmed = text.trim().slice(0, 60000);
     res.json(await generateFromText(trimmed));
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message || "Something went wrong processing your file." });
+    console.error("[file route error]", err?.message || err);
+    res.status(500).json({ error: err?.message || "Something went wrong processing your file." });
   }
 });
 
