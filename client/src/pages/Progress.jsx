@@ -79,7 +79,7 @@ export default function Progress() {
   if (loading) return (
     <div className="flex min-h-screen bg-slate-950">
       <Sidebar onLogout={logout} />
-      <main className="flex-1 ml-64 flex items-center justify-center">
+      <main className="flex-1 md:ml-64 flex items-center justify-center pt-14 md:pt-0">
         <div className="text-indigo-400 animate-pulse text-lg">Loading progress...</div>
       </main>
     </div>
@@ -106,7 +106,7 @@ export default function Progress() {
   return (
     <div className="flex min-h-screen bg-slate-950">
       <Sidebar onLogout={logout} />
-      <main className="flex-1 ml-64 p-8 max-w-5xl">
+      <main className="flex-1 md:ml-64 p-4 md:p-8 pt-16 md:pt-8 max-w-5xl">
 
         {/* Header */}
         <div className="mb-8">

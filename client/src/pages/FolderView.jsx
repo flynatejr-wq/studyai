@@ -33,7 +33,7 @@ export default function FolderView() {
   return (
     <div className="flex min-h-screen bg-slate-950">
       <Sidebar onLogout={logout} />
-      <main className="flex-1 ml-64 p-8">
+      <main className="flex-1 md:ml-64 p-4 md:p-8 pt-16 md:pt-8">
         <Link to="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
           <ArrowLeft size={18} /> Back to Dashboard
         </Link>

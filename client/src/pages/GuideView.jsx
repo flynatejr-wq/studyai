@@ -399,7 +399,7 @@ export default function GuideView() {
     <div className="flex min-h-screen bg-slate-950">
       <Sidebar onLogout={logout} />
 
-      <main className={`flex-1 ml-64 transition-all ${showChat ? "mr-96" : ""}`}>
+      <main className={`flex-1 md:ml-64 transition-all pt-14 md:pt-0 ${showChat ? "md:mr-96" : ""}`}>
         <div className="p-8 max-w-3xl mx-auto">
           <Link to="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors text-sm">
             <ArrowLeft size={16} /> Dashboard
@@ -431,7 +431,7 @@ export default function GuideView() {
           </div>
 
           {/* Mode Tabs */}
-          <div className="flex gap-1 p-1 bg-white/5 border border-white/10 rounded-xl mb-6">
+          <div className="flex gap-1 p-1 bg-white/5 border border-white/10 rounded-xl mb-6 overflow-x-auto">
             {MODES.map(m => (
               <button key={m.id} onClick={() => { setStudyMode(m.id); resetQuiz(); }}
                 className={`flex-1 py-2 px-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${studyMode === m.id ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-white"}`}>
@@ -610,7 +610,7 @@ export default function GuideView() {
         {showChat && (
           <motion.aside initial={{ x: 384 }} animate={{ x: 0 }} exit={{ x: 384 }}
             transition={{ type: "spring", damping: 25 }}
-            className="fixed right-0 top-0 bottom-0 w-96 bg-slate-900 border-l border-white/10 flex flex-col z-40">
+            className="fixed right-0 top-0 bottom-0 w-full sm:w-96 bg-slate-900 border-l border-white/10 flex flex-col z-50">
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
               <div>
                 <h3 className="font-bold text-white flex items-center gap-2"><MessageCircle size={15} className="text-indigo-400" /> AI Tutor</h3>

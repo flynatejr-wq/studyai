@@ -95,7 +95,7 @@ export default function Dashboard() {
     <div className="flex min-h-screen bg-slate-950">
       <Sidebar onLogout={logout} />
 
-      <main className="flex-1 ml-64 p-8">
+      <main className="flex-1 md:ml-64 p-4 md:p-8 pt-16 md:pt-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -109,7 +109,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6 md:mb-8">
           <StatCard icon={<Flame className="text-orange-400" size={20} />} label="Day Streak" value={`${user?.streak || 0} 🔥`} bg="from-orange-500/10 to-orange-600/5 border-orange-500/20" />
           <StatCard icon={<Zap className="text-yellow-400" size={20} />} label="Total XP" value={user?.xp || 0} bg="from-yellow-500/10 to-yellow-600/5 border-yellow-500/20" />
           <StatCard icon={<BookOpen className="text-indigo-400" size={20} />} label="Guides Created" value={user?.total_guides || 0} bg="from-indigo-500/10 to-indigo-600/5 border-indigo-500/20" />
