@@ -126,10 +126,13 @@ export default function Progress() {
     </div>
   );
 
-  const { user, guides, achievements, activity } = data;
+  const user = data?.user ?? {};
+  const guides = data?.guides ?? [];
+  const achievements = data?.achievements ?? [];
+  const activity = data?.activity ?? [];
   const earnedTypes = new Set(achievements.map(a => a.type));
-  const xpNext = user.level * user.level * 100;
-  const xpProgress = Math.min(((user.xp % xpNext) / xpNext) * 100, 100);
+  const xpNext = Math.max((user.level ?? 1) * (user.level ?? 1) * 100, 1);
+  const xpProgress = Math.min((((user.xp ?? 0) % xpNext) / xpNext) * 100, 100);
 
   const needsReview = guides.filter(g => {
     const days = daysSince(g.last_studied_at);
@@ -138,9 +141,9 @@ export default function Progress() {
 
   const totalQuizzes = guides.reduce((s, g) => s + g.quiz_attempts, 0);
   const avgScore = (() => {
-    const all = guides.flatMap(g => g.attempts);
+    const all = guides.flatMap(g => Array.isArray(g.attempts) ? g.attempts : []);
     if (!all.length) return null;
-    const pct = all.map(a => a.total > 0 ? (a.score / a.total) * 100 : 0);
+    const pct = all.map(a => (a?.total > 0 ? (a.score / a.total) * 100 : 0));
     return Math.round(pct.reduce((s, v) => s + v, 0) / pct.length);
   })();
 
@@ -171,7 +174,7 @@ export default function Progress() {
             </div>
             <div className="text-right">
               <p className="text-indigo-300 font-bold text-xl">{user.xp.toLocaleString()} XP</p>
-              <p className="text-gray-500 text-sm">{xpNext - (user.xp % xpNext)} XP to Level {user.level + 1}</p>
+              <p className="text-gray-500 text-sm">{xpNext - ((user.xp ?? 0) % xpNext)} XP to Level {(user.level ?? 1) + 1}</p>
             </div>
           </div>
           <div className="h-3 bg-white/10 rounded-full overflow-hidden">
@@ -278,8 +281,8 @@ export default function Progress() {
           ) : (
             <div className="space-y-4">
               {guides.map(g => {
-                const best = g.best_quiz_score;
-                const total = g.attempts[0]?.total || 5;
+                const best = g.best_quiz_score ?? 0;
+                const total = g.attempts?.[0]?.total || 5;
                 const bestPct = total > 0 ? Math.round((best / total) * 100) : 0;
                 const days = daysSince(g.last_studied_at);
                 return (
@@ -312,10 +315,10 @@ export default function Progress() {
                         </div>
                       )}
                     </div>
-                    {g.attempts.length > 0 && (
+                    {g.attempts?.length > 0 && (
                       <div className="flex items-end gap-1 mt-2">
                         <span className="text-gray-600 text-xs mr-1">History:</span>
-                        {g.attempts.slice(-10).map((a, i) => (
+                        {(g.attempts || []).slice(-10).map((a, i) => (
                           <ScoreBar key={i} score={a.score} total={a.total} date={a.created_at} />
                         ))}
                       </div>

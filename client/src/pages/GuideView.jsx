@@ -254,7 +254,7 @@ function MCQMode({ guideId, onXpEarned }) {
 
 // ── Quiz History Sparkline ────────────────────────────────────────────────────
 function QuizHistoryBar({ attempts }) {
-  if (!attempts.length) return null;
+  if (!attempts?.length) return null;
   return (
     <div className="flex items-end gap-1">
       {attempts.slice(-10).map((a, i) => {
@@ -537,7 +537,7 @@ export default function GuideView() {
               <section className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-5 print:border-gray-300 print:bg-white print:text-black">
                 <h2 className="text-base font-bold text-white mb-4 print:text-black">📝 Summary</h2>
                 <ul className="space-y-2">
-                  {guide.summary.map((point, i) => (
+                  {(guide.summary || []).map((point, i) => (
                     <motion.li key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.04 }} className="flex items-start gap-3 text-gray-300 print:text-gray-800">
                       <span className="text-indigo-400 mt-0.5 shrink-0 print:text-indigo-600">•</span>

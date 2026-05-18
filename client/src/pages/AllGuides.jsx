@@ -27,9 +27,10 @@ export default function AllGuides() {
     append ? setLoadingMore(true) : setLoading(true);
     try {
       const res = await api.guides.listPaged(newOffset, query);
-      setGuides(g => append ? [...g, ...res.guides] : res.guides);
-      setTotal(res.total);
-      setHasMore(res.hasMore);
+      const incoming = Array.isArray(res.guides) ? res.guides : [];
+      setGuides(g => append ? [...g, ...incoming] : incoming);
+      setTotal(res.total ?? 0);
+      setHasMore(res.hasMore ?? false);
       setOffset(newOffset + PAGE);
     } catch (err) {
       toast({ message: err.message, type: "error" });
