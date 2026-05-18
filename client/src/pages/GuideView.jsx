@@ -13,6 +13,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
+import RichText from "../components/RichText.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
 
@@ -301,7 +302,9 @@ function SectionQuiz({ questions }) {
             </button>
           ) : (
             <div>
-              <p className="text-gray-300 text-sm bg-white/5 rounded-lg px-3 py-2.5 mb-3 leading-relaxed">{q.answer}</p>
+              <div className="text-gray-300 text-sm bg-white/5 rounded-lg px-3 py-2.5 mb-3 leading-relaxed">
+                <RichText html={q.answer} className="rich-text-sm" />
+              </div>
               {!marked[i] ? (
                 <div className="flex gap-2">
                   <button onClick={() => setMarked(m => ({ ...m, [i]: "correct" }))}
@@ -358,7 +361,7 @@ function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPr
       {section.overview && (
         <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-5">
           <p className="text-indigo-300 text-xs font-semibold uppercase tracking-wider mb-2">Overview</p>
-          <p className="text-gray-200 leading-relaxed">{section.overview}</p>
+          <RichText html={section.overview} className="text-gray-200 leading-relaxed" />
         </div>
       )}
 
@@ -369,9 +372,9 @@ function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPr
             <BookOpen size={16} className="text-indigo-400" />
             <h3 className="text-white font-bold text-sm uppercase tracking-wider">Deep Dive</h3>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-1">
             {section.content.map((para, i) => (
-              <p key={i} className="text-gray-300 leading-relaxed text-[15px]">{para}</p>
+              <RichText key={i} html={para} />
             ))}
           </div>
         </div>
@@ -392,7 +395,7 @@ function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPr
                 <span className="shrink-0 w-5 h-5 rounded-full bg-yellow-500/20 border border-yellow-500/30 flex items-center justify-center mt-0.5">
                   <span className="text-yellow-400 text-xs font-bold">{i + 1}</span>
                 </span>
-                <span className="text-gray-200 text-sm leading-relaxed">{pt}</span>
+                <RichText html={pt} className="rich-text-sm text-sm" />
               </motion.li>
             ))}
           </ul>
@@ -421,7 +424,7 @@ function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPr
                     <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                       className="text-gray-400 text-xs mt-2 leading-relaxed border-t border-indigo-500/20 pt-2">
-                      {t.definition}
+                      <RichText html={t.definition} className="rich-text-sm" />
                     </motion.p>
                   )}
                 </AnimatePresence>

@@ -17,6 +17,56 @@ body {
   position: relative;
 }
 
+/* ── Rich text (AI-generated HTML content) ───────────────────────────────── */
+.rich-text p {
+  color: #d1d5db; /* gray-300 */
+  font-size: 0.9375rem; /* 15px */
+  line-height: 1.75;
+  margin-bottom: 0.85em;
+}
+.rich-text p:last-child { margin-bottom: 0; }
+
+.rich-text strong {
+  color: #e5e7eb; /* gray-200 */
+  font-weight: 650;
+}
+
+.rich-text em {
+  color: #a5b4fc; /* indigo-300 */
+  font-style: italic;
+}
+
+.rich-text ul,
+.rich-text ol {
+  margin: 0.5em 0 0.85em 0;
+  padding-left: 1.4em;
+}
+.rich-text ul { list-style-type: disc; }
+.rich-text ol { list-style-type: decimal; }
+
+.rich-text li {
+  color: #d1d5db;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  margin-bottom: 0.3em;
+}
+
+/* Inside key-points list — smaller, no extra margin */
+.rich-text-sm p,
+.rich-text-sm li {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-bottom: 0.2em;
+}
+
+/* Print: ensure rich text is readable */
+@media print {
+  .rich-text p,
+  .rich-text li { color: #222 !important; }
+  .rich-text strong { color: #111 !important; }
+  .rich-text em { color: #4338ca !important; }
+}
+
 /* ── Print / Save as PDF ──────────────────────────────────────────────────── */
 @media print {
   /* Hide everything except guide content */
