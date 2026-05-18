@@ -80,7 +80,9 @@ const aiLimiter = rateLimit({
         if (decoded?.id) return `user:${decoded.id}`;
       } catch {}
     }
-    return req.ip; // fallback to IP for unauthenticated or invalid token requests
+    // All AI routes require auth, so unauthenticated requests are rejected by requireAuth anyway.
+    // Use a fixed key so they share one bucket rather than triggering the IPv6 keyGenerator warning.
+    return "unauthenticated";
   },
 });
 
