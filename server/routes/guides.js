@@ -118,15 +118,17 @@ router.post("/", (req, res) => {
     return res.status(400).json({ error: "Title is too long." });
 
   const id = uuid();
-  db.prepare(
-    `INSERT INTO guides (id, user_id, folder_id, title, type, summary, key_terms, quiz_questions)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, req.user.id, folder_id || null, title.trim(), type || "text",
-    JSON.stringify(summary), JSON.stringify(key_terms), JSON.stringify(quiz_questions));
-
   const today = new Date().toISOString().split("T")[0];
-  db.prepare("UPDATE users SET total_guides = total_guides + 1, xp = xp + 50, last_study_date = ? WHERE id = ?")
-    .run(today, req.user.id);
+
+  db.transaction(() => {
+    db.prepare(
+      `INSERT INTO guides (id, user_id, folder_id, title, type, summary, key_terms, quiz_questions)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, req.user.id, folder_id || null, title.trim(), type || "text",
+      JSON.stringify(summary), JSON.stringify(key_terms), JSON.stringify(quiz_questions));
+    db.prepare("UPDATE users SET total_guides = total_guides + 1, xp = xp + 50, last_study_date = ? WHERE id = ?")
+      .run(today, req.user.id);
+  })();
   updateLevel(req.user.id);
   checkAchievements(req.user.id);
 
@@ -162,19 +164,20 @@ router.post("/:id/quiz", (req, res) => {
     scoreNum > totalNum || totalNum > 50
   ) return res.status(400).json({ error: "Invalid quiz score." });
 
-  db.prepare("INSERT INTO quiz_attempts (id, guide_id, user_id, score, total) VALUES (?, ?, ?, ?, ?)")
-    .run(uuid(), guide.id, req.user.id, scoreNum, totalNum);
-
-  if (scoreNum > guide.best_quiz_score) {
-    db.prepare("UPDATE guides SET best_quiz_score = ?, quiz_attempts = quiz_attempts + 1 WHERE id = ?")
-      .run(scoreNum, guide.id);
-  } else {
-    db.prepare("UPDATE guides SET quiz_attempts = quiz_attempts + 1 WHERE id = ?").run(guide.id);
-  }
-
   const xpGained = scoreNum * 10;
-  db.prepare("UPDATE users SET xp = xp + ?, total_quizzes = total_quizzes + 1 WHERE id = ?")
-    .run(xpGained, req.user.id);
+
+  db.transaction(() => {
+    db.prepare("INSERT INTO quiz_attempts (id, guide_id, user_id, score, total) VALUES (?, ?, ?, ?, ?)")
+      .run(uuid(), guide.id, req.user.id, scoreNum, totalNum);
+    if (scoreNum > guide.best_quiz_score) {
+      db.prepare("UPDATE guides SET best_quiz_score = ?, quiz_attempts = quiz_attempts + 1 WHERE id = ?")
+        .run(scoreNum, guide.id);
+    } else {
+      db.prepare("UPDATE guides SET quiz_attempts = quiz_attempts + 1 WHERE id = ?").run(guide.id);
+    }
+    db.prepare("UPDATE users SET xp = xp + ?, total_quizzes = total_quizzes + 1 WHERE id = ?")
+      .run(xpGained, req.user.id);
+  })();
   updateLevel(req.user.id);
   checkAchievements(req.user.id);
 

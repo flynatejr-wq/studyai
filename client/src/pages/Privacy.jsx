@@ -29,7 +29,7 @@ export default function Privacy() {
           ["8. Your Rights", "You have the right to access, correct, or delete your personal data. You can update your name and password in Settings. To request a full data export or deletion, contact us directly."],
           ["9. Children's Privacy", "This service is not directed at children under 13. We do not knowingly collect personal information from children under 13."],
           ["10. Changes to This Policy", "We may update this Privacy Policy periodically. We will notify you of material changes via email or an in-app notice."],
-          ["11. Contact", "For privacy-related questions or requests, contact us through the in-app support channel."],
+          ["11. Contact", "For privacy-related questions or data requests, email us at support@studybuddi.app."],
         ].map(([title, body]) => (
           <section key={title} className="mb-8">
             <h2 className="text-white font-bold text-lg mb-2">{title}</h2>

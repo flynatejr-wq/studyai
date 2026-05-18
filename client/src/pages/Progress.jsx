@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   BarChart2, Clock, BookOpen, Trophy, Flame, Zap,
-  Star, TrendingUp, AlertCircle, CheckCircle, Lock
+  Star, TrendingUp, AlertCircle, CheckCircle
 } from "lucide-react";
 import { api } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -92,9 +92,12 @@ export default function Progress() {
   const { logout } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api.progress.get().then(d => { setData(d); setLoading(false); });
+    api.progress.get()
+      .then(d => { setData(d); setLoading(false); })
+      .catch(err => { setError(err.message || "Failed to load progress."); setLoading(false); });
   }, []);
 
   if (loading) return (
@@ -102,6 +105,23 @@ export default function Progress() {
       <Sidebar onLogout={logout} />
       <main className="flex-1 md:ml-64 flex items-center justify-center pt-14 md:pt-0">
         <div className="text-indigo-400 animate-pulse text-lg">Loading progress...</div>
+      </main>
+    </div>
+  );
+
+  if (error) return (
+    <div className="flex min-h-screen bg-slate-950">
+      <Sidebar onLogout={logout} />
+      <main className="flex-1 md:ml-64 flex items-center justify-center p-8 pt-14 md:pt-0">
+        <div className="text-center max-w-sm">
+          <div className="text-5xl mb-4">📊</div>
+          <h2 className="text-xl font-bold text-white mb-2">Couldn't load progress</h2>
+          <p className="text-gray-400 text-sm mb-6">{error}</p>
+          <button onClick={() => { setError(""); setLoading(true); api.progress.get().then(d => { setData(d); setLoading(false); }).catch(e => { setError(e.message); setLoading(false); }); }}
+            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold text-sm transition-colors">
+            Try Again
+          </button>
+        </div>
       </main>
     </div>
   );

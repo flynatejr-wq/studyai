@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { BookOpen, Eye, EyeOff, CheckCircle } from "lucide-react";
@@ -15,6 +15,9 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const redirectTimer = useRef(null);
+
+  useEffect(() => () => { if (redirectTimer.current) clearTimeout(redirectTimer.current); }, []);
 
   useEffect(() => {
     if (!token) setError("Missing reset token. Please request a new reset link.");
@@ -29,7 +32,7 @@ export default function ResetPassword() {
     try {
       await api.auth.resetPassword({ token, password });
       setDone(true);
-      setTimeout(() => navigate("/login"), 3000);
+      redirectTimer.current = setTimeout(() => navigate("/login"), 3000);
     } catch (err) {
       setError(err.message);
     } finally {

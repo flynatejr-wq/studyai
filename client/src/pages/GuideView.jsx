@@ -5,12 +5,13 @@ import {
   ArrowLeft, MessageCircle, X, Send, RotateCcw, Trophy,
   ChevronDown, ChevronUp, Zap, RefreshCw, ChevronLeft,
   ChevronRight, CheckCircle, XCircle, Clock, BarChart2,
-  Share2, Printer, Copy, Check
+  Share2, Printer, Check, LinkOff
 } from "lucide-react";
 import { api, getToken } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import Sidebar from "../components/Sidebar.jsx";
+import ConfirmModal from "../components/ConfirmModal.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
 
@@ -268,10 +269,11 @@ function QuizHistoryBar({ attempts }) {
 }
 
 // ── Share Button ──────────────────────────────────────────────────────────────
-function ShareButton({ guideId }) {
+function ShareButton({ guideId, initialToken }) {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [shared, setShared] = useState(!!initialToken);
 
   const share = async () => {
     setLoading(true);
@@ -280,6 +282,7 @@ function ShareButton({ guideId }) {
       const url = `${window.location.origin}/share/${token}`;
       await navigator.clipboard.writeText(url);
       setCopied(true);
+      setShared(true);
       toast({ message: "Share link copied to clipboard!", type: "success" });
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -289,12 +292,33 @@ function ShareButton({ guideId }) {
     }
   };
 
+  const revoke = async () => {
+    setLoading(true);
+    try {
+      await api.guides.revokeShare(guideId);
+      setShared(false);
+      toast({ message: "Share link revoked.", type: "success" });
+    } catch {
+      toast({ message: "Could not revoke share link.", type: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <button onClick={share} disabled={loading}
-      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-lg text-gray-400 hover:text-white text-xs font-medium transition-all disabled:opacity-50">
-      {copied ? <Check size={13} className="text-green-400" /> : <Share2 size={13} />}
-      {copied ? "Copied!" : "Share"}
-    </button>
+    <div className="flex items-center gap-1">
+      <button onClick={share} disabled={loading}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-lg text-gray-400 hover:text-white text-xs font-medium transition-all disabled:opacity-50">
+        {copied ? <Check size={13} className="text-green-400" /> : <Share2 size={13} />}
+        {copied ? "Copied!" : "Share"}
+      </button>
+      {shared && (
+        <button onClick={revoke} disabled={loading} title="Revoke share link"
+          className="flex items-center gap-1 px-2 py-1.5 bg-white/5 border border-white/10 hover:border-red-500/40 rounded-lg text-gray-500 hover:text-red-400 text-xs transition-all disabled:opacity-50">
+          <LinkOff size={12} />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -322,6 +346,7 @@ export default function GuideView() {
   const [score, setScore] = useState(0);
   const [quizHistory, setQuizHistory] = useState([]);
   const [xpToast, setXpToast] = useState(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const chatEndRef = useRef(null);
   const xpTimerRef = useRef(null);
 
@@ -332,8 +357,9 @@ export default function GuideView() {
     api.guides.quizHistory(id).then(setQuizHistory).catch(() => {});
   }, [id]);
 
+  // Only load chat history when panel first opens; don't overwrite locally-appended messages
   useEffect(() => {
-    if (showChat) loadChat();
+    if (showChat && messages.length === 0) loadChat();
   }, [showChat]);
 
   useEffect(() => {
@@ -449,9 +475,9 @@ export default function GuideView() {
 
       <main className={`flex-1 md:ml-64 transition-all pt-14 md:pt-0 ${showChat ? "md:mr-96" : ""}`}>
         <div className="p-4 md:p-8 max-w-3xl mx-auto w-full min-w-0">
-          <Link to="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors text-sm">
-            <ArrowLeft size={16} /> Dashboard
-          </Link>
+          <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors text-sm">
+            <ArrowLeft size={16} /> Back
+          </button>
 
           {/* Title */}
           <div className="flex items-start justify-between mb-6 gap-3">
@@ -459,9 +485,9 @@ export default function GuideView() {
               <h1 className="text-xl md:text-2xl font-bold text-white mb-2 leading-tight">{guide.title}</h1>
               <div className="flex items-center gap-3 flex-wrap">
                 <p className="text-gray-500 text-xs">{new Date(guide.created_at).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
-                {guide.best_quiz_score > 0 && (
+                {guide.best_quiz_score > 0 && guide.quiz_questions?.length > 0 && (
                   <span className="flex items-center gap-1 text-yellow-400 text-xs font-medium">
-                    <Trophy size={11} /> Best: {guide.best_quiz_score}/{questions.length} ({Math.round(guide.best_quiz_score / questions.length * 100)}%)
+                    <Trophy size={11} /> Best: {guide.best_quiz_score}/{guide.quiz_questions.length} ({Math.round(guide.best_quiz_score / guide.quiz_questions.length * 100)}%)
                   </span>
                 )}
                 {quizHistory.length > 1 && (
@@ -473,7 +499,7 @@ export default function GuideView() {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <ShareButton guideId={id} />
+              <ShareButton guideId={id} initialToken={guide.share_token} />
               <button onClick={handlePrint} title="Print / Save as PDF"
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-lg text-gray-400 hover:text-white text-xs font-medium transition-all print:hidden">
                 <Printer size={13} /> Print
@@ -658,6 +684,19 @@ export default function GuideView() {
         </div>
       </main>
 
+      {/* Chat Clear Confirmation */}
+      <ConfirmModal
+        open={showClearConfirm}
+        title="Clear chat history?"
+        message="All messages in this conversation will be permanently deleted."
+        confirmText="Clear Chat"
+        onConfirm={async () => {
+          setShowClearConfirm(false);
+          try { await api.chat.clear(id); setMessages([]); } catch { toast({ message: "Failed to clear chat.", type: "error" }); }
+        }}
+        onCancel={() => setShowClearConfirm(false)}
+      />
+
       {/* Chat Panel */}
       <AnimatePresence>
         {showChat && (
@@ -670,8 +709,10 @@ export default function GuideView() {
                 <p className="text-xs text-gray-400 mt-0.5">Ask anything about this lecture</p>
               </div>
               <div className="flex gap-2 items-center">
-                <button onClick={async () => { await api.chat.clear(id); setMessages([]); }}
-                  className="text-gray-500 hover:text-gray-300 text-xs transition-colors">Clear</button>
+                {messages.length > 0 && (
+                  <button onClick={() => setShowClearConfirm(true)}
+                    className="text-gray-500 hover:text-gray-300 text-xs transition-colors">Clear</button>
+                )}
                 <button onClick={() => setShowChat(false)} className="text-gray-500 hover:text-white transition-colors p-1"><X size={18} /></button>
               </div>
             </div>

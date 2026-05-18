@@ -37,19 +37,23 @@ export default function ConfirmModal({
             exit={{ opacity: 0, scale: 0.93, y: 8 }}
             transition={{ duration: 0.18 }}
             className="fixed z-[9999] inset-0 flex items-center justify-center p-4 pointer-events-none">
-            <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 shadow-2xl w-full max-w-sm pointer-events-auto">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="confirm-modal-title"
+              className="bg-slate-900 border border-white/10 rounded-2xl p-6 shadow-2xl w-full max-w-sm pointer-events-auto">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   {danger && <AlertTriangle size={20} className="text-red-400 shrink-0 mt-0.5" />}
-                  <h3 className="text-white font-bold text-lg leading-tight">{title}</h3>
+                  <h3 id="confirm-modal-title" className="text-white font-bold text-lg leading-tight">{title}</h3>
                 </div>
-                <button onClick={onCancel} className="text-gray-500 hover:text-white transition-colors ml-2 shrink-0">
+                <button onClick={onCancel} aria-label="Close dialog" className="text-gray-500 hover:text-white transition-colors ml-2 shrink-0">
                   <X size={18} />
                 </button>
               </div>
               {message && <p className="text-gray-400 text-sm mb-6 leading-relaxed">{message}</p>}
               <div className="flex gap-3 justify-end">
-                <button onClick={onCancel}
+                <button onClick={onCancel} autoFocus
                   className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-sm font-medium transition-colors">
                   {cancelText}
                 </button>

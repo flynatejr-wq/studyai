@@ -30,7 +30,7 @@ export default function Terms() {
           ["9. Disclaimer of Warranties", `${COMPANY} is provided without warranties of any kind, express or implied. We do not guarantee the accuracy, reliability, or availability of the service.`],
           ["10. Limitation of Liability", `To the maximum extent permitted by law, ${COMPANY} shall not be liable for any indirect, incidental, or consequential damages arising from your use of the service.`],
           ["11. Changes to Terms", "We may update these Terms at any time. Continued use of the service after changes constitutes acceptance of the new Terms."],
-          ["12. Contact", "For questions about these Terms, contact us through the in-app support channel."],
+          ["12. Contact", "For questions about these Terms, email us at support@studybuddi.app."],
         ].map(([title, body]) => (
           <section key={title} className="mb-8">
             <h2 className="text-white font-bold text-lg mb-2">{title}</h2>

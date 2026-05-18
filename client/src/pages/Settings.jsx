@@ -56,6 +56,7 @@ export default function Settings() {
     } catch (err) {
       toast({ message: err.message, type: "error" });
       setShowDeleteModal(false);
+      setDeletePassword("");
     } finally {
       setDeleteLoading(false);
     }
@@ -149,7 +150,7 @@ export default function Settings() {
         {/* Logout */}
         <button onClick={logout}
           className="flex items-center gap-2 text-gray-400 hover:text-white text-sm transition-colors">
-          <LogOut size={15} /> Sign out of all devices
+          <LogOut size={15} /> Sign out
         </button>
       </main>
 
@@ -159,7 +160,7 @@ export default function Settings() {
         message="This will permanently delete your account, all guides, quizzes, and progress. There is no way to recover this data."
         confirmText={deleteLoading ? "Deleting..." : "Yes, Delete Everything"}
         onConfirm={handleDeleteAccount}
-        onCancel={() => setShowDeleteModal(false)}
+        onCancel={() => { setShowDeleteModal(false); setDeletePassword(""); }}
       />
     </div>
   );

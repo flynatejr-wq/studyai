@@ -44,10 +44,14 @@ async function generateFromText(text) {
   }
 }
 
+const MAX_TEXT_CHARS = 50000;
+
 // ── POST /api/summarize — paste text ────────────────────────────────────────
 router.post("/", requireAuth, async (req, res) => {
   const { transcript } = req.body;
   if (!transcript?.trim()) return res.status(400).json({ error: "No transcript provided." });
+  if (transcript.length > MAX_TEXT_CHARS)
+    return res.status(400).json({ error: `Transcript is too long. Please limit to ${MAX_TEXT_CHARS.toLocaleString()} characters.` });
   try {
     const result = await generateFromText(transcript);
     res.json(result);

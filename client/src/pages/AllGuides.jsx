@@ -38,11 +38,15 @@ export default function AllGuides() {
     }
   }, []);
 
-  // Initial load
-  useEffect(() => { fetchGuides(0, ""); }, []);
-
-  // Debounced search
+  // Debounced search — fires immediately on mount (no delay when search is unchanged from ""),
+  // and debounces subsequent keystrokes by 350ms.
+  const isFirstRender = useRef(true);
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      fetchGuides(0, search);
+      return;
+    }
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
       setOffset(0);

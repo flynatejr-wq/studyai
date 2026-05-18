@@ -180,13 +180,16 @@ router.delete("/account", requireAuth, async (req, res) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(400).json({ error: "Incorrect password." });
 
-    db.prepare("DELETE FROM study_sessions WHERE user_id = ?").run(req.user.id);
-    db.prepare("DELETE FROM achievements WHERE user_id = ?").run(req.user.id);
-    db.prepare("DELETE FROM quiz_attempts WHERE user_id = ?").run(req.user.id);
-    db.prepare("DELETE FROM chat_messages WHERE user_id = ?").run(req.user.id);
-    db.prepare("DELETE FROM guides WHERE user_id = ?").run(req.user.id);
-    db.prepare("DELETE FROM folders WHERE user_id = ?").run(req.user.id);
-    db.prepare("DELETE FROM users WHERE id = ?").run(req.user.id);
+    // Wrap all deletions in a transaction so it's atomic
+    db.transaction(() => {
+      db.prepare("DELETE FROM study_sessions WHERE user_id = ?").run(req.user.id);
+      db.prepare("DELETE FROM achievements WHERE user_id = ?").run(req.user.id);
+      db.prepare("DELETE FROM quiz_attempts WHERE user_id = ?").run(req.user.id);
+      db.prepare("DELETE FROM chat_messages WHERE user_id = ?").run(req.user.id);
+      db.prepare("DELETE FROM guides WHERE user_id = ?").run(req.user.id);
+      db.prepare("DELETE FROM folders WHERE user_id = ?").run(req.user.id);
+      db.prepare("DELETE FROM users WHERE id = ?").run(req.user.id);
+    })();
 
     res.json({ success: true });
   } catch (err) {

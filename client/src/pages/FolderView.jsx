@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, BookOpen, Trash2, Plus } from "lucide-react";
+import { ArrowLeft, BookOpen, Trash2, Plus, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { api } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -16,13 +16,23 @@ export default function FolderView() {
   const [folder, setFolder] = useState(null);
   const [guides, setGuides] = useState([]);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => { load(); }, [id]);
 
   async function load() {
-    const [folders, g] = await Promise.all([api.folders.list(), api.guides.list(id)]);
-    setFolder(folders.find(f => f.id === id));
-    setGuides(g);
+    setLoading(true);
+    setLoadError("");
+    try {
+      const [folders, g] = await Promise.all([api.folders.list(), api.guides.list(id)]);
+      setFolder(folders.find(f => f.id === id));
+      setGuides(g);
+    } catch (err) {
+      setLoadError(err.message || "Failed to load folder.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const confirmDelete = async () => {
@@ -60,7 +70,16 @@ export default function FolderView() {
           </button>
         </div>
 
-        {guides.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 size={24} className="text-indigo-400 animate-spin" />
+          </div>
+        ) : loadError ? (
+          <div className="text-center py-16 text-gray-500 border border-dashed border-white/10 rounded-2xl">
+            <p className="font-medium text-red-400">{loadError}</p>
+            <button onClick={load} className="mt-4 text-sm text-indigo-400 hover:text-indigo-300 transition-colors">Try again</button>
+          </div>
+        ) : guides.length === 0 ? (
           <div className="text-center py-16 text-gray-500 border border-dashed border-white/10 rounded-2xl">
             <BookOpen size={40} className="mx-auto mb-3 opacity-30" />
             <p className="font-medium">No guides in this folder yet.</p>

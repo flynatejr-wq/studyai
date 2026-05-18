@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
 
+const MAX_TEXT = 50000;
+
 const TABS = [
   { id: "text",  label: "📝 Paste Text",    desc: "Copy & paste lecture notes or a transcript" },
   { id: "file",  label: "📄 Upload File",   desc: "PDF, Word, PowerPoint, TXT, CSV, Markdown" },
@@ -20,6 +22,7 @@ export default function UploadForm({ onSubmit, loading, dark }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [dragOver, setDragOver] = useState(false);
+  const [formError, setFormError] = useState("");
   const fileInputRef = useRef();
 
   const base = dark ? {
@@ -53,15 +56,17 @@ export default function UploadForm({ onSubmit, loading, dark }) {
     handleFileSelect(e.dataTransfer.files[0]);
   };
 
-  const handleTabChange = (tab) => { setActiveTab(tab); setFile(null); setPreview(null); };
+  const handleTabChange = (tab) => { setActiveTab(tab); setFile(null); setPreview(null); setFormError(""); };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setFormError("");
     if (activeTab === "text") {
-      if (transcript.trim().length < 30) { alert("Please paste a longer transcript."); return; }
+      if (transcript.trim().length < 30) { setFormError("Please paste a longer transcript (at least 30 characters)."); return; }
+      if (transcript.length > MAX_TEXT) { setFormError(`Transcript is too long. Please limit to ${MAX_TEXT.toLocaleString()} characters.`); return; }
       onSubmit({ type: "text", transcript });
     } else {
-      if (!file) { alert("Please select a file first."); return; }
+      if (!file) { setFormError("Please select a file first."); return; }
       onSubmit({ type: activeTab, file });
     }
   };
@@ -121,7 +126,7 @@ export default function UploadForm({ onSubmit, loading, dark }) {
 
         {/* Text */}
         {activeTab === "text" && (
-          <textarea value={transcript} onChange={e => setTranscript(e.target.value)} disabled={loading}
+          <textarea value={transcript} onChange={e => { setTranscript(e.target.value); if (formError) setFormError(""); }} disabled={loading}
             className={`w-full h-48 border rounded-xl p-4 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm ${base.textarea}`}
             placeholder="Paste your lecture notes or transcript here..." />
         )}
@@ -139,9 +144,13 @@ export default function UploadForm({ onSubmit, loading, dark }) {
           </div>
         )}
 
+        {formError && (
+          <p className="mt-3 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2">{formError}</p>
+        )}
+
         <div className="flex items-center justify-between mt-4">
           {activeTab === "text"
-            ? <span className={`text-xs ${base.sub}`}>{transcript.length} characters</span>
+            ? <span className={`text-xs ${base.sub} ${transcript.length > MAX_TEXT ? "text-red-400" : ""}`}>{transcript.length.toLocaleString()} / {MAX_TEXT.toLocaleString()}</span>
             : <span />}
           <button type="submit" disabled={loading || !canSubmit}
             className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white font-semibold px-6 py-2.5 rounded-xl transition-all text-sm ml-auto">
