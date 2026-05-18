@@ -26,8 +26,8 @@ export default function FolderView() {
     setLoadError("");
     try {
       const [folders, g] = await Promise.all([api.folders.list(), api.guides.list(id)]);
-      setFolder(folders.find(f => f.id === id));
-      setGuides(g);
+      setFolder((Array.isArray(folders) ? folders : []).find(f => f.id === id));
+      setGuides(Array.isArray(g) ? g : []);
     } catch (err) {
       setLoadError(err.message || "Failed to load folder.");
     } finally {

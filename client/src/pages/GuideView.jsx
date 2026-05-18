@@ -144,7 +144,7 @@ function MCQMode({ guideId, onXpEarned }) {
     setLoading(true); setError(""); setQuestions(null); setAnswers({}); setSubmitted(false);
     try {
       const { questions: qs } = await api.guides.generateQuiz(guideId, count, "mcq");
-      setQuestions(qs);
+      setQuestions(Array.isArray(qs) ? qs : null);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
@@ -354,7 +354,7 @@ export default function GuideView() {
 
   useEffect(() => {
     loadGuide();
-    api.guides.quizHistory(id).then(setQuizHistory).catch(() => {});
+    api.guides.quizHistory(id).then(h => setQuizHistory(Array.isArray(h) ? h : [])).catch(() => {});
   }, [id]);
 
   // Only load chat history when panel first opens; don't overwrite locally-appended messages
@@ -383,7 +383,7 @@ export default function GuideView() {
   async function loadChat() {
     try {
       const msgs = await api.chat.history(id);
-      setMessages(msgs);
+      setMessages(Array.isArray(msgs) ? msgs : []);
     } catch (_) {}
   }
 
@@ -414,7 +414,7 @@ export default function GuideView() {
     setGeneratingQuiz(true); setQuizError(""); resetQuiz();
     try {
       const { questions } = await api.guides.generateQuiz(id, quizCount, "self-grade");
-      setActiveQuestions(questions);
+      setActiveQuestions(Array.isArray(questions) ? questions : []);
     } catch (e) { setQuizError(e.message); }
     finally { setGeneratingQuiz(false); }
   };
