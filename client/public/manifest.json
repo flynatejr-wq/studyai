@@ -1,0 +1,44 @@
+{
+  "name": "StudyBuddi – AI-Powered Study Guides",
+  "short_name": "StudyBuddi",
+  "description": "Turn any lecture into a perfect study guide. Upload audio, snap a photo, or paste notes – get summaries, flashcards, quizzes, and an AI tutor instantly.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0a12",
+  "theme_color": "#6366f1",
+  "categories": ["education", "productivity"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "New Study Guide",
+      "short_name": "New Guide",
+      "description": "Create a new AI-powered study guide",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "My Progress",
+      "short_name": "Progress",
+      "description": "View your study progress and achievements",
+      "url": "/progress",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    }
+  ]
+}
