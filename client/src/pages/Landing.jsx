@@ -6,7 +6,7 @@ const features = [
   {
     icon: Zap,
     title: "Instant Study Guides",
-    desc: "Paste notes, upload PDFs, photos, or audio â€” get summaries, key terms, and quizzes in seconds.",
+    desc: "Paste notes, upload PDFs, photos, or audio — get summaries, key terms, and quizzes in seconds.",
     gradient: "from-yellow-500/20 to-orange-500/10",
     border: "border-yellow-500/20",
     iconBg: "bg-yellow-500/20",
@@ -50,7 +50,7 @@ const steps = [
 const stats = [
   { value: "10 sec", label: "Average guide time" },
   { value: "4 modes", label: "Study methods" },
-  { value: "âˆž", label: "Guides you can create" },
+  { value: "∞", label: "Guides you can create" },
 ];
 
 export default function Landing() {
@@ -97,7 +97,7 @@ export default function Landing() {
             </span>
           </h1>
           <p className="text-base sm:text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Upload audio, snap a photo, or paste your notes. StudyBuddi creates summaries, flashcards, quizzes, and gives you an AI tutor â€” in seconds.
+            Upload audio, snap a photo, or paste your notes. StudyBuddi creates summaries, flashcards, quizzes, and gives you an AI tutor — in seconds.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
             <Link to="/signup"
@@ -131,18 +131,18 @@ export default function Landing() {
             <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
             <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
             <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
-            <span className="ml-2 text-xs text-gray-500 font-mono">StudyBuddi â€” Biology Lecture</span>
+            <span className="ml-2 text-xs text-gray-500 font-mono">StudyBuddi — Biology Lecture</span>
           </div>
           <div className="p-5 space-y-3 text-left">
             <div className="flex items-center gap-2 mb-4">
-              {["ðŸ“ Notes", "ðŸƒ Flashcards", "ðŸŽ¯ MCQ", "âœï¸ Self-Grade"].map(tab => (
-                <span key={tab} className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${tab === "ðŸ“ Notes" ? "bg-indigo-600 text-white" : "text-gray-500 bg-white/5"}`}>{tab}</span>
+              {["📝 Notes", "🃏 Flashcards", "🎯 MCQ", "✏️ Self-Grade"].map(tab => (
+                <span key={tab} className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${tab === "📝 Notes" ? "bg-indigo-600 text-white" : "text-gray-500 bg-white/5"}`}>{tab}</span>
               ))}
             </div>
             <div className="space-y-2">
-              {["Cell membranes control what enters and exits the cell through selective permeability.", "Mitochondria generate ATP through oxidative phosphorylation.", "DNA replication is semi-conservative â€” each new strand keeps one original strand."].map((s, i) => (
+              {["Cell membranes control what enters and exits the cell through selective permeability.", "Mitochondria generate ATP through oxidative phosphorylation.", "DNA replication is semi-conservative — each new strand keeps one original strand."].map((s, i) => (
                 <div key={i} className="flex items-start gap-2.5 text-sm text-gray-300">
-                  <span className="text-indigo-400 mt-0.5 shrink-0 font-bold">â€¢</span>
+                  <span className="text-indigo-400 mt-0.5 shrink-0 font-bold">•</span>
                   <span className="leading-relaxed">{s}</span>
                 </div>
               ))}
@@ -204,7 +204,7 @@ export default function Landing() {
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}
           className="bg-gradient-to-br from-indigo-600/15 via-violet-600/10 to-pink-600/5 border border-indigo-500/20 rounded-3xl p-8 sm:p-12 text-center backdrop-blur-sm">
           <div className="flex justify-center gap-3 mb-6">
-            {[["âš¡", "XP System"], ["ðŸ”¥", "Streaks"], ["ðŸ†", "Achievements"]].map(([e, l]) => (
+            {[["⚡", "XP System"], ["🔥", "Streaks"], ["🏆", "Achievements"]].map(([e, l]) => (
               <div key={l} className="flex flex-col items-center gap-1.5">
                 <span className="text-2xl">{e}</span>
                 <span className="text-xs text-gray-400 font-medium">{l}</span>

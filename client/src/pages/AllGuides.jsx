@@ -71,7 +71,7 @@ export default function AllGuides() {
           <div>
             <h1 className="text-xl md:text-2xl font-black text-white">All Study Guides</h1>
             <p className="text-gray-500 mt-0.5 text-sm">
-              {loading ? "Loadingâ€¦" : `${total} guide${total !== 1 ? "s" : ""} total`}
+              {loading ? "Loading…" : `${total} guide${total !== 1 ? "s" : ""} total`}
             </p>
           </div>
           <div className="relative">
@@ -80,7 +80,7 @@ export default function AllGuides() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               maxLength={100}
-              placeholder="Search guidesâ€¦"
+              placeholder="Search guides…"
               className="w-full sm:w-64 bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
@@ -169,7 +169,7 @@ export default function AllGuides() {
                   className="inline-flex items-center gap-2 px-6 py-2.5 bg-white/5 hover:bg-white/8 border border-white/10 rounded-xl text-gray-400 text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   {loadingMore ? <Loader2 size={14} className="animate-spin" /> : null}
-                  {loadingMore ? "Loadingâ€¦" : `Load more (${total - guides.length} remaining)`}
+                  {loadingMore ? "Loading…" : `Load more (${total - guides.length} remaining)`}
                 </button>
               </div>
             )}

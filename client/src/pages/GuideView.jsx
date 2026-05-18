@@ -15,7 +15,7 @@ import ConfirmModal from "../components/ConfirmModal.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
 
-// â”€â”€ Study Timer (fetch + keepalive â€” works reliably on page close) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Study Timer (fetch + keepalive — works reliably on page close) ────────────
 function useStudyTimer(guideId) {
   const startRef = useRef(Date.now());
   useEffect(() => {
@@ -34,7 +34,7 @@ function useStudyTimer(guideId) {
   }, [guideId]);
 }
 
-// â”€â”€ Flashcard Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Flashcard Mode ────────────────────────────────────────────────────────────
 function FlashcardMode({ terms }) {
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -57,7 +57,7 @@ function FlashcardMode({ terms }) {
   return (
     <div className="flex flex-col items-center gap-6 py-4">
       <div className="flex items-center gap-4 text-sm text-gray-400 w-full max-w-lg">
-        <span className="text-green-400 font-medium">âœ“ {known.size} known</span>
+        <span className="text-green-400 font-medium">✓ {known.size} known</span>
         <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
           <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all"
             style={{ width: `${((known.size + unknown.size) / total) * 100}%` }} />
@@ -68,7 +68,7 @@ function FlashcardMode({ terms }) {
       {done ? (
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
           className="text-center bg-white/5 border border-white/10 rounded-2xl p-10 w-full max-w-lg">
-          <div className="text-5xl mb-3">{known.size === total ? "ðŸ†" : "ðŸ’ª"}</div>
+          <div className="text-5xl mb-3">{known.size === total ? "🏆" : "💪"}</div>
           <p className="text-2xl font-bold text-white mb-1">{known.size}/{total} cards known</p>
           <p className="text-gray-400 mb-6">{known.size === total ? "You know all of them!" : `${unknown.size} to review.`}</p>
           <button onClick={reset}
@@ -129,7 +129,7 @@ function FlashcardMode({ terms }) {
   );
 }
 
-// â”€â”€ Multiple Choice Quiz â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Multiple Choice Quiz ──────────────────────────────────────────────────────
 function MCQMode({ guideId, onXpEarned }) {
   const [count, setCount] = useState(10);
   const [questions, setQuestions] = useState(null);
@@ -180,7 +180,7 @@ function MCQMode({ guideId, onXpEarned }) {
       {error && <p className="text-red-400 text-sm">{error}</p>}
       <button onClick={generate} disabled={loading}
         className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-xl text-white font-bold transition-all">
-        {loading ? <><span className="animate-spin inline-block">â³</span> Generating...</> : <><Zap size={16} /> Start Quiz</>}
+        {loading ? <><span className="animate-spin inline-block">⏳</span> Generating...</> : <><Zap size={16} /> Start Quiz</>}
       </button>
     </div>
   );
@@ -189,7 +189,7 @@ function MCQMode({ guideId, onXpEarned }) {
     <div>
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
         className={`rounded-2xl p-6 mb-6 text-center ${score === questions.length ? "bg-green-500/10 border border-green-500/20" : score >= questions.length * 0.6 ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
-        <div className="text-5xl mb-2">{score === questions.length ? "ðŸ†" : score >= questions.length * 0.6 ? "â­" : "ðŸ’ª"}</div>
+        <div className="text-5xl mb-2">{score === questions.length ? "🏆" : score >= questions.length * 0.6 ? "⭐" : "💪"}</div>
         <p className="text-3xl font-bold text-white mb-1">{score}/{questions.length}</p>
         <p className="text-gray-400 mb-1">{Math.round((score / questions.length) * 100)}% correct</p>
         <p className="text-indigo-400 text-sm">+{score * 10} XP earned</p>
@@ -203,11 +203,11 @@ function MCQMode({ guideId, onXpEarned }) {
               <div className="space-y-2">
                 {q.options.map((opt, oi) => (
                   <div key={oi} className={`px-3 py-2 rounded-lg text-sm ${oi === correct ? "bg-green-500/20 text-green-300 font-medium" : oi === chosen && chosen !== correct ? "bg-red-500/20 text-red-300 line-through" : "text-gray-500"}`}>
-                    {["A","B","C","D"][oi]}. {opt}{oi === correct && " âœ“"}
+                    {["A","B","C","D"][oi]}. {opt}{oi === correct && " ✓"}
                   </div>
                 ))}
               </div>
-              {q.explanation && <p className="text-indigo-300 text-xs mt-3 italic">ðŸ’¡ {q.explanation}</p>}
+              {q.explanation && <p className="text-indigo-300 text-xs mt-3 italic">💡 {q.explanation}</p>}
             </div>
           );
         })}
@@ -245,14 +245,14 @@ function MCQMode({ guideId, onXpEarned }) {
       {allAnswered && (
         <button onClick={submit}
           className="w-full mt-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white transition-all">
-          Submit & Earn XP âš¡
+          Submit & Earn XP ⚡
         </button>
       )}
     </div>
   );
 }
 
-// â”€â”€ Quiz History Sparkline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Quiz History Sparkline ────────────────────────────────────────────────────
 function QuizHistoryBar({ attempts }) {
   if (!attempts?.length) return null;
   return (
@@ -268,7 +268,7 @@ function QuizHistoryBar({ attempts }) {
   );
 }
 
-// â”€â”€ Share Button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Share Button ──────────────────────────────────────────────────────────────
 function ShareButton({ guideId, initialToken }) {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
@@ -322,7 +322,7 @@ function ShareButton({ guideId, initialToken }) {
   );
 }
 
-// â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function GuideView() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -441,7 +441,7 @@ export default function GuideView() {
       <Sidebar onLogout={logout} />
       <main className="flex-1 md:ml-64 flex items-center justify-center p-8 pt-14 md:pt-0">
         <div className="text-center max-w-sm">
-          <div className="text-5xl mb-4">ðŸ“­</div>
+          <div className="text-5xl mb-4">📭</div>
           <h2 className="text-xl font-bold text-white mb-2">Guide not found</h2>
           <p className="text-gray-400 text-sm mb-6">{loadError}</p>
           <button onClick={() => navigate("/dashboard")}
@@ -463,10 +463,10 @@ export default function GuideView() {
   const terms = guide.key_terms || [];
 
   const MODES = [
-    { id: "notes",      label: "ðŸ“ Notes",          desc: "Summary & key terms" },
-    { id: "flashcards", label: "ðŸƒ Flashcards",      desc: `${terms.length} key terms` },
-    { id: "mcq",        label: "ðŸŽ¯ Multiple Choice", desc: "AI-generated MCQ" },
-    { id: "quiz",       label: "âœï¸ Self-Grade",      desc: "Reveal & mark answers" },
+    { id: "notes",      label: "📝 Notes",          desc: "Summary & key terms" },
+    { id: "flashcards", label: "🃏 Flashcards",      desc: `${terms.length} key terms` },
+    { id: "mcq",        label: "🎯 Multiple Choice", desc: "AI-generated MCQ" },
+    { id: "quiz",       label: "✏️ Self-Grade",      desc: "Reveal & mark answers" },
   ];
 
   return (
@@ -531,16 +531,16 @@ export default function GuideView() {
             )}
           </AnimatePresence>
 
-          {/* â”€â”€ NOTES MODE â”€â”€ */}
+          {/* ── NOTES MODE ── */}
           {studyMode === "notes" && (
             <>
               <section className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-5 print:border-gray-300 print:bg-white print:text-black">
-                <h2 className="text-base font-bold text-white mb-4 print:text-black">ðŸ“ Summary</h2>
+                <h2 className="text-base font-bold text-white mb-4 print:text-black">📝 Summary</h2>
                 <ul className="space-y-2">
                   {(guide.summary || []).map((point, i) => (
                     <motion.li key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.04 }} className="flex items-start gap-3 text-gray-300 print:text-gray-800">
-                      <span className="text-indigo-400 mt-0.5 shrink-0 print:text-indigo-600">â€¢</span>
+                      <span className="text-indigo-400 mt-0.5 shrink-0 print:text-indigo-600">•</span>
                       <span className="leading-relaxed text-sm">{point}</span>
                     </motion.li>
                   ))}
@@ -550,10 +550,10 @@ export default function GuideView() {
               <section className="bg-white/5 border border-white/10 rounded-2xl p-6 print:border-gray-300 print:bg-white">
                 <button className="w-full flex items-center justify-between text-base font-bold text-white print:hidden"
                   onClick={() => setExpandedTerms(!expandedTerms)}>
-                  <span>ðŸ”‘ Key Terms</span>
+                  <span>🔑 Key Terms</span>
                   {expandedTerms ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                 </button>
-                <h2 className="hidden print:block text-base font-bold text-black mb-4">ðŸ”‘ Key Terms</h2>
+                <h2 className="hidden print:block text-base font-bold text-black mb-4">🔑 Key Terms</h2>
                 <AnimatePresence>
                   {expandedTerms && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
@@ -571,28 +571,28 @@ export default function GuideView() {
             </>
           )}
 
-          {/* â”€â”€ FLASHCARD MODE â”€â”€ */}
+          {/* ── FLASHCARD MODE ── */}
           {studyMode === "flashcards" && (
             <section className="bg-white/5 border border-white/10 rounded-2xl p-6 print:hidden">
-              <h2 className="text-base font-bold text-white mb-5">ðŸƒ Flashcards â€” {terms.length} terms</h2>
+              <h2 className="text-base font-bold text-white mb-5">🃏 Flashcards — {terms.length} terms</h2>
               {terms.length === 0
                 ? <p className="text-gray-500 text-sm text-center py-8">No key terms found in this guide.</p>
                 : <FlashcardMode terms={terms} />}
             </section>
           )}
 
-          {/* â”€â”€ MCQ MODE â”€â”€ */}
+          {/* ── MCQ MODE ── */}
           {studyMode === "mcq" && (
             <section className="bg-white/5 border border-white/10 rounded-2xl p-6 print:hidden">
               <MCQMode guideId={id} onXpEarned={showXpToast} />
             </section>
           )}
 
-          {/* â”€â”€ SELF-GRADE QUIZ MODE â”€â”€ */}
+          {/* ── SELF-GRADE QUIZ MODE ── */}
           {studyMode === "quiz" && (
             <section className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-6 print:hidden">
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-base font-bold text-white">âœï¸ Self-Grade Quiz</h2>
+                <h2 className="text-base font-bold text-white">✏️ Self-Grade Quiz</h2>
                 {quizSubmitted && (
                   <button onClick={resetQuiz} className="flex items-center gap-1 text-gray-400 hover:text-white text-sm transition-colors">
                     <RotateCcw size={13} /> Retry
@@ -622,14 +622,14 @@ export default function GuideView() {
                     </button>
                   </div>
                   {quizError && <p className="text-red-400 text-xs mt-2">{quizError}</p>}
-                  {activeQuestions && <p className="text-green-400 text-xs mt-2">âœ“ {activeQuestions.length} fresh questions ready.</p>}
+                  {activeQuestions && <p className="text-green-400 text-xs mt-2">✓ {activeQuestions.length} fresh questions ready.</p>}
                 </div>
               )}
 
               {quizSubmitted && (
                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                   className={`rounded-2xl p-5 mb-5 text-center ${score === questions.length ? "bg-green-500/10 border border-green-500/20" : score >= questions.length * 0.6 ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
-                  <div className="text-4xl mb-2">{score === questions.length ? "ðŸ†" : score >= questions.length * 0.6 ? "â­" : "ðŸ’ª"}</div>
+                  <div className="text-4xl mb-2">{score === questions.length ? "🏆" : score >= questions.length * 0.6 ? "⭐" : "💪"}</div>
                   <p className="text-2xl font-bold text-white mb-1">{score}/{questions.length} correct</p>
                   <p className="text-gray-400 text-sm">{score === questions.length ? "Perfect score!" : score >= questions.length * 0.6 ? "Great job!" : "Keep studying!"}</p>
                 </motion.div>
@@ -651,13 +651,13 @@ export default function GuideView() {
                             {!quizAnswers[i] ? (
                               <div className="flex gap-2">
                                 <button onClick={() => setQuizAnswers(a => ({ ...a, [i]: "correct" }))}
-                                  className="px-3 py-1.5 bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/30 transition-colors">âœ“ Got it</button>
+                                  className="px-3 py-1.5 bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/30 transition-colors">✓ Got it</button>
                                 <button onClick={() => setQuizAnswers(a => ({ ...a, [i]: "wrong" }))}
-                                  className="px-3 py-1.5 bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/30 transition-colors">âœ— Missed it</button>
+                                  className="px-3 py-1.5 bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/30 transition-colors">✗ Missed it</button>
                               </div>
                             ) : (
                               <span className={`text-xs font-medium px-2 py-1 rounded-lg ${quizAnswers[i] === "correct" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
-                                {quizAnswers[i] === "correct" ? "âœ“ Marked correct" : "âœ— Marked wrong"}
+                                {quizAnswers[i] === "correct" ? "✓ Marked correct" : "✗ Marked wrong"}
                               </span>
                             )}
                           </div>
@@ -666,7 +666,7 @@ export default function GuideView() {
                     ) : (
                       <div className="flex items-center gap-2">
                         <p className="text-gray-400 text-sm flex-1">{q.answer}</p>
-                        <span>{quizAnswers[i] === "correct" ? "âœ…" : "âŒ"}</span>
+                        <span>{quizAnswers[i] === "correct" ? "✅" : "❌"}</span>
                       </div>
                     )}
                   </div>
@@ -676,7 +676,7 @@ export default function GuideView() {
               {!quizSubmitted && questions.length > 0 && Object.keys(quizAnswers).length === questions.length && (
                 <button onClick={submitQuiz}
                   className="w-full mt-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white transition-all">
-                  Submit Quiz & Earn XP âš¡
+                  Submit Quiz & Earn XP ⚡
                 </button>
               )}
             </section>

@@ -100,7 +100,7 @@ export default function FolderView() {
                   <h3 className="text-white font-semibold leading-tight mb-3 group-hover:text-indigo-300 transition-colors pr-6">{guide.title}</h3>
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>{new Date(guide.created_at).toLocaleDateString()}</span>
-                    {guide.best_quiz_score > 0 && <span className="text-yellow-400">â­ Best: {guide.best_quiz_score}/{guide.quiz_questions?.length || 5}</span>}
+                    {guide.best_quiz_score > 0 && <span className="text-yellow-400">⭐ Best: {guide.best_quiz_score}/{guide.quiz_questions?.length || 5}</span>}
                   </div>
                   {guide.quiz_attempts > 0 && (
                     <div className="mt-3">

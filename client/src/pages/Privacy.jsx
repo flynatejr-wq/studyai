@@ -12,7 +12,7 @@ export default function Privacy() {
           <BookOpen className="text-indigo-400" size={22} />
           <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">{COMPANY}</span>
         </Link>
-        <Link to="/signup" className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">Get started free â†’</Link>
+        <Link to="/signup" className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors">Get started free →</Link>
       </nav>
       <main className="max-w-3xl mx-auto px-6 py-12">
         <h1 className="text-3xl font-bold text-white mb-2">Privacy Policy</h1>

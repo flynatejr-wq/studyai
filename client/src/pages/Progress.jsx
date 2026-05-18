@@ -28,7 +28,7 @@ function ScoreBar({ score, total, date }) {
   const pct = total > 0 ? Math.round((score / total) * 100) : 0;
   const color = pct >= 80 ? "bg-green-500" : pct >= 60 ? "bg-yellow-500" : "bg-red-500";
   return (
-    <div className="flex flex-col items-center gap-1" title={`${pct}% â€” ${new Date(date).toLocaleDateString()}`}>
+    <div className="flex flex-col items-center gap-1" title={`${pct}% — ${new Date(date).toLocaleDateString()}`}>
       <div className="w-5 h-16 bg-white/10 rounded-full overflow-hidden flex flex-col-reverse">
         <div className={`${color} rounded-full transition-all`} style={{ height: `${pct}%` }} />
       </div>
@@ -106,7 +106,7 @@ export default function Progress() {
       <main className="flex-1 md:ml-64 flex items-center justify-center pt-14 md:pt-0">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-gray-500 text-sm">Loading progressâ€¦</p>
+          <p className="text-gray-500 text-sm">Loading progress…</p>
         </div>
       </main>
     </div>
@@ -117,7 +117,7 @@ export default function Progress() {
       <Sidebar onLogout={logout} />
       <main className="flex-1 md:ml-64 flex items-center justify-center p-8 pt-14 md:pt-0">
         <div className="text-center max-w-sm">
-          <div className="text-5xl mb-4">ðŸ“Š</div>
+          <div className="text-5xl mb-4">📊</div>
           <h2 className="text-xl font-bold text-white mb-2">Couldn't load progress</h2>
           <p className="text-gray-400 text-sm mb-6">{error}</p>
           <button onClick={() => { setError(""); setLoading(true); api.progress.get().then(d => { setData(d); setLoading(false); }).catch(e => { setError(e.message); setLoading(false); }); }}
@@ -188,10 +188,10 @@ export default function Progress() {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
           {[
-            { emoji: "â±ï¸", label: "Study Time",     value: fmtTime(user.total_study_time), grad: "from-blue-500/12 to-blue-600/5",     border: "border-blue-500/18"   },
-            { emoji: "ðŸ“š", label: "Guides Created", value: user.total_guides ?? 0,         grad: "from-indigo-500/12 to-indigo-600/5", border: "border-indigo-500/18" },
-            { emoji: "ðŸŽ¯", label: "Quizzes Taken",  value: totalQuizzes,                   grad: "from-yellow-500/12 to-amber-600/5",  border: "border-yellow-500/18" },
-            { emoji: "ðŸ”¥", label: "Day Streak",     value: `${user.streak ?? 0}d`,         grad: "from-orange-500/12 to-red-600/5",   border: "border-orange-500/18" },
+            { emoji: "⏱️", label: "Study Time",     value: fmtTime(user.total_study_time), grad: "from-blue-500/12 to-blue-600/5",     border: "border-blue-500/18"   },
+            { emoji: "📚", label: "Guides Created", value: user.total_guides ?? 0,         grad: "from-indigo-500/12 to-indigo-600/5", border: "border-indigo-500/18" },
+            { emoji: "🎯", label: "Quizzes Taken",  value: totalQuizzes,                   grad: "from-yellow-500/12 to-amber-600/5",  border: "border-yellow-500/18" },
+            { emoji: "🔥", label: "Day Streak",     value: `${user.streak ?? 0}d`,         grad: "from-orange-500/12 to-red-600/5",   border: "border-orange-500/18" },
           ].map(s => (
             <div key={s.label} className={`bg-gradient-to-br ${s.grad} border ${s.border} rounded-2xl p-4`}>
               <span className="text-xl">{s.emoji}</span>
@@ -252,7 +252,7 @@ export default function Progress() {
                       ? "bg-yellow-500/10 border-yellow-500/25 hover:border-yellow-500/40"
                       : "bg-white/2 border-white/5 opacity-40"
                   }`}>
-                  <div className="text-xl mb-1.5">{earned ? a.emoji : "ðŸ”’"}</div>
+                  <div className="text-xl mb-1.5">{earned ? a.emoji : "🔒"}</div>
                   <p className={`font-bold text-xs ${earned ? "text-yellow-300" : "text-gray-600"}`}>{a.name}</p>
                   <p className="text-gray-600 text-xs mt-0.5 leading-tight">{a.desc}</p>
                   {earnedAt && <p className="text-yellow-700 text-xs mt-1">{new Date(earnedAt).toLocaleDateString()}</p>}

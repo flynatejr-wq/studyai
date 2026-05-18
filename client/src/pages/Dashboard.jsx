@@ -30,7 +30,7 @@ function xpForNextLevel(level) { return level * level * 100; }
 
 const STAT_CARDS = (user) => [
   {
-    icon: "ðŸ”¥",
+    icon: "🔥",
     label: "Day Streak",
     value: user?.streak || 0,
     suffix: user?.streak > 0 ? " days" : "",
@@ -39,7 +39,7 @@ const STAT_CARDS = (user) => [
     valueColor: "text-orange-400",
   },
   {
-    icon: "âš¡",
+    icon: "⚡",
     label: "Total XP",
     value: (user?.xp || 0).toLocaleString(),
     grad: "from-yellow-500/15 to-amber-500/5",
@@ -47,7 +47,7 @@ const STAT_CARDS = (user) => [
     valueColor: "text-yellow-400",
   },
   {
-    icon: "ðŸ“š",
+    icon: "📚",
     label: "Guides",
     value: user?.total_guides || 0,
     grad: "from-indigo-500/15 to-blue-500/5",
@@ -55,7 +55,7 @@ const STAT_CARDS = (user) => [
     valueColor: "text-indigo-400",
   },
   {
-    icon: "ðŸŽ¯",
+    icon: "🎯",
     label: "Quizzes",
     value: user?.total_quizzes || 0,
     grad: "from-violet-500/15 to-purple-500/5",
@@ -73,7 +73,7 @@ export default function Dashboard() {
   const [showCreate,    setShowCreate]    = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
-  const [newFolderIcon, setNewFolderIcon] = useState("ðŸ“");
+  const [newFolderIcon, setNewFolderIcon] = useState("📁");
   const [results,       setResults]       = useState(null);
   const [loading,       setLoading]       = useState(false);
   const [error,         setError]         = useState("");
@@ -130,7 +130,7 @@ export default function Dashboard() {
     if (!newFolderName.trim()) return;
     try {
       await api.folders.create({ name: newFolderName, icon: newFolderIcon });
-      setNewFolderName(""); setNewFolderIcon("ðŸ“"); setShowNewFolder(false);
+      setNewFolderName(""); setNewFolderIcon("📁"); setShowNewFolder(false);
       toast({ message: `Folder "${newFolderName}" created!`, type: "success" });
       loadData();
     } catch (err) {
@@ -164,12 +164,12 @@ export default function Dashboard() {
 
       <main className="flex-1 md:ml-64 p-4 md:p-8 pt-16 md:pt-8">
 
-        {/* â”€â”€ Header â”€â”€ */}
+        {/* ── Header ── */}
         <div className="flex items-center justify-between mb-7 gap-3">
           <div className="min-w-0">
             <p className="text-xs text-gray-500 font-medium uppercase tracking-widest mb-0.5">{greeting}</p>
             <h1 className="text-xl md:text-2xl font-black text-white truncate">
-              {firstName} <span className="text-2xl">ðŸ‘‹</span>
+              {firstName} <span className="text-2xl">👋</span>
             </h1>
           </div>
           <button
@@ -181,7 +181,7 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* â”€â”€ Stats â”€â”€ */}
+        {/* ── Stats ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           {STAT_CARDS(user).map((s, i) => (
             <motion.div key={s.label}
@@ -196,7 +196,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* â”€â”€ XP Bar â”€â”€ */}
+        {/* ── XP Bar ── */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
           className="bg-white/4 border border-white/8 rounded-2xl p-5 mb-7">
           <div className="flex items-center justify-between mb-3">
@@ -220,7 +220,7 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
-        {/* â”€â”€ Create Guide Panel â”€â”€ */}
+        {/* ── Create Guide Panel ── */}
         <AnimatePresence>
           {showCreate && (
             <motion.div initial={{ opacity: 0, y: -12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12, scale: 0.98 }}
@@ -246,12 +246,12 @@ export default function Dashboard() {
                   <div className="mt-6 flex items-center gap-3 flex-wrap">
                     <select value={saveFolder} onChange={e => setSaveFolder(e.target.value)}
                       className="bg-white/8 border border-white/12 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors">
-                      <option value="">ðŸ“‚ No folder</option>
+                      <option value="">📂 No folder</option>
                       {folders.map(f => <option key={f.id} value={f.id}>{f.icon} {f.name}</option>)}
                     </select>
                     <button onClick={() => handleSave(saveFolder)}
                       className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white text-sm transition-all hover:-translate-y-0.5 shadow-lg shadow-indigo-500/20">
-                      ðŸ’¾ Save Guide
+                      💾 Save Guide
                     </button>
                   </div>
                 </div>
@@ -260,7 +260,7 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* â”€â”€ Folders â”€â”€ */}
+        {/* ── Folders ── */}
         <section className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -277,7 +277,7 @@ export default function Dashboard() {
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
                 className="flex gap-2 mb-4 flex-wrap overflow-hidden">
                 <input value={newFolderIcon} onChange={e => setNewFolderIcon(e.target.value)}
-                  className="w-12 bg-white/5 border border-white/10 rounded-xl px-2 py-2 text-white text-center focus:outline-none focus:border-indigo-500 transition-colors" placeholder="ðŸ“" />
+                  className="w-12 bg-white/5 border border-white/10 rounded-xl px-2 py-2 text-white text-center focus:outline-none focus:border-indigo-500 transition-colors" placeholder="📁" />
                 <input value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Folder name..."
                   onKeyDown={e => e.key === "Enter" && handleCreateFolder()}
                   className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors text-sm min-w-36" />
@@ -318,7 +318,7 @@ export default function Dashboard() {
           )}
         </section>
 
-        {/* â”€â”€ Recent Guides â”€â”€ */}
+        {/* ── Recent Guides ── */}
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">

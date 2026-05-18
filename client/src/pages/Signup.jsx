@@ -38,7 +38,7 @@ export default function Signup() {
             <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">StudyBuddi</span>
           </Link>
           <h1 className="text-3xl font-bold text-white">Create your account</h1>
-          <p className="text-gray-400 mt-2">Start studying smarter today â€” it's free</p>
+          <p className="text-gray-400 mt-2">Start studying smarter today — it's free</p>
         </div>
 
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
@@ -73,7 +73,7 @@ export default function Signup() {
             </div>
             <button type="submit" disabled={loading}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 font-semibold text-white transition-all mt-2">
-              {loading ? "Creating account..." : "Create Account â†’"}
+              {loading ? "Creating account..." : "Create Account →"}
             </button>
           </form>
           <p className="text-center text-gray-400 text-sm mt-6">

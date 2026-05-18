@@ -19,7 +19,7 @@ export default function PublicGuide() {
   if (error) return (
     <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center p-6">
       <div className="text-center max-w-sm">
-        <div className="text-5xl mb-4">ðŸ”—</div>
+        <div className="text-5xl mb-4">🔗</div>
         <h2 className="text-xl font-bold text-white mb-2">Link not found</h2>
         <p className="text-gray-400 text-sm mb-6">{error}</p>
         <Link to="/" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold text-sm transition-colors">
@@ -52,7 +52,7 @@ export default function PublicGuide() {
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider">{guide.type} Â· shared study guide</span>
+          <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider">{guide.type} · shared study guide</span>
           <h1 className="text-2xl md:text-3xl font-bold text-white mt-2 mb-1 leading-tight">{guide.title}</h1>
           <p className="text-gray-500 text-sm">{new Date(guide.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
         </motion.div>
@@ -60,11 +60,11 @@ export default function PublicGuide() {
         {/* Summary */}
         <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
           className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-5">
-          <h2 className="text-base font-bold text-white mb-4">ðŸ“ Summary</h2>
+          <h2 className="text-base font-bold text-white mb-4">📝 Summary</h2>
           <ul className="space-y-2">
             {(guide.summary || []).map((point, i) => (
               <li key={i} className="flex items-start gap-3 text-gray-300">
-                <span className="text-indigo-400 mt-0.5 shrink-0">â€¢</span>
+                <span className="text-indigo-400 mt-0.5 shrink-0">•</span>
                 <span className="leading-relaxed text-sm">{point}</span>
               </li>
             ))}
@@ -77,7 +77,7 @@ export default function PublicGuide() {
             className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-8">
             <button className="w-full flex items-center justify-between text-base font-bold text-white"
               onClick={() => setExpandedTerms(e => !e)}>
-              <span>ðŸ”‘ Key Terms</span>
+              <span>🔑 Key Terms</span>
               {expandedTerms ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
             </button>
             {expandedTerms && (
@@ -100,7 +100,7 @@ export default function PublicGuide() {
           <p className="text-gray-400 text-sm mb-5">Create a free account to take flashcards, MCQ quizzes, and chat with an AI tutor about any study guide.</p>
           <Link to="/signup"
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl text-white font-bold transition-all shadow-lg shadow-indigo-500/20">
-            <UserPlus size={16} /> Start studying free â†’
+            <UserPlus size={16} /> Start studying free →
           </Link>
         </motion.div>
       </main>

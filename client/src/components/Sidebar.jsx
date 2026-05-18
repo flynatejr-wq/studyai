@@ -28,7 +28,7 @@ export default function Sidebar({ onLogout }) {
 
   return (
     <>
-      {/* â”€â”€ Mobile top bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Mobile top bar ──────────────────────────────────────── */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-[#0e0e18]/95 backdrop-blur-md border-b border-white/8 flex items-center justify-between px-4 z-40">
         <button onClick={() => setOpen(true)} className="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-white/8 transition-all">
           <Menu size={20} />
@@ -45,12 +45,12 @@ export default function Sidebar({ onLogout }) {
         </div>
       </header>
 
-      {/* â”€â”€ Mobile backdrop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Mobile backdrop ─────────────────────────────────────── */}
       {open && (
         <div className="md:hidden fixed inset-0 bg-black/70 z-40 backdrop-blur-sm" onClick={close} />
       )}
 
-      {/* â”€â”€ Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Sidebar ─────────────────────────────────────────────── */}
       <aside className={`
         fixed left-0 top-0 bottom-0 w-64 bg-[#0e0e18] border-r border-white/8 flex flex-col z-50
         transition-transform duration-300 ease-in-out
@@ -114,7 +114,7 @@ export default function Sidebar({ onLogout }) {
             <p className="text-xs text-gray-600 mt-1.5">{xpNext - (xp % xpNext)} XP to Level {level + 1}</p>
             {user?.streak > 0 && (
               <p className="text-xs text-orange-400 font-semibold mt-1.5 flex items-center gap-1">
-                ðŸ”¥ {user.streak} day streak
+                🔥 {user.streak} day streak
               </p>
             )}
           </div>

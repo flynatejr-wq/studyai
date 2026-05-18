@@ -38,7 +38,7 @@ export default class ErrorBoundary extends Component {
       return (
         <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center p-6">
           <div className="text-center max-w-lg w-full">
-            <div className="text-6xl mb-6">ðŸ’¥</div>
+            <div className="text-6xl mb-6">💥</div>
             <h1 className="text-2xl font-bold text-white mb-2">Something went wrong</h1>
             <p className="text-gray-400 mb-4 text-sm">
               An unexpected error occurred. This has been noted.

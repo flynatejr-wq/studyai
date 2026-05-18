@@ -70,9 +70,9 @@ export const api = {
     delete: (id)       => request(`/folders/${id}`,{ method: "DELETE", headers: headers() }),
   },
   guides: {
-    // Legacy (returns array) â€” used by Dashboard, FolderView
+    // Legacy (returns array) — used by Dashboard, FolderView
     list:         (folder_id)          => request(`/guides${folder_id ? `?folder_id=${folder_id}` : ""}`, { headers: headers() }),
-    // Paginated + searchable â€” used by AllGuides
+    // Paginated + searchable — used by AllGuides
     listPaged:    (offset = 0, search = "") => request(`/guides?limit=24&offset=${offset}${search ? `&search=${encodeURIComponent(search)}` : ""}`, { headers: headers() }),
     get:          (id)                 => request(`/guides/${id}`, { headers: headers() }),
     save:         (body)               => request("/guides",           { method: "POST",   headers: headers(), body: JSON.stringify(body) }),
