@@ -61,10 +61,10 @@ export default function Signup() {
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">Password</label>
               <div className="relative">
-                <input type={showPw ? "text" : "password"} required minLength={6} value={form.password}
+                <input type={showPw ? "text" : "password"} required minLength={8} maxLength={72} value={form.password}
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pr-11 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
-                  placeholder="At least 6 characters" />
+                  placeholder="At least 8 characters" />
                 <button type="button" onClick={() => setShowPw(p => !p)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors p-1">
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}

@@ -1,9 +1,15 @@
 import express from "express";
 import bcrypt from "bcryptjs";
+import { createHash } from "crypto";
 import { v4 as uuid } from "uuid";
 import db from "../db.js";
 import { signToken, requireAuth } from "../middleware/auth.js";
 import { sendPasswordReset, isEmailConfigured } from "../utils/email.js";
+
+// H-7: SHA-256 hash reset tokens before storing so a DB read can't be used to take over accounts
+function hashResetToken(token) {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 const router = express.Router();
 
@@ -18,8 +24,10 @@ router.post("/signup", async (req, res) => {
     return res.status(400).json({ error: "Please enter a valid email address." });
   if (name.trim().length > 80)
     return res.status(400).json({ error: "Name is too long." });
-  if (password.length < 6)
-    return res.status(400).json({ error: "Password must be at least 6 characters." });
+  if (password.length < 8)
+    return res.status(400).json({ error: "Password must be at least 8 characters." });
+  if (password.length > 72)
+    return res.status(400).json({ error: "Password must be 72 characters or fewer." });
 
   try {
     const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email.toLowerCase().trim());
@@ -32,7 +40,7 @@ router.post("/signup", async (req, res) => {
     ).run(id, name.trim(), email.toLowerCase().trim(), password_hash);
 
     const user = db.prepare("SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, created_at FROM users WHERE id = ?").get(id);
-    const token = signToken({ id, email });
+    const token = signToken({ id });
     res.json({ token, user });
   } catch (err) {
     console.error(err);
@@ -63,7 +71,7 @@ router.post("/login", async (req, res) => {
     db.prepare("UPDATE users SET streak = ?, last_study_date = ? WHERE id = ?")
       .run(newStreak, today, user.id);
 
-    const token = signToken({ id: user.id, email: user.email });
+    const token = signToken({ id: user.id });
     const { password_hash, reset_token, reset_token_expires, ...safeUser } = user;
     res.json({ token, user: { ...safeUser, streak: newStreak } });
   } catch (err) {
@@ -93,7 +101,8 @@ router.put("/profile", requireAuth, async (req, res) => {
 
     if (newPassword) {
       if (!currentPassword) return res.status(400).json({ error: "Current password is required to set a new password." });
-      if (newPassword.length < 6) return res.status(400).json({ error: "New password must be at least 6 characters." });
+      if (newPassword.length < 8) return res.status(400).json({ error: "New password must be at least 8 characters." });
+      if (newPassword.length > 72) return res.status(400).json({ error: "New password must be 72 characters or fewer." });
       const valid = await bcrypt.compare(currentPassword, user.password_hash);
       if (!valid) return res.status(400).json({ error: "Current password is incorrect." });
       const hash = await bcrypt.hash(newPassword, 10);
@@ -123,9 +132,11 @@ router.post("/forgot-password", async (req, res) => {
 
   try {
     const token = uuid();
+    // H-7: Store only the SHA-256 hash so a DB read can't be used to reset any account
+    const tokenHash = hashResetToken(token);
     const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
     db.prepare("UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?")
-      .run(token, expires, user.id);
+      .run(tokenHash, expires, user.id);
 
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
     const resetLink = `${frontendUrl}/reset-password?token=${token}`;
@@ -137,7 +148,8 @@ router.post("/forgot-password", async (req, res) => {
       console.log(`[DEV] Password reset link for ${user.email}: ${resetLink}`);
     }
 
-    res.json({ success: true, emailConfigured: isEmailConfigured() });
+    // M-6: Don't leak server config (emailConfigured) to the client
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Could not send reset email. Please try again." });
@@ -148,10 +160,13 @@ router.post("/forgot-password", async (req, res) => {
 router.post("/reset-password", async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password) return res.status(400).json({ error: "Token and password are required." });
-  if (password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters." });
+  if (password.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters." });
+  if (password.length > 72) return res.status(400).json({ error: "Password must be 72 characters or fewer." });
 
   try {
-    const user = db.prepare("SELECT * FROM users WHERE reset_token = ?").get(token);
+    // H-7: Compare against stored hash, not the raw token
+    const tokenHash = hashResetToken(token);
+    const user = db.prepare("SELECT * FROM users WHERE reset_token = ?").get(tokenHash);
     if (!user) return res.status(400).json({ error: "Invalid or expired reset link. Please request a new one." });
 
     const expired = new Date(user.reset_token_expires) < new Date();

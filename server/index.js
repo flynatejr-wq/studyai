@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import jwt from "jsonwebtoken";
 import summarizeRoute from "./routes/summarize.js";
 import authRoute from "./routes/auth.js";
 import foldersRoute from "./routes/folders.js";
@@ -16,10 +17,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Security headers
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-}));
+// Security headers — M-7: use helmet defaults (no crossOriginResourcePolicy override needed for a JSON API)
+app.use(helmet());
 
 const allowedOrigins = [
   "http://localhost:5173",
@@ -29,7 +28,9 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.some(o => origin.startsWith(o))) return cb(null, true);
+    // H-6: Exact match only — startsWith would allow evil.yourapp.vercel.app to pass
+    // No origin = curl/Postman/server-to-server; allowed because auth uses Bearer tokens not cookies
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
     cb(new Error("Not allowed by CORS"));
   },
   credentials: true,
@@ -56,12 +57,24 @@ const authLimiter = rateLimit({
   message: { error: "Too many login attempts. Please wait 15 minutes and try again." },
 });
 
+// H-5: Per-user AI rate limit — keyed on authenticated user ID so rotating IPs can't bypass it
+// keyGenerator decodes the JWT to extract the user ID; falls back to IP for unauthenticated requests
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many AI requests. Please wait a moment." },
+  keyGenerator: (req) => {
+    const header = req.headers.authorization;
+    if (header?.startsWith("Bearer ") && process.env.JWT_SECRET) {
+      try {
+        const decoded = jwt.verify(header.split(" ")[1], process.env.JWT_SECRET, { algorithms: ["HS256"] });
+        if (decoded?.id) return `user:${decoded.id}`;
+      } catch {}
+    }
+    return req.ip; // fallback to IP for unauthenticated or invalid token requests
+  },
 });
 
 app.use(generalLimiter);
@@ -78,20 +91,36 @@ app.use("/api/public", publicRoute);
 app.get("/health", (_, res) => res.json({ status: "ok" }));
 
 // Client-side error reporting (no auth — ErrorBoundary sends here)
-app.post("/api/client-error", (req, res) => {
+// H-1: Tight rate limit + field length caps to prevent log flooding / log injection
+const clientErrorLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5, // 5 error reports per minute per IP is more than enough
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many error reports." },
+});
+
+function sanitizeLogField(val, max = 500) {
+  if (typeof val !== "string") return "(none)";
+  // Strip control characters and newlines to prevent log injection
+  return val.replace(/[\x00-\x1F\x7F]/g, " ").slice(0, max);
+}
+
+app.post("/api/client-error", clientErrorLimiter, (req, res) => {
   const { message, componentStack, url, userAgent } = req.body || {};
   console.error("=== CLIENT ERROR REPORT ===");
-  console.error("URL:", url);
-  console.error("UA:", userAgent);
-  console.error("Error:", message);
-  console.error("Component stack:", componentStack);
+  console.error("URL:", sanitizeLogField(url, 200));
+  console.error("UA:", sanitizeLogField(userAgent, 200));
+  console.error("Error:", sanitizeLogField(message, 500));
+  console.error("Stack:", sanitizeLogField(componentStack, 1000));
   console.error("===========================");
   res.json({ ok: true });
 });
 
 // 404 catch-all — must be after all routes; always returns JSON (never Express plain-text)
+// L-8: Generic message — don't echo method/path back to the caller
 app.use((req, res) => {
-  res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` });
+  res.status(404).json({ error: "Not found." });
 });
 
 // Global error handler — catches multer "File too large" and any other unhandled errors

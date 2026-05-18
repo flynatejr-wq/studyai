@@ -28,9 +28,11 @@ router.post("/", (req, res) => {
   if (name.trim().length > 80) return res.status(400).json({ error: "Folder name is too long (max 80 characters)." });
   const safeIcon = typeof icon === "string" ? icon.trim().slice(0, 10) : "📁";
   if (safeIcon && !safeIcon.length) return res.status(400).json({ error: "Invalid icon." });
+  // M-2: Validate color against allowlist to prevent arbitrary strings being stored and rendered
+  const safeColor = COLORS.includes(color) ? color : COLORS[Math.floor(Math.random() * COLORS.length)];
   const id = uuid();
   db.prepare("INSERT INTO folders (id, user_id, name, color, icon) VALUES (?, ?, ?, ?, ?)")
-    .run(id, req.user.id, name.trim(), color || COLORS[Math.floor(Math.random() * COLORS.length)], safeIcon || "📁");
+    .run(id, req.user.id, name.trim(), safeColor, safeIcon || "📁");
   const folder = db.prepare("SELECT * FROM folders WHERE id = ?").get(id);
   res.json(folder);
 });
@@ -42,8 +44,10 @@ router.patch("/:id", (req, res) => {
   const { name, color, icon } = req.body;
   if (name && name.trim().length > 80) return res.status(400).json({ error: "Folder name is too long (max 80 characters)." });
   const safeIcon = typeof icon === "string" ? icon.trim().slice(0, 10) : folder.icon;
+  // M-2: Validate updated color against allowlist too
+  const safeColor = COLORS.includes(color) ? color : (color === undefined ? folder.color : folder.color);
   db.prepare("UPDATE folders SET name = ?, color = ?, icon = ? WHERE id = ?")
-    .run(name?.trim() || folder.name, color || folder.color, safeIcon || folder.icon, folder.id);
+    .run(name?.trim() || folder.name, safeColor, safeIcon || folder.icon, folder.id);
   res.json(db.prepare("SELECT * FROM folders WHERE id = ?").get(folder.id));
 });
 

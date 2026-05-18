@@ -28,8 +28,8 @@ export default function Settings() {
     if (!name.trim()) return toast({ message: "Name cannot be empty.", type: "error" });
     if (newPassword && newPassword !== confirmPassword)
       return toast({ message: "New passwords do not match.", type: "error" });
-    if (newPassword && newPassword.length < 6)
-      return toast({ message: "New password must be at least 6 characters.", type: "error" });
+    if (newPassword && newPassword.length < 8)
+      return toast({ message: "New password must be at least 8 characters.", type: "error" });
 
     setProfileLoading(true);
     try {
@@ -106,7 +106,7 @@ export default function Settings() {
                 placeholder="Current password"
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition-colors text-sm" />
               <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                placeholder="New password (min 6 characters)"
+                placeholder="New password (min 8 characters)"
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition-colors text-sm" />
               <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
                 placeholder="Confirm new password"

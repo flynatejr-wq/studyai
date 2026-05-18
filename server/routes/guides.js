@@ -139,7 +139,15 @@ router.post("/", (req, res) => {
 router.patch("/:id/move", (req, res) => {
   const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
   if (!guide) return res.status(404).json({ error: "Guide not found." });
-  db.prepare("UPDATE guides SET folder_id = ? WHERE id = ?").run(req.body.folder_id || null, guide.id);
+
+  // L-4: Validate that the target folder belongs to this user (prevents cross-user folder assignment)
+  const targetFolderId = req.body.folder_id || null;
+  if (targetFolderId) {
+    const folder = db.prepare("SELECT id FROM folders WHERE id = ? AND user_id = ?").get(targetFolderId, req.user.id);
+    if (!folder) return res.status(400).json({ error: "Invalid folder." });
+  }
+
+  db.prepare("UPDATE guides SET folder_id = ? WHERE id = ?").run(targetFolderId, guide.id);
   res.json({ success: true });
 });
 
@@ -147,7 +155,11 @@ router.patch("/:id/move", (req, res) => {
 router.delete("/:id", (req, res) => {
   const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
   if (!guide) return res.status(404).json({ error: "Guide not found." });
-  db.prepare("DELETE FROM guides WHERE id = ?").run(guide.id);
+  db.transaction(() => {
+    db.prepare("DELETE FROM guides WHERE id = ?").run(guide.id);
+    // L-6: Keep total_guides in sync so stat cards and achievement thresholds stay accurate
+    db.prepare("UPDATE users SET total_guides = MAX(0, total_guides - 1) WHERE id = ?").run(req.user.id);
+  })();
   res.json({ success: true });
 });
 
@@ -156,13 +168,12 @@ router.post("/:id/quiz", (req, res) => {
   const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
+  // M-3: Use the authoritative question count from the DB — never trust the client's total
+  const actualQuestions = JSON.parse(guide.quiz_questions);
+  const totalNum = actualQuestions.length;
   const scoreNum = parseInt(req.body.score);
-  const totalNum = parseInt(req.body.total);
-  if (
-    isNaN(scoreNum) || isNaN(totalNum) ||
-    scoreNum < 0 || totalNum < 1 ||
-    scoreNum > totalNum || totalNum > 50
-  ) return res.status(400).json({ error: "Invalid quiz score." });
+  if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > totalNum || totalNum < 1)
+    return res.status(400).json({ error: "Invalid quiz score." });
 
   const xpGained = scoreNum * 10;
 
