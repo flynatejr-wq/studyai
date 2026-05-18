@@ -62,7 +62,7 @@ export default function PublicGuide() {
           className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-5">
           <h2 className="text-base font-bold text-white mb-4">ðŸ“ Summary</h2>
           <ul className="space-y-2">
-            {guide.summary.map((point, i) => (
+            {(guide.summary || []).map((point, i) => (
               <li key={i} className="flex items-start gap-3 text-gray-300">
                 <span className="text-indigo-400 mt-0.5 shrink-0">â€¢</span>
                 <span className="leading-relaxed text-sm">{point}</span>

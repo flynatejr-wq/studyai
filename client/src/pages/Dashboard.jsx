@@ -39,9 +39,11 @@ export default function Dashboard() {
   useEffect(() => { loadData(); }, []);
 
   async function loadData() {
-    const [f, g] = await Promise.all([api.folders.list(), api.guides.list()]);
-    setFolders(f);
-    setRecentGuides(g.slice(0, 6));
+    try {
+      const [f, g] = await Promise.all([api.folders.list(), api.guides.list()]);
+      setFolders(Array.isArray(f) ? f : []);
+      setRecentGuides(Array.isArray(g) ? g.slice(0, 6) : []);
+    } catch (_) {}
   }
 
   const handleSubmit = async ({ type, transcript, file }) => {

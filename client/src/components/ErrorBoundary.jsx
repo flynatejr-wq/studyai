@@ -4,7 +4,7 @@ import { RefreshCw, Home } from "lucide-react";
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, stack: null };
   }
 
   static getDerivedStateFromError(error) {
@@ -13,6 +13,7 @@ export default class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error("ErrorBoundary caught:", error, info);
+    this.setState({ stack: info?.componentStack ?? null });
   }
 
   render() {
@@ -26,8 +27,13 @@ export default class ErrorBoundary extends Component {
               An unexpected error occurred. This has been noted.
             </p>
             {this.state.error?.message && (
-              <p className="text-red-400 text-xs font-mono bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-6 text-left break-all">
+              <p className="text-red-400 text-xs font-mono bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-2 text-left break-all">
                 {this.state.error.message}
+              </p>
+            )}
+            {this.state.stack && (
+              <p className="text-gray-600 text-xs font-mono bg-white/3 border border-white/5 rounded-xl px-4 py-3 mb-6 text-left break-all whitespace-pre-wrap max-h-32 overflow-auto">
+                {this.state.stack.trim()}
               </p>
             )}
             <div className="flex gap-3 justify-center">

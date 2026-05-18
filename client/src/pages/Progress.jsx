@@ -173,7 +173,7 @@ export default function Progress() {
               </div>
             </div>
             <div className="text-right">
-              <p className="text-indigo-300 font-bold text-xl">{user.xp.toLocaleString()} XP</p>
+              <p className="text-indigo-300 font-bold text-xl">{(user.xp ?? 0).toLocaleString()} XP</p>
               <p className="text-gray-500 text-sm">{xpNext - ((user.xp ?? 0) % xpNext)} XP to Level {(user.level ?? 1) + 1}</p>
             </div>
           </div>
