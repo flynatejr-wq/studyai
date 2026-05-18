@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { User, Lock, Trash2, Save, LogOut } from "lucide-react";
@@ -63,7 +63,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-950">
+    <div className="flex min-h-screen bg-[#0a0a12]">
       <Sidebar onLogout={logout} />
       <main className="flex-1 md:ml-64 p-4 md:p-8 pt-16 md:pt-8 max-w-2xl">
 

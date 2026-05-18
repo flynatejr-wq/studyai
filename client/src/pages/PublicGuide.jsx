@@ -17,7 +17,7 @@ export default function PublicGuide() {
   }, [token]);
 
   if (error) return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center p-6">
       <div className="text-center max-w-sm">
         <div className="text-5xl mb-4">ðŸ”—</div>
         <h2 className="text-xl font-bold text-white mb-2">Link not found</h2>
@@ -30,13 +30,13 @@ export default function PublicGuide() {
   );
 
   if (!guide) return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+    <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center">
       <div className="text-indigo-400 animate-pulse text-lg">Loading guide...</div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#0a0a12]">
       {/* Nav */}
       <nav className="border-b border-white/10 px-4 sm:px-8 py-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 font-bold text-lg">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -28,7 +28,7 @@ function ScoreBar({ score, total, date }) {
   const pct = total > 0 ? Math.round((score / total) * 100) : 0;
   const color = pct >= 80 ? "bg-green-500" : pct >= 60 ? "bg-yellow-500" : "bg-red-500";
   return (
-    <div className="flex flex-col items-center gap-1" title={`${pct}% — ${new Date(date).toLocaleDateString()}`}>
+    <div className="flex flex-col items-center gap-1" title={`${pct}% â€” ${new Date(date).toLocaleDateString()}`}>
       <div className="w-5 h-16 bg-white/10 rounded-full overflow-hidden flex flex-col-reverse">
         <div className={`${color} rounded-full transition-all`} style={{ height: `${pct}%` }} />
       </div>
@@ -101,20 +101,23 @@ export default function Progress() {
   }, []);
 
   if (loading) return (
-    <div className="flex min-h-screen bg-slate-950">
+    <div className="flex min-h-screen bg-[#0a0a12]">
       <Sidebar onLogout={logout} />
       <main className="flex-1 md:ml-64 flex items-center justify-center pt-14 md:pt-0">
-        <div className="text-indigo-400 animate-pulse text-lg">Loading progress...</div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-gray-500 text-sm">Loading progressâ€¦</p>
+        </div>
       </main>
     </div>
   );
 
   if (error) return (
-    <div className="flex min-h-screen bg-slate-950">
+    <div className="flex min-h-screen bg-[#0a0a12]">
       <Sidebar onLogout={logout} />
       <main className="flex-1 md:ml-64 flex items-center justify-center p-8 pt-14 md:pt-0">
         <div className="text-center max-w-sm">
-          <div className="text-5xl mb-4">📊</div>
+          <div className="text-5xl mb-4">ðŸ“Š</div>
           <h2 className="text-xl font-bold text-white mb-2">Couldn't load progress</h2>
           <p className="text-gray-400 text-sm mb-6">{error}</p>
           <button onClick={() => { setError(""); setLoading(true); api.progress.get().then(d => { setData(d); setLoading(false); }).catch(e => { setError(e.message); setLoading(false); }); }}
@@ -148,100 +151,111 @@ export default function Progress() {
   })();
 
   return (
-    <div className="flex min-h-screen bg-slate-950">
+    <div className="flex min-h-screen bg-[#0a0a12]">
       <Sidebar onLogout={logout} />
       <main className="flex-1 md:ml-64 p-4 md:p-8 pt-16 md:pt-8 max-w-5xl">
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <BarChart2 className="text-indigo-400" size={28} /> Your Progress
-          </h1>
-          <p className="text-gray-400 mt-1">Everything you've learned at a glance.</p>
+        <div className="mb-7">
+          <p className="text-xs text-gray-500 font-medium uppercase tracking-widest mb-0.5">Dashboard</p>
+          <h1 className="text-xl md:text-2xl font-black text-white">Your Progress</h1>
         </div>
 
         {/* Level + XP */}
-        <div className="bg-gradient-to-br from-indigo-600/20 to-violet-600/10 border border-indigo-500/30 rounded-2xl p-6 mb-6">
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-gradient-to-br from-indigo-600/15 to-violet-600/8 border border-indigo-500/20 rounded-2xl p-5 mb-5">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-xl font-bold text-white shadow-lg shadow-indigo-500/30">
-                {user.level}
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-lg font-black text-white shadow-lg shadow-indigo-500/30">
+                {user.level ?? 1}
               </div>
               <div>
-                <p className="text-white font-bold text-lg">Level {user.level}</p>
-                <p className="text-gray-400 text-sm">{user.name}</p>
+                <p className="text-white font-bold text-sm">Level {user.level ?? 1}</p>
+                <p className="text-gray-500 text-xs">{user.name}</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-indigo-300 font-bold text-xl">{(user.xp ?? 0).toLocaleString()} XP</p>
-              <p className="text-gray-500 text-sm">{xpNext - ((user.xp ?? 0) % xpNext)} XP to Level {(user.level ?? 1) + 1}</p>
+              <p className="text-indigo-300 font-black text-lg">{(user.xp ?? 0).toLocaleString()} <span className="text-xs font-normal text-gray-500">XP</span></p>
+              <p className="text-gray-600 text-xs">{xpNext - ((user.xp ?? 0) % xpNext)} to Level {(user.level ?? 1) + 1}</p>
             </div>
           </div>
-          <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+          <div className="h-2 bg-white/8 rounded-full overflow-hidden">
             <motion.div initial={{ width: 0 }} animate={{ width: `${xpProgress}%` }}
-              transition={{ duration: 1, ease: "easeOut" }}
-              className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full" />
+              transition={{ duration: 1.2, ease: "easeOut" }}
+              className="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-pink-500 rounded-full" />
           </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
           {[
-            { icon: <Clock size={18} className="text-blue-400" />, label: "Study Time", value: fmtTime(user.total_study_time), bg: "from-blue-500/10 to-blue-600/5 border-blue-500/20" },
-            { icon: <BookOpen size={18} className="text-indigo-400" />, label: "Guides Created", value: user.total_guides, bg: "from-indigo-500/10 to-indigo-600/5 border-indigo-500/20" },
-            { icon: <Trophy size={18} className="text-yellow-400" />, label: "Quizzes Taken", value: totalQuizzes, bg: "from-yellow-500/10 to-yellow-600/5 border-yellow-500/20" },
-            { icon: <Flame size={18} className="text-orange-400" />, label: "Day Streak", value: `${user.streak} 🔥`, bg: "from-orange-500/10 to-orange-600/5 border-orange-500/20" },
+            { emoji: "â±ï¸", label: "Study Time",     value: fmtTime(user.total_study_time), grad: "from-blue-500/12 to-blue-600/5",     border: "border-blue-500/18"   },
+            { emoji: "ðŸ“š", label: "Guides Created", value: user.total_guides ?? 0,         grad: "from-indigo-500/12 to-indigo-600/5", border: "border-indigo-500/18" },
+            { emoji: "ðŸŽ¯", label: "Quizzes Taken",  value: totalQuizzes,                   grad: "from-yellow-500/12 to-amber-600/5",  border: "border-yellow-500/18" },
+            { emoji: "ðŸ”¥", label: "Day Streak",     value: `${user.streak ?? 0}d`,         grad: "from-orange-500/12 to-red-600/5",   border: "border-orange-500/18" },
           ].map(s => (
-            <div key={s.label} className={`bg-gradient-to-br ${s.bg} border rounded-2xl p-4`}>
-              <div className="flex items-center gap-2 mb-2">{s.icon}<span className="text-gray-400 text-xs font-medium">{s.label}</span></div>
-              <p className="text-2xl font-bold text-white">{s.value}</p>
+            <div key={s.label} className={`bg-gradient-to-br ${s.grad} border ${s.border} rounded-2xl p-4`}>
+              <span className="text-xl">{s.emoji}</span>
+              <p className="text-xl font-black text-white mt-2">{s.value}</p>
+              <p className="text-xs text-gray-500 font-medium mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
 
         {/* Avg Score */}
         {avgScore !== null && (
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold"
-              style={{ background: avgScore >= 80 ? "rgba(34,197,94,0.15)" : avgScore >= 60 ? "rgba(234,179,8,0.15)" : "rgba(239,68,68,0.15)", color: avgScore >= 80 ? "#4ade80" : avgScore >= 60 ? "#facc15" : "#f87171" }}>
+          <div className="bg-white/4 border border-white/8 rounded-2xl p-5 mb-5 flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black shrink-0"
+              style={{
+                background: avgScore >= 80 ? "rgba(34,197,94,0.15)" : avgScore >= 60 ? "rgba(234,179,8,0.15)" : "rgba(239,68,68,0.15)",
+                color: avgScore >= 80 ? "#4ade80" : avgScore >= 60 ? "#facc15" : "#f87171",
+                border: `1px solid ${avgScore >= 80 ? "rgba(34,197,94,0.2)" : avgScore >= 60 ? "rgba(234,179,8,0.2)" : "rgba(239,68,68,0.2)"}`,
+              }}>
               {avgScore}%
             </div>
             <div>
-              <p className="text-white font-bold">Overall Quiz Average</p>
-              <p className="text-gray-400 text-sm">Across {totalQuizzes} quiz attempt{totalQuizzes !== 1 ? "s" : ""}</p>
+              <p className="text-white font-bold text-sm">Overall Quiz Average</p>
+              <p className="text-gray-500 text-xs mt-0.5">Across {totalQuizzes} quiz attempt{totalQuizzes !== 1 ? "s" : ""}</p>
             </div>
-            <TrendingUp size={20} className="ml-auto text-indigo-400 opacity-50" />
+            <TrendingUp size={18} className="ml-auto text-indigo-500/40" />
           </div>
         )}
 
-        {/* 30-Day Activity Heatmap */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
-          <h2 className="text-white font-bold mb-1 flex items-center gap-2"><Zap size={16} className="text-indigo-400" /> 30-Day Study Activity</h2>
-          <p className="text-gray-500 text-xs mb-4">Darker = more time studied that day</p>
+        {/* Activity Heatmap */}
+        <div className="bg-white/4 border border-white/8 rounded-2xl p-5 mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap size={14} className="text-indigo-400" />
+            <h2 className="text-white font-bold text-sm">30-Day Activity</h2>
+            <span className="ml-auto text-xs text-gray-600">Darker = more time</span>
+          </div>
           <ActivityHeatmap activity={activity} />
         </div>
 
         {/* Achievements */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
-          <h2 className="text-white font-bold mb-1 flex items-center gap-2">
-            <Star size={16} className="text-yellow-400" /> Achievements
-            <span className="ml-auto text-sm text-gray-400 font-normal">{earnedTypes.size}/{ACHIEVEMENT_DEFS.length} earned</span>
-          </h2>
-          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-5 mt-2">
-            <div className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full"
+        <div className="bg-white/4 border border-white/8 rounded-2xl p-5 mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Star size={14} className="text-yellow-400" />
+            <h2 className="text-white font-bold text-sm">Achievements</h2>
+            <span className="ml-auto text-xs text-gray-500">{earnedTypes.size}/{ACHIEVEMENT_DEFS.length}</span>
+          </div>
+          <div className="h-1.5 bg-white/8 rounded-full overflow-hidden mb-4">
+            <div className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full transition-all"
               style={{ width: `${(earnedTypes.size / ACHIEVEMENT_DEFS.length) * 100}%` }} />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {ACHIEVEMENT_DEFS.map(a => {
-              const earned = earnedTypes.has(a.type);
+              const earned   = earnedTypes.has(a.type);
               const earnedAt = achievements.find(e => e.type === a.type)?.earned_at;
               return (
                 <div key={a.type}
-                  className={`rounded-xl p-3 border transition-all ${earned ? "bg-yellow-500/10 border-yellow-500/30" : "bg-white/3 border-white/5 opacity-50"}`}>
-                  <div className="text-2xl mb-1.5">{earned ? a.emoji : "🔒"}</div>
-                  <p className={`font-semibold text-xs ${earned ? "text-yellow-300" : "text-gray-500"}`}>{a.name}</p>
-                  <p className="text-gray-500 text-xs mt-0.5 leading-tight">{a.desc}</p>
-                  {earnedAt && <p className="text-yellow-600 text-xs mt-1">{new Date(earnedAt).toLocaleDateString()}</p>}
+                  className={`rounded-xl p-3 border transition-all ${
+                    earned
+                      ? "bg-yellow-500/10 border-yellow-500/25 hover:border-yellow-500/40"
+                      : "bg-white/2 border-white/5 opacity-40"
+                  }`}>
+                  <div className="text-xl mb-1.5">{earned ? a.emoji : "ðŸ”’"}</div>
+                  <p className={`font-bold text-xs ${earned ? "text-yellow-300" : "text-gray-600"}`}>{a.name}</p>
+                  <p className="text-gray-600 text-xs mt-0.5 leading-tight">{a.desc}</p>
+                  {earnedAt && <p className="text-yellow-700 text-xs mt-1">{new Date(earnedAt).toLocaleDateString()}</p>}
                 </div>
               );
             })}
@@ -250,19 +264,19 @@ export default function Progress() {
 
         {/* Needs Review */}
         {needsReview.length > 0 && (
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 mb-6">
-            <h2 className="text-amber-300 font-bold mb-4 flex items-center gap-2">
-              <AlertCircle size={16} /> Needs Review ({needsReview.length})
+          <div className="bg-amber-500/8 border border-amber-500/18 rounded-2xl p-5 mb-5">
+            <h2 className="text-amber-300 font-bold text-sm mb-3 flex items-center gap-2">
+              <AlertCircle size={14} /> Needs Review ({needsReview.length})
             </h2>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {needsReview.slice(0, 5).map(g => {
                 const days = daysSince(g.last_studied_at);
                 return (
                   <Link key={g.id} to={`/guide/${g.id}`}
-                    className="flex items-center justify-between bg-white/5 hover:bg-white/10 rounded-xl px-4 py-3 transition-colors group">
-                    <span className="text-white text-sm font-medium group-hover:text-amber-300 transition-colors">{g.title}</span>
-                    <span className="text-amber-400 text-xs font-medium">
-                      {days === null ? "Never studied" : `${days}d ago`}
+                    className="flex items-center justify-between bg-white/4 hover:bg-white/6 rounded-xl px-4 py-2.5 transition-colors group">
+                    <span className="text-white text-sm font-medium group-hover:text-amber-300 transition-colors truncate mr-4">{g.title}</span>
+                    <span className="text-amber-500 text-xs font-medium shrink-0">
+                      {days === null ? "Never" : `${days}d ago`}
                     </span>
                   </Link>
                 );
@@ -271,38 +285,39 @@ export default function Progress() {
           </div>
         )}
 
-        {/* Guide Performance Table */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-          <h2 className="text-white font-bold mb-5 flex items-center gap-2">
-            <BarChart2 size={16} className="text-indigo-400" /> Guide Performance
-          </h2>
+        {/* Guide Performance */}
+        <div className="bg-white/4 border border-white/8 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart2 size={14} className="text-indigo-400" />
+            <h2 className="text-white font-bold text-sm">Guide Performance</h2>
+          </div>
           {guides.length === 0 ? (
-            <p className="text-gray-500 text-sm text-center py-8">No guides yet. Create one from the dashboard!</p>
+            <p className="text-gray-600 text-sm text-center py-8">No guides yet. Create one from the dashboard!</p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {guides.map(g => {
-                const best = g.best_quiz_score ?? 0;
-                const total = g.attempts?.[0]?.total || 5;
+                const best    = g.best_quiz_score ?? 0;
+                const total   = g.attempts?.[0]?.total || 5;
                 const bestPct = total > 0 ? Math.round((best / total) * 100) : 0;
-                const days = daysSince(g.last_studied_at);
+                const days    = daysSince(g.last_studied_at);
                 return (
-                  <div key={g.id} className="border border-white/10 rounded-xl p-4">
-                    <div className="flex items-start justify-between mb-3">
+                  <div key={g.id} className="border border-white/8 rounded-xl p-4 hover:border-white/12 transition-colors">
+                    <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0 mr-4">
                         <Link to={`/guide/${g.id}`}
                           className="text-white font-semibold text-sm hover:text-indigo-300 transition-colors truncate block">
                           {g.title}
                         </Link>
-                        <div className="flex items-center gap-3 mt-1 flex-wrap">
-                          <span className="text-gray-500 text-xs flex items-center gap-1">
-                            <Clock size={10} /> {fmtTime(g.study_time_seconds)}
+                        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                          <span className="text-gray-600 text-xs flex items-center gap-1">
+                            <Clock size={9} /> {fmtTime(g.study_time_seconds)}
                           </span>
-                          <span className="text-gray-500 text-xs flex items-center gap-1">
-                            <Trophy size={10} /> {g.quiz_attempts} attempt{g.quiz_attempts !== 1 ? "s" : ""}
+                          <span className="text-gray-600 text-xs flex items-center gap-1">
+                            <Trophy size={9} /> {g.quiz_attempts} quiz{g.quiz_attempts !== 1 ? "zes" : ""}
                           </span>
                           {days !== null && (
-                            <span className={`text-xs flex items-center gap-1 ${days >= 7 ? "text-amber-400" : "text-green-400"}`}>
-                              {days >= 7 ? <AlertCircle size={10} /> : <CheckCircle size={10} />}
+                            <span className={`text-xs flex items-center gap-1 ${days >= 7 ? "text-amber-500" : "text-green-500"}`}>
+                              {days >= 7 ? <AlertCircle size={9} /> : <CheckCircle size={9} />}
                               {days === 0 ? "Today" : `${days}d ago`}
                             </span>
                           )}
@@ -310,14 +325,14 @@ export default function Progress() {
                       </div>
                       {g.quiz_attempts > 0 && (
                         <div className="text-right shrink-0">
-                          <p className={`text-lg font-bold ${bestPct >= 80 ? "text-green-400" : bestPct >= 60 ? "text-yellow-400" : "text-red-400"}`}>{bestPct}%</p>
-                          <p className="text-gray-500 text-xs">best score</p>
+                          <p className={`text-base font-black ${bestPct >= 80 ? "text-green-400" : bestPct >= 60 ? "text-yellow-400" : "text-red-400"}`}>{bestPct}%</p>
+                          <p className="text-gray-600 text-xs">best</p>
                         </div>
                       )}
                     </div>
                     {g.attempts?.length > 0 && (
-                      <div className="flex items-end gap-1 mt-2">
-                        <span className="text-gray-600 text-xs mr-1">History:</span>
+                      <div className="flex items-end gap-1 mt-3">
+                        <span className="text-gray-700 text-xs mr-1">History:</span>
                         {(g.attempts || []).slice(-10).map((a, i) => (
                           <ScoreBar key={i} score={a.score} total={a.total} date={a.created_at} />
                         ))}

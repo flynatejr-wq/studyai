@@ -1,9 +1,9 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import { Home, ArrowLeft } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center p-6">
       <div className="text-center max-w-md">
         <div className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-br from-indigo-400 to-violet-400 mb-4 select-none">
           404

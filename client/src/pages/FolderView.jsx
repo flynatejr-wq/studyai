@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, BookOpen, Trash2, Plus, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -49,7 +49,7 @@ export default function FolderView() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-950">
+    <div className="flex min-h-screen bg-[#0a0a12]">
       <Sidebar onLogout={logout} />
       <main className="flex-1 md:ml-64 p-4 md:p-8 pt-16 md:pt-8">
         <Link to="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors text-sm">
@@ -90,7 +90,7 @@ export default function FolderView() {
             {guides.map((guide, i) => (
               <motion.div key={guide.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                 <Link to={`/guide/${guide.id}`}
-                  className="group relative bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-2xl p-5 transition-all hover:bg-white/8 block">
+                  className="group relative bg-white/4 border border-white/8 hover:border-indigo-500/30 rounded-2xl p-5 transition-all hover:bg-white/6 hover:-translate-y-0.5 block">
                   <button
                     onClick={e => { e.preventDefault(); e.stopPropagation(); setDeleteTarget({ id: guide.id, title: guide.title }); }}
                     className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all p-1">
@@ -100,7 +100,7 @@ export default function FolderView() {
                   <h3 className="text-white font-semibold leading-tight mb-3 group-hover:text-indigo-300 transition-colors pr-6">{guide.title}</h3>
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>{new Date(guide.created_at).toLocaleDateString()}</span>
-                    {guide.best_quiz_score > 0 && <span className="text-yellow-400">⭐ Best: {guide.best_quiz_score}/{guide.quiz_questions?.length || 5}</span>}
+                    {guide.best_quiz_score > 0 && <span className="text-yellow-400">â­ Best: {guide.best_quiz_score}/{guide.quiz_questions?.length || 5}</span>}
                   </div>
                   {guide.quiz_attempts > 0 && (
                     <div className="mt-3">

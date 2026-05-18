@@ -1,4 +1,4 @@
-import { Component } from "react";
+﻿import { Component } from "react";
 import { RefreshCw, Home } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
@@ -36,9 +36,9 @@ export default class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+        <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center p-6">
           <div className="text-center max-w-lg w-full">
-            <div className="text-6xl mb-6">💥</div>
+            <div className="text-6xl mb-6">ðŸ’¥</div>
             <h1 className="text-2xl font-bold text-white mb-2">Something went wrong</h1>
             <p className="text-gray-400 mb-4 text-sm">
               An unexpected error occurred. This has been noted.

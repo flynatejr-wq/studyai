@@ -6,7 +6,7 @@ const COMPANY = "StudyBuddi";
 
 export default function Privacy() {
   return (
-    <div className="min-h-screen bg-slate-950 text-gray-300">
+    <div className="min-h-screen bg-[#0a0a12] text-gray-300">
       <nav className="border-b border-white/10 px-6 py-4 flex items-center justify-between max-w-4xl mx-auto">
         <Link to="/" className="flex items-center gap-2 font-bold text-lg">
           <BookOpen className="text-indigo-400" size={22} />
