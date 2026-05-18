@@ -14,6 +14,7 @@ import { useToast } from "../contexts/ToastContext.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import RichText from "../components/RichText.jsx";
+import ChatMessage from "../components/ChatMessage.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
 
@@ -946,11 +947,7 @@ export default function GuideView() {
                 </div>
               )}
               {messages.map(msg => (
-                <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed break-words ${msg.role === "user" ? "bg-indigo-600 text-white" : "bg-white/10 text-gray-200"}`}>
-                    {msg.content}
-                  </div>
-                </div>
+                <ChatMessage key={msg.id} msg={msg} />
               ))}
               {chatLoading && (
                 <div className="flex justify-start">
