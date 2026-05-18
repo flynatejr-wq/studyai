@@ -5,7 +5,7 @@ import {
   ArrowLeft, MessageCircle, X, Send, RotateCcw, Trophy,
   ChevronDown, ChevronUp, Zap, RefreshCw, ChevronLeft,
   ChevronRight, CheckCircle, XCircle, Clock, BarChart2,
-  Share2, Printer, Check, LinkOff
+  Share2, Printer, Check, Link2Off
 } from "lucide-react";
 import { api, getToken } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -315,7 +315,7 @@ function ShareButton({ guideId, initialToken }) {
       {shared && (
         <button onClick={revoke} disabled={loading} title="Revoke share link"
           className="flex items-center gap-1 px-2 py-1.5 bg-white/5 border border-white/10 hover:border-red-500/40 rounded-lg text-gray-500 hover:text-red-400 text-xs transition-all disabled:opacity-50">
-          <LinkOff size={12} />
+          <Link2Off size={12} />
         </button>
       )}
     </div>
