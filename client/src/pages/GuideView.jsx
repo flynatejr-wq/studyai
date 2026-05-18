@@ -420,7 +420,7 @@ export default function GuideView() {
   };
 
   const submitQuiz = async () => {
-    const questions = activeQuestions || guide.quiz_questions;
+    const questions = activeQuestions || guide.quiz_questions || [];
     const correct = questions.filter((_, i) => quizAnswers[i] === "correct").length;
     setScore(correct); setQuizSubmitted(true);
     try {
