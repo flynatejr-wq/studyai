@@ -17,6 +17,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Railway (and most cloud platforms) sit behind a reverse proxy that sets X-Forwarded-For.
+// Without trust proxy, express-rate-limit throws a ValidationError on every request.
+app.set("trust proxy", 1);
+
 // Security headers — crossOriginResourcePolicy must be "cross-origin" because the API and frontend
 // are on different origins (Railway + Vercel). "same-origin" would block browsers from reading responses.
 app.use(helmet({
