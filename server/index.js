@@ -73,6 +73,18 @@ app.use("/api/public", publicRoute);
 
 app.get("/health", (_, res) => res.json({ status: "ok" }));
 
+// Client-side error reporting (no auth — ErrorBoundary sends here)
+app.post("/api/client-error", (req, res) => {
+  const { message, componentStack, url, userAgent } = req.body || {};
+  console.error("=== CLIENT ERROR REPORT ===");
+  console.error("URL:", url);
+  console.error("UA:", userAgent);
+  console.error("Error:", message);
+  console.error("Component stack:", componentStack);
+  console.error("===========================");
+  res.json({ ok: true });
+});
+
 // Global error handler — catches multer "File too large" and any other unhandled errors
 // Must have 4 arguments for Express to treat it as an error handler
 app.use((err, req, res, next) => {
