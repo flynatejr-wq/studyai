@@ -17,8 +17,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Security headers — M-7: use helmet defaults (no crossOriginResourcePolicy override needed for a JSON API)
-app.use(helmet());
+// Security headers — crossOriginResourcePolicy must be "cross-origin" because the API and frontend
+// are on different origins (Railway + Vercel). "same-origin" would block browsers from reading responses.
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 
 const allowedOrigins = [
   "http://localhost:5173",
