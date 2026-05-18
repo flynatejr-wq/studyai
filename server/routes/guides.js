@@ -15,6 +15,8 @@ function parseGuide(g) {
     summary: JSON.parse(g.summary),
     key_terms: JSON.parse(g.key_terms),
     quiz_questions: JSON.parse(g.quiz_questions),
+    sections: JSON.parse(g.sections || "[]"),
+    section_progress: JSON.parse(g.section_progress || "[]"),
   };
 }
 
@@ -111,7 +113,7 @@ router.get("/:id", (req, res) => {
 
 // Save a guide
 router.post("/", (req, res) => {
-  const { title, folder_id, type, summary, key_terms, quiz_questions } = req.body;
+  const { title, folder_id, type, summary, key_terms, quiz_questions, sections } = req.body;
   if (!title?.trim() || !summary || !key_terms || !quiz_questions)
     return res.status(400).json({ error: "Missing required fields." });
   if (title.trim().length > 200)
@@ -119,13 +121,17 @@ router.post("/", (req, res) => {
 
   const id = uuid();
   const today = new Date().toISOString().split("T")[0];
+  // Build initial section_progress: one false per section
+  const sectionsArr = Array.isArray(sections) ? sections : [];
+  const initialProgress = sectionsArr.map(() => false);
 
   db.transaction(() => {
     db.prepare(
-      `INSERT INTO guides (id, user_id, folder_id, title, type, summary, key_terms, quiz_questions)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO guides (id, user_id, folder_id, title, type, summary, key_terms, quiz_questions, sections, section_progress)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(id, req.user.id, folder_id || null, title.trim(), type || "text",
-      JSON.stringify(summary), JSON.stringify(key_terms), JSON.stringify(quiz_questions));
+      JSON.stringify(summary), JSON.stringify(key_terms), JSON.stringify(quiz_questions),
+      JSON.stringify(sectionsArr), JSON.stringify(initialProgress));
     db.prepare("UPDATE users SET total_guides = total_guides + 1, xp = xp + 50, last_study_date = ? WHERE id = ?")
       .run(today, req.user.id);
   })();
@@ -133,6 +139,26 @@ router.post("/", (req, res) => {
   checkAchievements(req.user.id);
 
   res.json(parseGuide(db.prepare("SELECT * FROM guides WHERE id = ?").get(id)));
+});
+
+// Update section progress
+router.patch("/:id/section-progress", (req, res) => {
+  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+  if (!guide) return res.status(404).json({ error: "Guide not found." });
+
+  const { progress } = req.body;
+  if (!Array.isArray(progress)) return res.status(400).json({ error: "Invalid progress data." });
+
+  // Validate: must be array of booleans, length must match stored sections
+  const sections = JSON.parse(guide.sections || "[]");
+  if (progress.length !== sections.length)
+    return res.status(400).json({ error: "Progress length mismatch." });
+  if (!progress.every(v => typeof v === "boolean"))
+    return res.status(400).json({ error: "Progress entries must be booleans." });
+
+  db.prepare("UPDATE guides SET section_progress = ? WHERE id = ?")
+    .run(JSON.stringify(progress), guide.id);
+  res.json({ success: true });
 });
 
 // Move guide to folder

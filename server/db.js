@@ -102,5 +102,7 @@ safeAlter("ALTER TABLE users ADD COLUMN reset_token TEXT");
 safeAlter("ALTER TABLE users ADD COLUMN reset_token_expires TEXT");
 safeAlter("ALTER TABLE guides ADD COLUMN share_token TEXT");
 safeAlter("ALTER TABLE guides ADD COLUMN last_studied_at TEXT");
+safeAlter("ALTER TABLE guides ADD COLUMN sections TEXT DEFAULT '[]'");
+safeAlter("ALTER TABLE guides ADD COLUMN section_progress TEXT DEFAULT '[]'");
 
 export default db;

@@ -113,6 +113,7 @@ export default function Dashboard() {
         summary:         results.summary,
         key_terms:       results.keyTerms || results.key_terms,
         quiz_questions:  results.quizQuestions || results.quiz_questions,
+        sections:        results.sections || [],
       });
       await refreshUser();
       await loadData();

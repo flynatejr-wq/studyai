@@ -83,7 +83,8 @@ export const api = {
     quizHistory:  (id)                 => request(`/guides/${id}/quiz-history`, { headers: headers() }),
     logSession:   (id, duration_seconds) => request(`/guides/${id}/session`, { method: "POST", headers: headers(), body: JSON.stringify({ duration_seconds }) }),
     share:        (id)                 => request(`/guides/${id}/share`, { method: "POST",   headers: headers() }),
-    revokeShare:  (id)                 => request(`/guides/${id}/share`, { method: "DELETE", headers: headers() }),
+    revokeShare:          (id)              => request(`/guides/${id}/share`,             { method: "DELETE", headers: headers() }),
+    updateSectionProgress:(id, progress)   => request(`/guides/${id}/section-progress`,  { method: "PATCH",  headers: headers(), body: JSON.stringify({ progress }) }),
   },
   chat: {
     history: (guideId)          => request(`/chat/${guideId}`, { headers: headers() }),
