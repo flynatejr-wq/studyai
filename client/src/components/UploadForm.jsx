@@ -1,19 +1,19 @@
-import { useState, useRef } from "react";
+﻿import { useState, useRef } from "react";
 
 const MAX_TEXT = 50000;
 
 const TABS = [
-  { id: "text",  label: "📝 Paste Text",    desc: "Copy & paste lecture notes or a transcript" },
-  { id: "file",  label: "📄 Upload File",   desc: "PDF, Word, PowerPoint, TXT, CSV, Markdown" },
-  { id: "image", label: "🖼️ Photo",         desc: "Snap a photo of slides, whiteboard, or notes" },
-  { id: "audio", label: "🎙️ Audio",         desc: "Upload a lecture recording (MP3, M4A, WAV)" },
+  { id: "text",  label: "ðŸ“ Paste Text",    desc: "Copy & paste lecture notes or a transcript" },
+  { id: "file",  label: "ðŸ“„ Upload File",   desc: "PDF, Word, PowerPoint, TXT, CSV, Markdown" },
+  { id: "image", label: "ðŸ–¼ï¸ Photo",         desc: "Snap a photo of slides, whiteboard, or notes" },
+  { id: "audio", label: "ðŸŽ™ï¸ Audio",         desc: "Upload a lecture recording (MP3, M4A, WAV)" },
 ];
 
-const FILE_ICONS = { pdf: "📕", docx: "📘", doc: "📘", pptx: "📙", ppt: "📙", txt: "📄", md: "📄", csv: "📊", rtf: "📄" };
+const FILE_ICONS = { pdf: "ðŸ“•", docx: "ðŸ“˜", doc: "ðŸ“˜", pptx: "ðŸ“™", ppt: "ðŸ“™", txt: "ðŸ“„", md: "ðŸ“„", csv: "ðŸ“Š", rtf: "ðŸ“„" };
 
 function getFileIcon(name = "") {
   const ext = name.split(".").pop().toLowerCase();
-  return FILE_ICONS[ext] || "📄";
+  return FILE_ICONS[ext] || "ðŸ“„";
 }
 
 export default function UploadForm({ onSubmit, loading, dark }) {
@@ -86,23 +86,23 @@ export default function UploadForm({ onSubmit, loading, dark }) {
     }
     if (activeTab === "file") return (
       <>
-        <div className="flex gap-2 text-3xl mb-3">📕 📘 📙 📄</div>
+        <div className="flex gap-2 text-3xl mb-3">ðŸ“• ðŸ“˜ ðŸ“™ ðŸ“„</div>
         <p className={`font-medium text-sm ${dark ? "text-gray-300" : "text-gray-500"}`}>Drag & drop or click to upload</p>
-        <p className={`text-xs mt-1 ${base.sub}`}>PDF • Word (.docx) • PowerPoint (.pptx) • TXT • CSV • Markdown</p>
+        <p className={`text-xs mt-1 ${base.sub}`}>PDF â€¢ Word (.docx) â€¢ PowerPoint (.pptx) â€¢ TXT â€¢ CSV â€¢ Markdown</p>
       </>
     );
     if (activeTab === "image") return (
       <>
-        <span className="text-4xl mb-3">🖼️</span>
+        <span className="text-4xl mb-3">ðŸ–¼ï¸</span>
         <p className={`font-medium text-sm ${dark ? "text-gray-300" : "text-gray-500"}`}>Drag & drop or click to upload</p>
-        <p className={`text-xs mt-1 ${base.sub}`}>JPG, PNG, WEBP — slides, whiteboard, notes</p>
+        <p className={`text-xs mt-1 ${base.sub}`}>JPG, PNG, WEBP â€” slides, whiteboard, notes</p>
       </>
     );
     return (
       <>
-        <span className="text-4xl mb-3">🎙️</span>
+        <span className="text-4xl mb-3">ðŸŽ™ï¸</span>
         <p className={`font-medium text-sm ${dark ? "text-gray-300" : "text-gray-500"}`}>Drag & drop or click to upload</p>
-        <p className={`text-xs mt-1 ${base.sub}`}>MP3, M4A, WAV — up to 25MB</p>
+        <p className={`text-xs mt-1 ${base.sub}`}>MP3, M4A, WAV â€” up to 25MB</p>
       </>
     );
   };
@@ -154,7 +154,7 @@ export default function UploadForm({ onSubmit, loading, dark }) {
             : <span />}
           <button type="submit" disabled={loading || !canSubmit}
             className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white font-semibold px-6 py-2.5 rounded-xl transition-all text-sm ml-auto">
-            {loading ? "⏳ Processing..." : "✨ Generate Study Guide"}
+            {loading ? "â³ Processing..." : "âœ¨ Generate Study Guide"}
           </button>
         </div>
       </div>
