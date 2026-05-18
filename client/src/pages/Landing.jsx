@@ -133,27 +133,32 @@ export default function Landing() {
             <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
             <span className="ml-2 text-xs text-gray-500 font-mono">StudyBuddi — Biology Lecture</span>
           </div>
-          <div className="p-5 space-y-3 text-left">
-            <div className="flex items-center gap-2 mb-4">
-              {["📝 Notes", "🃏 Flashcards", "🎯 MCQ", "✏️ Self-Grade"].map(tab => (
-                <span key={tab} className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${tab === "📝 Notes" ? "bg-indigo-600 text-white" : "text-gray-500 bg-white/5"}`}>{tab}</span>
+          <div className="p-4 sm:p-5 space-y-3 text-left">
+            <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+              {["📚 Sections", "📝 Notes", "🃏 Cards", "🎯 MCQ"].map(tab => (
+                <span key={tab} className={`text-xs px-2.5 py-1.5 rounded-lg font-semibold transition-all ${tab === "📚 Sections" ? "bg-indigo-600 text-white" : "text-gray-500 bg-white/5"}`}>{tab}</span>
               ))}
             </div>
-            <div className="space-y-2">
-              {["Cell membranes control what enters and exits the cell through selective permeability.", "Mitochondria generate ATP through oxidative phosphorylation.", "DNA replication is semi-conservative — each new strand keeps one original strand."].map((s, i) => (
-                <div key={i} className="flex items-start gap-2.5 text-sm text-gray-300">
-                  <span className="text-indigo-400 mt-0.5 shrink-0 font-bold">•</span>
-                  <span className="leading-relaxed">{s}</span>
-                </div>
+            {/* Progress bar */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-gray-400 font-medium">2 of 4 sections complete</span>
+                <span className="text-xs text-indigo-400 font-bold">50%</span>
+              </div>
+              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full w-1/2 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full" />
+              </div>
+            </div>
+            {/* Section pills */}
+            <div className="flex gap-1.5 flex-wrap mb-3">
+              {["✅ 1. Intro", "✅ 2. Methods", "▶ 3. Results", "○ 4. Conclusion"].map((s, i) => (
+                <span key={i} className={`text-xs px-2.5 py-1 rounded-lg font-medium ${i === 2 ? "bg-indigo-600 text-white" : i < 2 ? "bg-green-500/20 text-green-400" : "bg-white/5 text-gray-500"}`}>{s}</span>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              {[{ term: "Mitosis", def: "Cell division producing identical daughter cells" }, { term: "ATP", def: "Primary energy currency of the cell" }].map(item => (
-                <div key={item.term} className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-2.5">
-                  <p className="text-xs font-bold text-indigo-300">{item.term}</p>
-                  <p className="text-xs text-gray-400 mt-0.5 leading-snug">{item.def}</p>
-                </div>
-              ))}
+            {/* Active section */}
+            <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3">
+              <p className="text-xs font-bold text-indigo-300 mb-1">Section 3: Results &amp; Analysis</p>
+              <p className="text-xs text-gray-400 leading-relaxed">Mitochondria generate ATP through oxidative phosphorylation across the inner membrane...</p>
             </div>
           </div>
         </motion.div>

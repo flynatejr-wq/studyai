@@ -77,7 +77,7 @@ function FlashcardMode({ terms }) {
         <>
           <div className="w-full max-w-lg cursor-pointer" onClick={() => setFlipped(f => !f)} style={{ perspective: 1000 }}>
             <motion.div animate={{ rotateY: flipped ? 180 : 0 }} transition={{ duration: 0.45, ease: "easeInOut" }}
-              style={{ transformStyle: "preserve-3d", position: "relative", height: 240 }}>
+              style={{ transformStyle: "preserve-3d", position: "relative", height: "min(240px, 50vw)" }}>
               <div style={{ backfaceVisibility: "hidden", position: "absolute", inset: 0 }}
                 className="bg-gradient-to-br from-indigo-600/30 to-violet-600/20 border border-indigo-500/40 rounded-2xl flex flex-col items-center justify-center p-8 text-center">
                 <p className="text-gray-400 text-xs uppercase tracking-widest mb-3">Term</p>
@@ -208,7 +208,7 @@ function MCQMode({ guideId, onXpEarned }) {
             <div className="space-y-2">
               {q.options.map((opt, oi) => (
                 <button key={oi} onClick={() => !submitted && setAnswers(a => ({ ...a, [qi]: oi }))}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-all ${answers[qi] === oi ? "bg-indigo-600/30 border border-indigo-500/60 text-indigo-200 font-medium" : "bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20"}`}>
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-all break-words ${answers[qi] === oi ? "bg-indigo-600/30 border border-indigo-500/60 text-indigo-200 font-medium" : "bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20"}`}>
                   <span className="text-gray-500 mr-2">{["A","B","C","D"][oi]}.</span> {opt}
                 </button>
               ))}
@@ -445,27 +445,29 @@ function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPr
       )}
 
       {/* Navigation */}
-      <div className="flex items-center justify-between pt-2 pb-6 gap-3">
-        <button onClick={onPrev} disabled={index === 0}
-          className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl text-gray-300 hover:text-white text-sm font-medium transition-all">
-          <ChevronLeft size={16} /> Previous
-        </button>
-
+      <div className="pt-2 pb-6 space-y-3">
+        {/* Mark complete — full width on mobile */}
         {!isComplete ? (
           <button onClick={onMarkComplete}
-            className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-xl text-white font-bold text-sm transition-all shadow-lg shadow-green-900/30">
-            <CheckCircle size={16} /> Mark Complete
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-xl text-white font-bold text-sm transition-all shadow-lg shadow-green-900/30">
+            <CheckCircle size={16} /> Mark Section Complete
           </button>
         ) : (
-          <span className="flex items-center gap-2 px-6 py-2.5 bg-green-500/20 border border-green-500/30 rounded-xl text-green-400 font-bold text-sm">
-            <CheckCircle size={16} /> Completed
-          </span>
+          <div className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-500/20 border border-green-500/30 rounded-xl text-green-400 font-bold text-sm">
+            <CheckCircle size={16} /> Section Completed
+          </div>
         )}
-
-        <button onClick={onNext} disabled={index === total - 1}
-          className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl text-gray-300 hover:text-white text-sm font-medium transition-all">
-          Next <ChevronRight size={16} />
-        </button>
+        {/* Prev / Next */}
+        <div className="flex gap-3">
+          <button onClick={onPrev} disabled={index === 0}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl text-gray-300 hover:text-white text-sm font-medium transition-all">
+            <ChevronLeft size={16} /> Previous
+          </button>
+          <button onClick={onNext} disabled={index === total - 1}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl text-gray-300 hover:text-white text-sm font-medium transition-all">
+            Next <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
     </motion.div>
   );
@@ -942,7 +944,7 @@ export default function GuideView() {
               )}
               {messages.map(msg => (
                 <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === "user" ? "bg-indigo-600 text-white" : "bg-white/10 text-gray-200"}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed break-words ${msg.role === "user" ? "bg-indigo-600 text-white" : "bg-white/10 text-gray-200"}`}>
                     {msg.content}
                   </div>
                 </div>

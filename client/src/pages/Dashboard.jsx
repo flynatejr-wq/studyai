@@ -191,7 +191,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xl">{s.icon}</span>
               </div>
-              <p className={`text-2xl font-black ${s.valueColor}`}>{s.value}{s.suffix || ""}</p>
+              <p className={`text-xl sm:text-2xl font-black ${s.valueColor} truncate`}>{s.value}{s.suffix || ""}</p>
               <p className="text-xs text-gray-500 font-medium mt-0.5">{s.label}</p>
             </motion.div>
           ))}
@@ -244,14 +244,14 @@ export default function Dashboard() {
               ) : (
                 <div>
                   <Results results={results} onReset={() => setResults(null)} dark />
-                  <div className="mt-6 flex items-center gap-3 flex-wrap">
+                  <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <select value={saveFolder} onChange={e => setSaveFolder(e.target.value)}
-                      className="bg-white/8 border border-white/12 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors">
+                      className="flex-1 sm:flex-none bg-white/8 border border-white/12 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors">
                       <option value="">📂 No folder</option>
                       {folders.map(f => <option key={f.id} value={f.id}>{f.icon} {f.name}</option>)}
                     </select>
                     <button onClick={() => handleSave(saveFolder)}
-                      className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white text-sm transition-all hover:-translate-y-0.5 shadow-lg shadow-indigo-500/20">
+                      className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white text-sm transition-all hover:-translate-y-0.5 shadow-lg shadow-indigo-500/20">
                       💾 Save Guide
                     </button>
                   </div>

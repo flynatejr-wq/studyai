@@ -153,7 +153,7 @@ export default function Progress() {
   return (
     <div className="flex min-h-screen bg-[#0a0a12]">
       <Sidebar onLogout={logout} />
-      <main className="flex-1 md:ml-64 p-4 md:p-8 pt-16 md:pt-8 max-w-5xl">
+      <main className="flex-1 md:ml-64 p-4 md:p-8 pt-16 md:pt-8 max-w-5xl w-full min-w-0">
 
         {/* Header */}
         <div className="mb-7">
@@ -195,7 +195,7 @@ export default function Progress() {
           ].map(s => (
             <div key={s.label} className={`bg-gradient-to-br ${s.grad} border ${s.border} rounded-2xl p-4`}>
               <span className="text-xl">{s.emoji}</span>
-              <p className="text-xl font-black text-white mt-2">{s.value}</p>
+              <p className="text-lg sm:text-xl font-black text-white mt-2 truncate">{s.value}</p>
               <p className="text-xs text-gray-500 font-medium mt-0.5">{s.label}</p>
             </div>
           ))}
@@ -203,7 +203,7 @@ export default function Progress() {
 
         {/* Avg Score */}
         {avgScore !== null && (
-          <div className="bg-white/4 border border-white/8 rounded-2xl p-5 mb-5 flex items-center gap-4">
+          <div className="bg-white/4 border border-white/8 rounded-2xl p-5 mb-5 flex items-center gap-4 flex-wrap">
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black shrink-0"
               style={{
                 background: avgScore >= 80 ? "rgba(34,197,94,0.15)" : avgScore >= 60 ? "rgba(234,179,8,0.15)" : "rgba(239,68,68,0.15)",

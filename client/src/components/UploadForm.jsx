@@ -3,10 +3,10 @@
 const MAX_TEXT = 50000;
 
 const TABS = [
-  { id: "text",  label: "📝 Paste Text",    desc: "Copy & paste lecture notes or a transcript" },
-  { id: "file",  label: "📄 Upload File",   desc: "PDF, Word, PowerPoint, TXT, CSV, Markdown" },
-  { id: "image", label: "🖼️ Photo",         desc: "Snap a photo of slides, whiteboard, or notes" },
-  { id: "audio", label: "🎙️ Audio",         desc: "Upload a lecture recording (MP3, M4A, WAV)" },
+  { id: "text",  label: "📝 Paste Text",  labelSm: "📝 Text",   desc: "Copy & paste lecture notes or a transcript" },
+  { id: "file",  label: "📄 Upload File", labelSm: "📄 File",   desc: "PDF, Word, PowerPoint, TXT, CSV, Markdown" },
+  { id: "image", label: "🖼️ Photo",       labelSm: "🖼️ Photo",  desc: "Snap a photo of slides, whiteboard, or notes" },
+  { id: "audio", label: "🎙️ Audio",       labelSm: "🎙️ Audio",  desc: "Upload a lecture recording (MP3, M4A, WAV)" },
 ];
 
 const FILE_ICONS = { pdf: "📕", docx: "📘", doc: "📘", pptx: "📙", ppt: "📙", txt: "📄", md: "📄", csv: "📊", rtf: "📄" };
@@ -110,16 +110,17 @@ export default function UploadForm({ onSubmit, loading, dark }) {
   return (
     <form onSubmit={handleSubmit} className={`rounded-2xl overflow-hidden ${dark ? "bg-white/5 border border-white/10" : "bg-white shadow-md"}`}>
       {/* Tabs */}
-      <div className={`flex border-b ${dark ? "border-white/10" : "border-gray-100"} overflow-x-auto`}>
+      <div className={`flex border-b ${dark ? "border-white/10" : "border-gray-100"}`}>
         {TABS.map(tab => (
           <button key={tab.id} type="button" onClick={() => handleTabChange(tab.id)}
-            className={`flex-1 min-w-max py-3 px-3 text-xs font-semibold transition-colors whitespace-nowrap ${activeTab === tab.id ? base.activeTab : base.tab}`}>
-            {tab.label}
+            className={`flex-1 py-3 px-1 sm:px-3 text-xs font-semibold transition-colors ${activeTab === tab.id ? base.activeTab : base.tab}`}>
+            <span className="hidden sm:inline">{tab.label}</span>
+            <span className="sm:hidden">{tab.labelSm}</span>
           </button>
         ))}
       </div>
 
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <p className={`text-xs mb-4 ${dark ? "text-gray-400" : "text-gray-500"}`}>
           {TABS.find(t => t.id === activeTab)?.desc}
         </p>
@@ -127,7 +128,7 @@ export default function UploadForm({ onSubmit, loading, dark }) {
         {/* Text */}
         {activeTab === "text" && (
           <textarea value={transcript} onChange={e => { setTranscript(e.target.value); if (formError) setFormError(""); }} disabled={loading}
-            className={`w-full h-48 border rounded-xl p-4 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm ${base.textarea}`}
+            className={`w-full h-36 sm:h-48 border rounded-xl p-4 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm ${base.textarea}`}
             placeholder="Paste your lecture notes or transcript here..." />
         )}
 
@@ -137,7 +138,7 @@ export default function UploadForm({ onSubmit, loading, dark }) {
             onDragOver={e => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onClick={() => fileInputRef.current?.click()}
-            className={`h-48 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors ${dragOver ? "border-indigo-500 bg-indigo-500/10" : base.dropzone}`}>
+            className={`h-36 sm:h-48 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors ${dragOver ? "border-indigo-500 bg-indigo-500/10" : base.dropzone}`}>
             <input ref={fileInputRef} type="file" accept={acceptMap[activeTab]} className="hidden"
               onChange={e => handleFileSelect(e.target.files[0])} />
             {dropzoneContent()}
@@ -148,12 +149,12 @@ export default function UploadForm({ onSubmit, loading, dark }) {
           <p className="mt-3 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2">{formError}</p>
         )}
 
-        <div className="flex items-center justify-between mt-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
           {activeTab === "text"
             ? <span className={`text-xs ${base.sub} ${transcript.length > MAX_TEXT ? "text-red-400" : ""}`}>{transcript.length.toLocaleString()} / {MAX_TEXT.toLocaleString()}</span>
             : <span />}
           <button type="submit" disabled={loading || !canSubmit}
-            className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white font-semibold px-6 py-2.5 rounded-xl transition-all text-sm ml-auto">
+            className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white font-semibold px-6 py-2.5 rounded-xl transition-all text-sm">
             {loading ? "⏳ Processing..." : "✨ Generate Study Guide"}
           </button>
         </div>
