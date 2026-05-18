@@ -14,12 +14,36 @@ function headers(extra = {}) {
 }
 
 async function request(path, options = {}) {
-  const res = await fetch(`${BASE}${path}`, options);
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, options);
+  } catch {
+    throw new Error("Could not reach the server. Check your connection and try again.");
+  }
+
+  // Handle rate limiting before trying to parse
+  if (res.status === 429) {
+    throw new Error("Too many requests. Please wait a moment and try again.");
+  }
+
+  // Handle auth errors immediately
+  if (res.status === 401) {
+    throw new Error("Session expired. Please log in again.");
+  }
+
   const text = await res.text();
   let data;
-  try { data = JSON.parse(text); }
-  catch { throw new Error(`Server error (${res.status}). Please try again.`); }
-  if (!res.ok) throw new Error(data.error || "Something went wrong");
+  try {
+    data = JSON.parse(text);
+  } catch {
+    // Server returned non-JSON (e.g. Railway/Express plain-text error page)
+    if (res.status >= 500) throw new Error("The server encountered an error. Please try again in a moment.");
+    if (res.status === 404) throw new Error("The requested resource was not found.");
+    if (res.status === 405) throw new Error("This action is not supported. Please refresh and try again.");
+    throw new Error(`Unexpected server response (${res.status}). Please try again.`);
+  }
+
+  if (!res.ok) throw new Error(data.error || "Something went wrong. Please try again.");
   return data;
 }
 

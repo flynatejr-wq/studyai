@@ -27,13 +27,17 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
-app.use(cors({
+const corsOptions = {
   origin: (origin, cb) => {
     if (!origin || allowedOrigins.some(o => origin.startsWith(o))) return cb(null, true);
     cb(new Error("Not allowed by CORS"));
   },
   credentials: true,
-}));
+};
+
+// Handle CORS preflight (OPTIONS) for every route BEFORE rate limiting
+app.options("*", cors(corsOptions));
+app.use(cors(corsOptions));
 
 // Rate limiting
 const generalLimiter = rateLimit({
@@ -85,9 +89,20 @@ app.post("/api/client-error", (req, res) => {
   res.json({ ok: true });
 });
 
+// 404 catch-all — must be after all routes; always returns JSON (never Express plain-text)
+app.use((req, res) => {
+  res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` });
+});
+
 // Global error handler — catches multer "File too large" and any other unhandled errors
 // Must have 4 arguments for Express to treat it as an error handler
 app.use((err, req, res, next) => {
+  // Always set JSON content-type so the client can parse the error body
+  res.setHeader("Content-Type", "application/json");
+
+  if (err?.message === "Not allowed by CORS") {
+    return res.status(403).json({ error: "CORS: origin not allowed." });
+  }
   if (err?.code === "LIMIT_FILE_SIZE") {
     return res.status(400).json({ error: "File too large. Maximum size is 50MB." });
   }
