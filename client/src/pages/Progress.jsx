@@ -101,9 +101,9 @@ export default function Progress() {
   }, []);
 
   if (loading) return (
-    <div className="flex min-h-screen bg-[#0a0a12]">
+    <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
-      <main className="flex-1 md:ml-64 flex items-center justify-center pt-14 md:pt-0">
+      <main className="flex-1 min-w-0 overflow-x-hidden md:ml-64 flex items-center justify-center pt-14 md:pt-0">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
           <p className="text-gray-500 text-sm">Loading progress…</p>
@@ -113,9 +113,9 @@ export default function Progress() {
   );
 
   if (error) return (
-    <div className="flex min-h-screen bg-[#0a0a12]">
+    <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
-      <main className="flex-1 md:ml-64 flex items-center justify-center p-8 pt-14 md:pt-0">
+      <main className="flex-1 min-w-0 overflow-x-hidden md:ml-64 flex items-center justify-center p-8 pt-14 md:pt-0">
         <div className="text-center max-w-sm">
           <div className="text-5xl mb-4">📊</div>
           <h2 className="text-xl font-bold text-white mb-2">Couldn't load progress</h2>
@@ -151,9 +151,9 @@ export default function Progress() {
   })();
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a12]">
+    <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
-      <main className="flex-1 md:ml-64 p-4 md:p-8 pt-16 md:pt-8 max-w-5xl w-full min-w-0">
+      <main className="flex-1 min-w-0 overflow-x-hidden md:ml-64 p-4 md:p-8 pt-16 md:pt-8 max-w-5xl w-full">
 
         {/* Header */}
         <div className="mb-7">
