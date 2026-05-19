@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Plus, FolderOpen, BookOpen, Trash2, X,
+  Plus, BookOpen, X,
   ChevronRight, ArrowRight, Trophy, Clock,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -11,34 +11,19 @@ import { api } from "../api.js";
 import UploadForm from "../components/UploadForm.jsx";
 import Results from "../components/Results.jsx";
 import Sidebar from "../components/Sidebar.jsx";
-import ConfirmModal from "../components/ConfirmModal.jsx";
-
-const FOLDER_COLORS = {
-  indigo: { bg: "from-indigo-500 to-indigo-700", glow: "shadow-indigo-500/25" },
-  violet: { bg: "from-violet-500 to-violet-700", glow: "shadow-violet-500/25" },
-  pink:   { bg: "from-pink-500   to-pink-700",   glow: "shadow-pink-500/25"   },
-  rose:   { bg: "from-rose-500   to-rose-700",   glow: "shadow-rose-500/25"   },
-  orange: { bg: "from-orange-500 to-orange-700", glow: "shadow-orange-500/25" },
-  amber:  { bg: "from-amber-500  to-amber-700",  glow: "shadow-amber-500/25"  },
-  green:  { bg: "from-green-500  to-green-700",  glow: "shadow-green-500/25"  },
-  teal:   { bg: "from-teal-500   to-teal-700",   glow: "shadow-teal-500/25"   },
-  sky:    { bg: "from-sky-500    to-sky-700",    glow: "shadow-sky-500/25"    },
-  blue:   { bg: "from-blue-500   to-blue-700",   glow: "shadow-blue-500/25"   },
-};
 
 export default function Dashboard() {
   const { user, refreshUser, logout } = useAuth();
   const toast    = useToast();
   const navigate = useNavigate();
 
-  const [folders,    setFolders]    = useState([]);
+  const [folders,      setFolders]      = useState([]);
   const [recentGuides, setRecentGuides] = useState([]);
-  const [showCreate, setShowCreate] = useState(false);
-  const [results,    setResults]    = useState(null);
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState("");
-  const [saveFolder, setSaveFolder] = useState("");
-  const [deleteFolderTarget, setDeleteFolderTarget] = useState(null);
+  const [showCreate,   setShowCreate]   = useState(false);
+  const [results,      setResults]      = useState(null);
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState("");
+  const [saveFolder,   setSaveFolder]   = useState("");
 
   useEffect(() => { loadData(); }, []);
 
@@ -84,19 +69,6 @@ export default function Dashboard() {
     } catch (err) {
       setError(err.message);
       toast({ message: err.message, type: "error" });
-    }
-  };
-
-  const confirmDeleteFolder = async () => {
-    if (!deleteFolderTarget) return;
-    try {
-      await api.folders.delete(deleteFolderTarget.id);
-      toast({ message: "Folder deleted.", type: "success" });
-      loadData();
-    } catch (err) {
-      toast({ message: err.message, type: "error" });
-    } finally {
-      setDeleteFolderTarget(null);
     }
   };
 
@@ -173,53 +145,6 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* ── Folders ── */}
-        <section className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <FolderOpen size={15} className="text-indigo-400" /> Folders
-            </h2>
-            <Link
-              to="/guides"
-              className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors px-2.5 py-1.5 rounded-lg hover:bg-indigo-500/10">
-              Manage <ChevronRight size={13} />
-            </Link>
-          </div>
-
-          {folders.length === 0 ? (
-            <div className="text-center py-8 border border-dashed border-white/8 rounded-2xl">
-              <FolderOpen size={28} className="mx-auto mb-2.5 text-gray-700" />
-              <p className="text-sm text-gray-600">No folders yet.</p>
-              <Link to="/guides" className="inline-flex items-center gap-1.5 mt-3 text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors">
-                <Plus size={12} /> Create one in All Guides
-              </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {folders.map((folder, i) => {
-                const colors = FOLDER_COLORS[folder.color] || FOLDER_COLORS.indigo;
-                return (
-                  <motion.div key={folder.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}>
-                    <Link to={`/folder/${folder.id}`}
-                      className="group relative bg-white/4 border border-white/8 hover:border-white/15 rounded-2xl p-4 transition-all hover:bg-white/6 hover:-translate-y-0.5 block">
-                      <button
-                        onClick={e => { e.stopPropagation(); e.preventDefault(); setDeleteFolderTarget({ id: folder.id, name: folder.name }); }}
-                        className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-all p-1 rounded-lg hover:bg-red-400/10">
-                        <Trash2 size={13} />
-                      </button>
-                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colors.bg} flex items-center justify-center text-lg mb-3 shadow-lg ${colors.glow}`}>
-                        {folder.icon}
-                      </div>
-                      <p className="text-white font-semibold text-sm truncate pr-5">{folder.name}</p>
-                      <p className="text-gray-600 text-xs mt-0.5">{folder.guide_count} guide{folder.guide_count !== 1 ? "s" : ""}</p>
-                    </Link>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
         {/* ── Recent Guides ── */}
         <section>
           <div className="flex items-center justify-between mb-4">
@@ -273,14 +198,6 @@ export default function Dashboard() {
         <div aria-hidden="true" style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
       </main>
 
-      <ConfirmModal
-        open={!!deleteFolderTarget}
-        title="Delete this folder?"
-        message={`"${deleteFolderTarget?.name}" and all guides inside it will be permanently deleted.`}
-        confirmText="Delete Folder"
-        onConfirm={confirmDeleteFolder}
-        onCancel={() => setDeleteFolderTarget(null)}
-      />
     </div>
   );
 }
