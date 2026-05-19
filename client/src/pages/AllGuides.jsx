@@ -46,7 +46,9 @@ export default function AllGuides() {
   const [showNewFolder,  setShowNewFolder]  = useState(false);
   const [newFolderName,  setNewFolderName]  = useState("");
   const [newFolderIcon,  setNewFolderIcon]  = useState("📁");
+  const [newFolderColor, setNewFolderColor] = useState("indigo");
   const [deleteFolderTarget, setDeleteFolderTarget] = useState(null);
+  const [sort,           setSort]           = useState("newest"); // newest|oldest|alpha|score
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   const fetchGuides = useCallback(async (newOffset, query, append = false) => {
@@ -100,9 +102,9 @@ export default function AllGuides() {
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
     try {
-      const f = await api.folders.create({ name: newFolderName.trim(), icon: newFolderIcon });
+      const f = await api.folders.create({ name: newFolderName.trim(), icon: newFolderIcon, color: newFolderColor });
       setFolders(prev => [...prev, { ...f, guide_count: 0 }]);
-      setNewFolderName(""); setNewFolderIcon("📁"); setShowNewFolder(false);
+      setNewFolderName(""); setNewFolderIcon("📁"); setNewFolderColor("indigo"); setShowNewFolder(false);
       toast({ message: `Folder "${newFolderName}" created!`, type: "success" });
     } catch (err) {
       toast({ message: err.message, type: "error" });
@@ -135,15 +137,25 @@ export default function AllGuides() {
               {loading ? "Loading…" : `${total} guide${total !== 1 ? "s" : ""} total`}
             </p>
           </div>
-          <div className="relative">
-            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              maxLength={100}
-              placeholder="Search guides…"
-              className="w-full sm:w-64 bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
-            />
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={sort} onChange={e => setSort(e.target.value)}
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-gray-300 text-sm focus:outline-none focus:border-indigo-500 transition-colors">
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="alpha">A → Z</option>
+              <option value="score">Best Score</option>
+            </select>
+            <div className="relative">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                maxLength={100}
+                placeholder="Search guides…"
+                className="w-full sm:w-56 bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
           </div>
         </div>
 
@@ -168,28 +180,38 @@ export default function AllGuides() {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 className="overflow-hidden">
-                <div className="flex gap-2 mb-3 flex-wrap pb-1">
-                  <input
-                    value={newFolderIcon}
-                    onChange={e => setNewFolderIcon(e.target.value)}
-                    className="w-12 bg-white/5 border border-white/10 rounded-xl px-2 py-2 text-white text-center focus:outline-none focus:border-indigo-500 transition-colors text-base"
-                    placeholder="📁" />
-                  <input
-                    value={newFolderName}
-                    onChange={e => setNewFolderName(e.target.value)}
-                    placeholder="Folder name…"
-                    onKeyDown={e => e.key === "Enter" && handleCreateFolder()}
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors text-sm min-w-[8rem]" />
-                  <button
-                    onClick={handleCreateFolder}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold text-sm transition-all">
-                    Create
-                  </button>
-                  <button
-                    onClick={() => { setShowNewFolder(false); setNewFolderName(""); setNewFolderIcon("📁"); }}
-                    className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 transition-colors">
-                    <X size={16} />
-                  </button>
+                <div className="space-y-2 mb-3 pb-1">
+                  <div className="flex gap-2 flex-wrap">
+                    <input
+                      value={newFolderIcon}
+                      onChange={e => setNewFolderIcon(e.target.value)}
+                      className="w-12 bg-white/5 border border-white/10 rounded-xl px-2 py-2 text-white text-center focus:outline-none focus:border-indigo-500 transition-colors text-base"
+                      placeholder="📁" />
+                    <input
+                      value={newFolderName}
+                      onChange={e => setNewFolderName(e.target.value)}
+                      placeholder="Folder name…"
+                      onKeyDown={e => e.key === "Enter" && handleCreateFolder()}
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors text-sm min-w-[8rem]" />
+                    <button
+                      onClick={handleCreateFolder}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold text-sm transition-all">
+                      Create
+                    </button>
+                    <button
+                      onClick={() => { setShowNewFolder(false); setNewFolderName(""); setNewFolderIcon("📁"); setNewFolderColor("indigo"); }}
+                      className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 transition-colors">
+                      <X size={16} />
+                    </button>
+                  </div>
+                  {/* Color swatches */}
+                  <div className="flex gap-1.5 flex-wrap">
+                    {Object.keys(FOLDER_COLORS).map(color => (
+                      <button key={color} type="button" onClick={() => setNewFolderColor(color)}
+                        className={`w-6 h-6 rounded-full bg-gradient-to-br ${FOLDER_COLORS[color]} transition-all ${newFolderColor === color ? "ring-2 ring-white ring-offset-2 ring-offset-black scale-110" : "opacity-60 hover:opacity-100"}`}
+                        title={color} />
+                    ))}
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -240,6 +262,14 @@ export default function AllGuides() {
           <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 mb-4">
             <BookOpen size={14} className="text-indigo-400" /> Guides
           </h2>
+
+          {/* Apply client-side sort */}
+          {(() => {
+            if (sort === "oldest") guides.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            else if (sort === "alpha") guides.sort((a, b) => a.title.localeCompare(b.title));
+            else if (sort === "score") guides.sort((a, b) => (b.best_quiz_score || 0) - (a.best_quiz_score || 0));
+            else guides.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // newest
+          })()}
 
           {loading ? (
             <div className="flex items-center justify-center py-20">

@@ -3,10 +3,17 @@
 const MAX_TEXT = 50000;
 
 const TABS = [
-  { id: "text",  label: "📝 Paste Text",  labelSm: "📝 Text",   desc: "Copy & paste lecture notes or a transcript" },
-  { id: "file",  label: "📄 Upload File", labelSm: "📄 File",   desc: "PDF, Word, PowerPoint, TXT, CSV, Markdown" },
-  { id: "image", label: "🖼️ Photo",       labelSm: "🖼️ Photo",  desc: "Snap a photo of slides, whiteboard, or notes" },
-  { id: "audio", label: "🎙️ Audio",       labelSm: "🎙️ Audio",  desc: "Upload a lecture recording (MP3, M4A, WAV)" },
+  { id: "text",    label: "📝 Paste Text",    labelSm: "📝 Text",    desc: "Copy & paste lecture notes or a transcript" },
+  { id: "youtube", label: "🎥 YouTube",        labelSm: "🎥 YouTube", desc: "Paste a YouTube URL — we'll pull the transcript" },
+  { id: "file",    label: "📄 Upload File",    labelSm: "📄 File",    desc: "PDF, Word, PowerPoint, TXT, CSV, Markdown" },
+  { id: "image",   label: "🖼️ Photo",          labelSm: "🖼️ Photo",   desc: "Snap a photo of slides, whiteboard, or notes" },
+  { id: "audio",   label: "🎙️ Audio",          labelSm: "🎙️ Audio",   desc: "Upload a lecture recording (MP3, M4A, WAV)" },
+];
+
+const DIFFICULTY_OPTIONS = [
+  { id: "standard",     label: "Standard",     emoji: "📖" },
+  { id: "easy",         label: "Simplified",   emoji: "🌱" },
+  { id: "advanced",     label: "Advanced",     emoji: "🚀" },
 ];
 
 const FILE_ICONS = { pdf: "📕", docx: "📘", doc: "📘", pptx: "📙", ppt: "📙", txt: "📄", md: "📄", csv: "📊", rtf: "📄" };
@@ -17,12 +24,14 @@ function getFileIcon(name = "") {
 }
 
 export default function UploadForm({ onSubmit, loading, dark }) {
-  const [activeTab, setActiveTab] = useState("text");
-  const [transcript, setTranscript] = useState("");
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [dragOver, setDragOver] = useState(false);
-  const [formError, setFormError] = useState("");
+  const [activeTab,   setActiveTab]   = useState("text");
+  const [transcript,  setTranscript]  = useState("");
+  const [youtubeUrl,  setYoutubeUrl]  = useState("");
+  const [file,        setFile]        = useState(null);
+  const [preview,     setPreview]     = useState(null);
+  const [dragOver,    setDragOver]    = useState(false);
+  const [formError,   setFormError]   = useState("");
+  const [difficulty,  setDifficulty]  = useState("standard");
   const fileInputRef = useRef();
 
   const base = dark ? {
@@ -56,22 +65,29 @@ export default function UploadForm({ onSubmit, loading, dark }) {
     handleFileSelect(e.dataTransfer.files[0]);
   };
 
-  const handleTabChange = (tab) => { setActiveTab(tab); setFile(null); setPreview(null); setFormError(""); };
+  const handleTabChange = (tab) => { setActiveTab(tab); setFile(null); setPreview(null); setFormError(""); setYoutubeUrl(""); };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setFormError("");
     if (activeTab === "text") {
       if (transcript.trim().length < 30) { setFormError("Please paste a longer transcript (at least 30 characters)."); return; }
-      if (transcript.length > MAX_TEXT) { setFormError(`Transcript is too long. Please limit to ${MAX_TEXT.toLocaleString()} characters.`); return; }
-      onSubmit({ type: "text", transcript });
+      if (transcript.length > MAX_TEXT)  { setFormError(`Transcript is too long. Please limit to ${MAX_TEXT.toLocaleString()} characters.`); return; }
+      onSubmit({ type: "text", transcript, difficulty });
+    } else if (activeTab === "youtube") {
+      if (!youtubeUrl.trim()) { setFormError("Please enter a YouTube URL."); return; }
+      const match = youtubeUrl.match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/);
+      if (!match) { setFormError("That doesn't look like a valid YouTube URL."); return; }
+      onSubmit({ type: "youtube", youtubeUrl: youtubeUrl.trim(), difficulty });
     } else {
       if (!file) { setFormError("Please select a file first."); return; }
-      onSubmit({ type: activeTab, file });
+      onSubmit({ type: activeTab, file, difficulty });
     }
   };
 
-  const canSubmit = activeTab === "text" ? transcript.trim().length >= 30 : !!file;
+  const canSubmit = activeTab === "text" ? transcript.trim().length >= 30
+                  : activeTab === "youtube" ? youtubeUrl.trim().length > 0
+                  : !!file;
 
   const dropzoneContent = () => {
     if (preview) {
@@ -132,8 +148,25 @@ export default function UploadForm({ onSubmit, loading, dark }) {
             placeholder="Paste your lecture notes or transcript here..." />
         )}
 
+        {/* YouTube URL */}
+        {activeTab === "youtube" && (
+          <div className="space-y-3">
+            <input
+              type="url"
+              value={youtubeUrl}
+              onChange={e => { setYoutubeUrl(e.target.value); if (formError) setFormError(""); }}
+              disabled={loading}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm ${base.textarea}`}
+            />
+            <p className={`text-xs ${base.sub}`}>
+              🎥 Works with any YouTube video that has captions (auto-generated or manual).
+            </p>
+          </div>
+        )}
+
         {/* File / Image / Audio dropzone */}
-        {activeTab !== "text" && (
+        {activeTab !== "text" && activeTab !== "youtube" && (
           <div onDrop={handleDrop}
             onDragOver={e => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
@@ -148,6 +181,17 @@ export default function UploadForm({ onSubmit, loading, dark }) {
         {formError && (
           <p className="mt-3 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2">{formError}</p>
         )}
+
+        {/* Difficulty picker */}
+        <div className="mt-4 flex items-center gap-2 flex-wrap">
+          <span className={`text-xs font-medium ${base.sub}`}>Depth:</span>
+          {DIFFICULTY_OPTIONS.map(d => (
+            <button key={d.id} type="button" onClick={() => setDifficulty(d.id)}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all border ${difficulty === d.id ? "bg-indigo-600/30 border-indigo-500/50 text-indigo-300" : `${dark ? "bg-white/5 border-white/10 text-gray-400 hover:text-white" : "bg-gray-50 border-gray-200 text-gray-500 hover:text-gray-700"}`}`}>
+              {d.emoji} {d.label}
+            </button>
+          ))}
+        </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
           {activeTab === "text"

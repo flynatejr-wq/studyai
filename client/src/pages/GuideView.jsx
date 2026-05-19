@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronUp, Zap, RefreshCw, ChevronLeft,
   ChevronRight, CheckCircle, XCircle, Clock, BarChart2,
   Share2, Printer, Check, Link2Off, BookOpen, List,
-  Star, Target, Eye, EyeOff, Circle, CheckSquare
+  Star, Target, Eye, EyeOff, Circle, CheckSquare, Brain,
 } from "lucide-react";
 import { api, getToken } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -239,6 +239,185 @@ function MCQMode({ guideId, onXpEarned }) {
         <button onClick={submit} className="w-full mt-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white transition-all">
           Submit & Earn XP ⚡
         </button>
+      )}
+    </div>
+  );
+}
+
+// ── Adaptive Quiz Mode ────────────────────────────────────────────────────────
+function AdaptiveQuizMode({ guideId, onXpEarned }) {
+  const [phase, setPhase]       = useState("setup"); // setup|loading|question|roundbreak|done
+  const [count, setCount]       = useState(10);
+  const [questions, setQuestions] = useState([]);
+  const [queue, setQueue]       = useState([]);   // question indices for current round
+  const [queuePos, setQueuePos] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [revealed, setRevealed] = useState(false);
+  const [mastered, setMastered] = useState(new Set());
+  const [round, setRound]       = useState(1);
+  const [finalScore, setFinalScore] = useState(0);
+  const [error, setError]       = useState("");
+  const firstPassRef            = useRef(0);
+  const { refreshUser }         = useAuth();
+
+  const generate = async () => {
+    setPhase("loading"); setError("");
+    try {
+      const { questions: qs } = await api.guides.generateQuiz(guideId, count, "mcq");
+      const allQs = Array.isArray(qs) ? qs : [];
+      setQuestions(allQs);
+      setQueue(allQs.map((_, i) => i));
+      setQueuePos(0); setMastered(new Set());
+      firstPassRef.current = 0; setRound(1);
+      setSelected(null); setRevealed(false);
+      setPhase("question");
+    } catch (e) { setError(e.message); setPhase("setup"); }
+  };
+
+  const currentQIdx = phase === "question" ? queue[queuePos] : null;
+  const currentQ    = currentQIdx != null ? questions[currentQIdx] : null;
+
+  const handleSelect = (oi) => { if (revealed) return; setSelected(oi); setRevealed(true); };
+
+  const handleNext = async () => {
+    const isCorrect = selected === currentQ.correctIndex;
+    const newMastered = new Set(mastered);
+    if (isCorrect) { newMastered.add(currentQIdx); if (round === 1) firstPassRef.current++; }
+    setMastered(newMastered);
+
+    if (queuePos < queue.length - 1) {
+      setQueuePos(p => p + 1); setSelected(null); setRevealed(false);
+    } else {
+      const nextQueue = questions.map((_, i) => i).filter(i => !newMastered.has(i));
+      if (nextQueue.length === 0) {
+        const fp = firstPassRef.current;
+        setFinalScore(fp);
+        try { await api.guides.submitQuiz(guideId, fp, questions.length); await refreshUser(); onXpEarned(fp * 10); } catch (_) {}
+        setPhase("done");
+      } else {
+        setQueue(nextQueue); setQueuePos(0); setSelected(null); setRevealed(false);
+        setRound(r => r + 1); setPhase("roundbreak");
+        setTimeout(() => setPhase("question"), 2500);
+      }
+    }
+  };
+
+  const reset = () => {
+    setPhase("setup"); setQuestions([]); setQueue([]); setQueuePos(0);
+    setSelected(null); setRevealed(false); setMastered(new Set());
+    firstPassRef.current = 0; setRound(1); setFinalScore(0);
+  };
+
+  // ── Setup / Loading ──
+  if (phase === "setup" || phase === "loading") return (
+    <div className="flex flex-col items-center gap-5 py-8">
+      <div className="text-center">
+        <p className="text-white font-bold text-lg mb-1">🧠 Adaptive Quiz</p>
+        <p className="text-gray-400 text-sm max-w-xs">One question at a time. Wrong answers come back until you master them.</p>
+      </div>
+      <div className="flex items-center gap-3 flex-wrap justify-center">
+        <span className="text-gray-400 text-sm">Questions:</span>
+        {[5, 10, 15, 20].map(n => (
+          <button key={n} onClick={() => setCount(n)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${count === n ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"}`}>{n}</button>
+        ))}
+      </div>
+      {error && <p className="text-red-400 text-sm">{error}</p>}
+      <button onClick={generate} disabled={phase === "loading"}
+        className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-xl text-white font-bold transition-all">
+        {phase === "loading" ? <><span className="animate-spin inline-block">⏳</span> Generating…</> : <><Brain size={16} /> Start Adaptive Quiz</>}
+      </button>
+    </div>
+  );
+
+  // ── Round Break ──
+  if (phase === "roundbreak") return (
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+      className="flex flex-col items-center gap-4 py-14 text-center">
+      <div className="text-5xl">🔄</div>
+      <p className="text-white font-bold text-xl">Round {round}</p>
+      <p className="text-gray-400 text-sm">Reviewing the ones you missed…</p>
+      <div className="flex items-center gap-3 text-sm mt-2">
+        <span className="text-green-400 font-medium">✓ {mastered.size} mastered</span>
+        <span className="text-gray-600">•</span>
+        <span className="text-yellow-400 font-medium">⟳ {queue.length} to review</span>
+      </div>
+    </motion.div>
+  );
+
+  // ── Done ──
+  if (phase === "done") return (
+    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-4">
+      <div className="text-6xl mb-4">{finalScore === questions.length ? "🏆" : finalScore >= questions.length * 0.7 ? "⭐" : "💪"}</div>
+      <p className="text-3xl font-bold text-white mb-1">{finalScore}/{questions.length}</p>
+      <p className="text-gray-400 text-sm mb-1">First-attempt correct · +{finalScore * 10} XP</p>
+      {round > 1 && <p className="text-green-400 text-sm mb-6">100% mastered after {round} rounds! 🎉</p>}
+      {round === 1 && <p className="text-gray-500 text-sm mb-6">Perfect first run!</p>}
+      <button onClick={reset}
+        className="inline-flex items-center gap-2 px-6 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-white font-semibold text-sm transition-all">
+        <RotateCcw size={14} /> Try Again
+      </button>
+    </motion.div>
+  );
+
+  // ── Question ──
+  const masteryPct = (mastered.size / questions.length) * 100;
+  return (
+    <div>
+      {/* Mastery bar */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-1.5 text-xs">
+          <span className="text-gray-500">Round {round} · Q {queuePos + 1}/{queue.length}</span>
+          <span className="text-green-400 font-semibold">{mastered.size}/{questions.length} mastered</span>
+        </div>
+        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+          <motion.div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full"
+            animate={{ width: `${masteryPct}%` }} transition={{ duration: 0.4 }} />
+        </div>
+      </div>
+
+      {/* Question card */}
+      <AnimatePresence mode="wait">
+        <motion.div key={`${round}-${queuePos}`}
+          initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+          className="border border-white/10 rounded-xl p-5 mb-4">
+          <p className="text-white font-semibold mb-4 leading-relaxed">{currentQ.question}</p>
+          <div className="space-y-2">
+            {currentQ.options.map((opt, oi) => {
+              const isSel  = selected === oi;
+              const isCorr = oi === currentQ.correctIndex;
+              let cls = "w-full text-left px-4 py-3 rounded-xl text-sm transition-all border ";
+              if (!revealed) {
+                cls += isSel ? "bg-indigo-600/30 border-indigo-500/60 text-indigo-200 font-medium"
+                             : "bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20";
+              } else {
+                if (isCorr)      cls += "bg-green-500/20 border-green-500/40 text-green-300 font-medium";
+                else if (isSel)  cls += "bg-red-500/20 border-red-500/40 text-red-300 line-through";
+                else             cls += "bg-white/3 border-white/8 text-gray-600";
+              }
+              return (
+                <button key={oi} onClick={() => handleSelect(oi)} disabled={revealed} className={cls}>
+                  <span className="text-gray-500 mr-2">{["A","B","C","D"][oi]}.</span>{opt}
+                  {revealed && isCorr && <span className="ml-2 text-green-400">✓</span>}
+                </button>
+              );
+            })}
+          </div>
+          {revealed && currentQ.explanation && (
+            <motion.p initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+              className="text-indigo-300 text-xs mt-3 italic">💡 {currentQ.explanation}</motion.p>
+          )}
+        </motion.div>
+      </AnimatePresence>
+
+      {revealed && (
+        <motion.button initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+          onClick={handleNext}
+          className="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-2">
+          {selected === currentQ.correctIndex
+            ? <><CheckCircle size={16} className="text-green-300" /> Correct — Next Question</>
+            : <><XCircle size={16} className="text-red-300" /> Noted — Next Question</>}
+        </motion.button>
       )}
     </div>
   );
@@ -717,6 +896,7 @@ export default function GuideView() {
     ...(hasSections ? [{ id: "sections", label: "📚 Sections", desc: `${guide.sections.length} sections` }] : []),
     { id: "notes",      label: "📝 Notes",          desc: "Summary & key terms" },
     { id: "flashcards", label: "🃏 Flashcards",      desc: `${terms.length} key terms` },
+    { id: "adaptive",   label: "🧠 Adaptive",        desc: "Mastery-based quiz" },
     { id: "mcq",        label: "🎯 Multiple Choice", desc: "AI-generated MCQ" },
     { id: "quiz",       label: "✏️ Self-Grade",      desc: "Reveal & mark answers" },
   ];
@@ -844,6 +1024,13 @@ export default function GuideView() {
               {terms.length === 0
                 ? <p className="text-gray-500 text-sm text-center py-8">No key terms found in this guide.</p>
                 : <FlashcardMode terms={terms} />}
+            </section>
+          )}
+
+          {/* ── ADAPTIVE QUIZ MODE ── */}
+          {studyMode === "adaptive" && (
+            <section className="bg-white/5 border border-white/10 rounded-2xl p-6 print:hidden">
+              <AdaptiveQuizMode guideId={id} onXpEarned={showXpToast} />
             </section>
           )}
 

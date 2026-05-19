@@ -25,7 +25,14 @@ export default function Dashboard() {
   const [error,        setError]        = useState("");
   const [saveFolder,   setSaveFolder]   = useState("");
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+    // Restore any unsaved draft from a previous session
+    try {
+      const raw = localStorage.getItem("studybuddi_draft");
+      if (raw) { setResults(JSON.parse(raw)); setShowCreate(true); }
+    } catch (_) {}
+  }, []);
 
   async function loadData() {
     try {
@@ -35,15 +42,18 @@ export default function Dashboard() {
     } catch (_) {}
   }
 
-  const handleSubmit = async ({ type, transcript, file }) => {
+  const handleSubmit = async ({ type, transcript, youtubeUrl, file, difficulty = "standard" }) => {
     setLoading(true); setError(""); setResults(null);
     try {
       let data;
-      if (type === "text")       data = await api.summarize.text(transcript);
-      else if (type === "image") data = await api.summarize.image(file);
-      else if (type === "audio") data = await api.summarize.audio(file);
-      else                       data = await api.summarize.file(file);
+      if (type === "text")         data = await api.summarize.text(transcript, difficulty);
+      else if (type === "youtube") data = await api.summarize.youtube(youtubeUrl, difficulty);
+      else if (type === "image")   data = await api.summarize.image(file, difficulty);
+      else if (type === "audio")   data = await api.summarize.audio(file, difficulty);
+      else                         data = await api.summarize.file(file, difficulty);
       setResults(data);
+      // Auto-save draft to localStorage so it survives a page refresh
+      try { localStorage.setItem("studybuddi_draft", JSON.stringify(data)); } catch (_) {}
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
   };
@@ -62,6 +72,7 @@ export default function Dashboard() {
       });
       await refreshUser();
       await loadData();
+      try { localStorage.removeItem("studybuddi_draft"); } catch (_) {}
       setResults(null);
       setShowCreate(false);
       toast({ message: "Guide saved!", type: "success" });
