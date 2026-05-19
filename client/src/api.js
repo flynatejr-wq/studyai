@@ -58,11 +58,11 @@ export const api = {
     resetPassword:  (body) => request("/auth/reset-password", { method: "POST",   headers: headers(), body: JSON.stringify(body) }),
   },
   summarize: {
-    text:    (transcript, difficulty = "standard") => request("/summarize", { method: "POST", headers: headers(), body: JSON.stringify({ transcript, difficulty }) }),
-    youtube: (url, difficulty = "standard") => request("/summarize/youtube", { method: "POST", headers: headers(), body: JSON.stringify({ url, difficulty }) }),
-    image:   (file, difficulty = "standard") => { const fd = new FormData(); fd.append("image", file); fd.append("difficulty", difficulty); return request("/summarize/image", { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd }); },
-    audio:   (file, difficulty = "standard") => { const fd = new FormData(); fd.append("audio", file); fd.append("difficulty", difficulty); return request("/summarize/audio", { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd }); },
-    file:    (file, difficulty = "standard") => { const fd = new FormData(); fd.append("file",  file); fd.append("difficulty", difficulty); return request("/summarize/file",  { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd }); },
+    text:    (transcript, difficulty = "standard", style = "detailed") => request("/summarize", { method: "POST", headers: headers(), body: JSON.stringify({ transcript, difficulty, style }) }),
+    youtube: (url, difficulty = "standard", style = "detailed") => request("/summarize/youtube", { method: "POST", headers: headers(), body: JSON.stringify({ url, difficulty, style }) }),
+    image:   (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("image", file); fd.append("difficulty", difficulty); fd.append("style", style); return request("/summarize/image", { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd }); },
+    audio:   (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("audio", file); fd.append("difficulty", difficulty); fd.append("style", style); return request("/summarize/audio", { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd }); },
+    file:    (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("file",  file); fd.append("difficulty", difficulty); fd.append("style", style); return request("/summarize/file",  { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd }); },
   },
   folders: {
     list:   ()         => request("/folders",      { headers: headers() }),

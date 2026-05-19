@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Plus, BookOpen, X,
-  ChevronRight, ArrowRight, Trophy, Clock,
+  Plus, BookOpen, X, ChevronRight, ArrowRight,
+  Trophy, Clock, Zap, Flame, Sparkles,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
@@ -36,25 +36,22 @@ export default function Dashboard() {
 
   async function loadData() {
     try {
-      // Use listPaged with limit=6 instead of list() to avoid loading all guides unboundedly
       const [f, gRes] = await Promise.all([api.folders.list(), api.guides.listPaged(0, "")]);
       setFolders(Array.isArray(f) ? f : []);
       setRecentGuides(Array.isArray(gRes.guides) ? gRes.guides.slice(0, 6) : []);
     } catch (_) {}
   }
 
-  const handleSubmit = async ({ type, transcript, youtubeUrl, file, difficulty = "standard" }) => {
+  const handleSubmit = async ({ type, transcript, youtubeUrl, file, difficulty = "standard", style = "detailed" }) => {
     setLoading(true); setError(""); setResults(null);
     try {
       let data;
-      if (type === "text")         data = await api.summarize.text(transcript, difficulty);
-      else if (type === "youtube") data = await api.summarize.youtube(youtubeUrl, difficulty);
-      else if (type === "image")   data = await api.summarize.image(file, difficulty);
-      else if (type === "audio")   data = await api.summarize.audio(file, difficulty);
-      else                         data = await api.summarize.file(file, difficulty);
-      // Attach the upload type so it's saved correctly (was always "text" before)
+      if (type === "text")         data = await api.summarize.text(transcript, difficulty, style);
+      else if (type === "youtube") data = await api.summarize.youtube(youtubeUrl, difficulty, style);
+      else if (type === "image")   data = await api.summarize.image(file, difficulty, style);
+      else if (type === "audio")   data = await api.summarize.audio(file, difficulty, style);
+      else                         data = await api.summarize.file(file, difficulty, style);
       setResults({ ...data, type });
-      // Auto-save draft to localStorage so it survives a page refresh
       try { localStorage.setItem("studybuddi_draft", JSON.stringify({ ...data, type })); } catch (_) {}
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
@@ -89,6 +86,12 @@ export default function Dashboard() {
   const hourNow   = new Date().getHours();
   const greeting  = hourNow < 12 ? "Good morning" : hourNow < 18 ? "Good afternoon" : "Good evening";
 
+  const stats = [
+    { icon: BookOpen, value: user?.total_guides ?? 0,  label: "Guides",     color: "indigo", bg: "bg-indigo-500/15", text: "text-indigo-400" },
+    { icon: Flame,    value: user?.streak ?? 0,        label: "Day Streak", color: "orange", bg: "bg-orange-500/15", text: "text-orange-400" },
+    { icon: Zap,      value: user?.xp ?? 0,            label: "XP Earned",  color: "violet", bg: "bg-violet-500/15", text: "text-violet-400" },
+  ];
+
   return (
     <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
@@ -96,7 +99,7 @@ export default function Dashboard() {
       <main className="flex-1 min-w-0 overflow-x-hidden md:ml-64 p-4 md:p-8 main-pt">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between mb-7 gap-3">
+        <div className="flex items-center justify-between mb-6 gap-3">
           <div className="min-w-0">
             <p className="text-xs text-gray-500 font-medium uppercase tracking-widest mb-0.5">{greeting}</p>
             <h1 className="text-xl md:text-2xl font-black text-white truncate">
@@ -106,11 +109,60 @@ export default function Dashboard() {
           <button
             onClick={() => { setShowCreate(true); setResults(null); }}
             className="flex items-center gap-2 px-4 md:px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white transition-all shadow-lg shadow-indigo-500/25 text-sm shrink-0 hover:-translate-y-0.5">
-            <Plus size={16} />
-            <span className="hidden sm:inline">New Guide</span>
-            <span className="sm:hidden">New</span>
+            <Plus size={15} />
+            <span className="hidden sm:inline">Generate Notes</span>
+            <span className="sm:hidden">Create</span>
           </button>
         </div>
+
+        {/* ── Stats row ── */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {stats.map(s => (
+            <motion.div
+              key={s.label}
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              className="bg-white/4 border border-white/8 rounded-2xl p-3.5 md:p-4 flex flex-col gap-2">
+              <div className={`w-7 h-7 rounded-lg ${s.bg} flex items-center justify-center`}>
+                <s.icon size={14} className={s.text} />
+              </div>
+              <div>
+                <p className="text-white text-lg md:text-xl font-black leading-none">{s.value.toLocaleString()}</p>
+                <p className="text-gray-500 text-xs mt-0.5">{s.label}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* ── Generate Notes CTA (shown when not creating) ── */}
+        <AnimatePresence>
+          {!showCreate && !results && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+              className="relative overflow-hidden rounded-2xl mb-6 cursor-pointer group"
+              onClick={() => setShowCreate(true)}>
+              {/* gradient background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-violet-600/10 to-transparent" />
+              <div className="absolute inset-0 border border-indigo-500/20 rounded-2xl" />
+              {/* decorative orb */}
+              <div className="absolute -right-10 -top-10 w-48 h-48 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="relative p-5 md:p-6 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Sparkles size={15} className="text-indigo-400 shrink-0" />
+                    <p className="text-indigo-300 text-xs font-semibold uppercase tracking-wider">AI-Powered</p>
+                  </div>
+                  <h2 className="text-white font-bold text-base md:text-lg mb-1">Generate Study Notes</h2>
+                  <p className="text-gray-400 text-sm leading-relaxed">
+                    Turn any lecture, PDF, YouTube video, or audio into organized notes in seconds.
+                  </p>
+                </div>
+                <div className="shrink-0 w-11 h-11 rounded-xl bg-indigo-600 group-hover:bg-indigo-500 flex items-center justify-center transition-colors shadow-lg shadow-indigo-600/30">
+                  <Plus size={20} className="text-white" />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── Create Guide Panel ── */}
         <AnimatePresence>
@@ -120,11 +172,13 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -12, scale: 0.98 }}
               transition={{ duration: 0.2 }}
-              className="bg-white/4 border border-white/10 rounded-2xl p-5 md:p-6 mb-7">
+              className="bg-white/4 border border-white/10 rounded-2xl p-5 md:p-6 mb-6">
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <h2 className="text-base font-bold text-white">Create New Study Guide</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">AI generates summary, key terms & quiz questions</p>
+                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                    <Sparkles size={15} className="text-indigo-400" /> Generate Study Notes
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-0.5">Choose your source, format & depth — AI does the rest</p>
                 </div>
                 <button onClick={() => setShowCreate(false)} className="text-gray-500 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/8">
                   <X size={18} />
@@ -170,13 +224,16 @@ export default function Dashboard() {
           </div>
 
           {recentGuides.length === 0 ? (
-            <div className="text-center py-10 border border-dashed border-white/8 rounded-2xl">
-              <BookOpen size={28} className="mx-auto mb-2.5 text-gray-700" />
-              <p className="text-sm text-gray-600 mb-4">No guides yet. Create your first one above!</p>
+            <div className="text-center py-12 border border-dashed border-white/8 rounded-2xl">
+              <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto mb-4">
+                <BookOpen size={24} className="text-indigo-400" />
+              </div>
+              <p className="text-white font-semibold mb-1">No guides yet</p>
+              <p className="text-sm text-gray-600 mb-5">Create your first study guide to get started</p>
               <button
                 onClick={() => { setShowCreate(true); setResults(null); }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600/20 border border-indigo-500/30 rounded-xl text-indigo-400 text-sm font-semibold hover:bg-indigo-600/30 transition-colors">
-                <Plus size={14} /> Create a guide
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl text-white text-sm font-bold transition-all shadow-lg shadow-indigo-500/20 hover:-translate-y-0.5">
+                <Sparkles size={14} /> Generate Notes
               </button>
             </div>
           ) : (
@@ -210,7 +267,6 @@ export default function Dashboard() {
 
         <div aria-hidden="true" style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
       </main>
-
     </div>
   );
 }
