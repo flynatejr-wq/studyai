@@ -5,7 +5,6 @@ import multer from "multer";
 import mammoth from "mammoth";
 import { parseOffice } from "officeparser";
 import { YoutubeTranscript } from "youtube-transcript";
-import ytdl from "@distube/ytdl-core";
 import { requireAuth } from "../middleware/auth.js";
 
 // ESM-native import of CJS pdf-parse — module.exports becomes .default
@@ -122,7 +121,6 @@ router.post("/", requireAuth, async (req, res) => {
 });
 
 // ── POST /api/summarize/youtube — YouTube URL ─────────────────────────────────
-// Stage 1: try fast caption fetch. Stage 2: fall back to Whisper transcription.
 router.post("/youtube", requireAuth, async (req, res) => {
   const { url, difficulty } = req.body;
   if (!url?.trim()) return res.status(400).json({ error: "No YouTube URL provided." });
@@ -131,59 +129,24 @@ router.post("/youtube", requireAuth, async (req, res) => {
   if (!match) return res.status(400).json({ error: "Could not extract a video ID from that URL." });
   const videoId = match[1];
 
-  // ── Stage 1: caption fetch (fast, no API cost) ───────────────────────────
   try {
     const segments = await YoutubeTranscript.fetchTranscript(videoId);
-    if (segments?.length) {
-      const text = segments.map(s => s.text).join(" ").replace(/\s+/g, " ").trim();
-      if (text.length >= 50) {
-        console.log(`[youtube] captions OK for ${videoId} (${text.length} chars)`);
-        return res.json(await generateFromText(text.slice(0, 60000), difficulty));
-      }
+    if (!segments?.length) {
+      return res.status(400).json({ error: "No captions found for this video. Enable captions on the video, or download the audio and upload it using the Audio tab." });
     }
-  } catch (captionErr) {
-    console.log(`[youtube] captions unavailable for ${videoId}: ${captionErr?.message} — falling back to Whisper`);
-  }
-
-  // ── Stage 2: Whisper transcription (works even without captions) ──────────
-  try {
-    if (!ytdl.validateID(videoId)) return res.status(400).json({ error: "Invalid YouTube video ID." });
-
-    // Download audio-only stream into a buffer (capped at ~20 MB to stay under Whisper's 25 MB limit)
-    const MAX_BYTES = 20 * 1024 * 1024;
-    const audioStream = ytdl(`https://www.youtube.com/watch?v=${videoId}`, {
-      filter: "audioonly",
-      quality: "lowestaudio",
-    });
-
-    const chunks = [];
-    let totalBytes = 0;
-    await new Promise((resolve, reject) => {
-      audioStream.on("data", chunk => {
-        totalBytes += chunk.length;
-        if (totalBytes > MAX_BYTES) { audioStream.destroy(); resolve(); return; }
-        chunks.push(chunk);
-      });
-      audioStream.on("end", resolve);
-      audioStream.on("error", reject);
-    });
-
-    if (!chunks.length) return res.status(400).json({ error: "Could not download audio from this video. It may be private or age-restricted." });
-
-    const buffer = Buffer.concat(chunks);
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const audioFile = new File([buffer], "audio.mp4", { type: "audio/mp4" });
-    const transcription = await openai.audio.transcriptions.create({ file: audioFile, model: "whisper-1" });
-
-    if (!transcription.text?.trim())
-      return res.status(400).json({ error: "Could not transcribe audio from this video." });
-
-    console.log(`[youtube] Whisper OK for ${videoId} (${transcription.text.length} chars)`);
-    return res.json(await generateFromText(transcription.text.slice(0, 60000), difficulty));
-
+    const text = segments.map(s => s.text).join(" ").replace(/\s+/g, " ").trim();
+    if (text.length < 50) {
+      return res.status(400).json({ error: "The transcript is too short to generate a study guide." });
+    }
+    console.log(`[youtube] OK for ${videoId} (${text.length} chars)`);
+    return res.json(await generateFromText(text.slice(0, 60000), difficulty));
   } catch (err) {
-    console.error("[youtube] Whisper fallback failed:", err?.message || err);
-    return res.status(500).json({ error: "Could not process this YouTube video. It may be private, age-restricted, or have no audio. Try downloading the audio and uploading it directly." });
+    console.error("[youtube] error:", err?.message);
+    const msg = (err?.message || "").toLowerCase();
+    if (msg.includes("disabled") || msg.includes("no transcript") || msg.includes("could not retrieve")) {
+      return res.status(400).json({ error: "This video has captions disabled. To generate a study guide: open the video on YouTube, download the audio (or use a tool like y2mate), then upload it using the 🎙️ Audio tab." });
+    }
+    return res.status(500).json({ error: "Could not fetch the transcript. Make sure the video is public and try again." });
   }
 });
 
