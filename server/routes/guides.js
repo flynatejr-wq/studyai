@@ -9,14 +9,18 @@ router.use(requireAuth);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+function safeParse(str, fallback = []) {
+  try { return JSON.parse(str); } catch { return fallback; }
+}
+
 function parseGuide(g) {
   return {
     ...g,
-    summary: JSON.parse(g.summary),
-    key_terms: JSON.parse(g.key_terms),
-    quiz_questions: JSON.parse(g.quiz_questions),
-    sections: JSON.parse(g.sections || "[]"),
-    section_progress: JSON.parse(g.section_progress || "[]"),
+    summary:          safeParse(g.summary,          []),
+    key_terms:        safeParse(g.key_terms,         []),
+    quiz_questions:   safeParse(g.quiz_questions,    []),
+    sections:         safeParse(g.sections || "[]",  []),
+    section_progress: safeParse(g.section_progress || "[]", []),
   };
 }
 

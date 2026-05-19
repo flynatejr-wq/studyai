@@ -17,8 +17,11 @@ export default function Sidebar({ onLogout }) {
 
   const level = user?.level || 1;
   const xp    = user?.xp    || 0;
-  const xpNext     = Math.max(level * level * 100, 1);
-  const xpProgress = Math.min(((xp % xpNext) / xpNext) * 100, 100);
+  // Server formula: level = floor(sqrt(xp/100)) + 1  →  xp threshold for level n = (n-1)^2 * 100
+  const xpForLevel = n => (n - 1) * (n - 1) * 100;
+  const xpCurrent  = xpForLevel(level);
+  const xpNextLvl  = xpForLevel(level + 1);
+  const xpProgress = Math.min(((xp - xpCurrent) / (xpNextLvl - xpCurrent)) * 100, 100);
 
   const close = () => setOpen(false);
 
@@ -114,7 +117,7 @@ export default function Sidebar({ onLogout }) {
               <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-700"
                 style={{ width: `${xpProgress}%` }} />
             </div>
-            <p className="text-xs text-gray-600 mt-1.5">{xpNext - (xp % xpNext)} XP to Level {level + 1}</p>
+            <p className="text-xs text-gray-600 mt-1.5">{xpNextLvl - xp} XP to Level {level + 1}</p>
             {user?.streak > 0 && (
               <p className="text-xs text-orange-400 font-semibold mt-1.5 flex items-center gap-1">
                 🔥 {user.streak} day streak

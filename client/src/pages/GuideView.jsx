@@ -20,13 +20,16 @@ const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}
 
 // ── Study Timer ───────────────────────────────────────────────────────────────
 function useStudyTimer(guideId) {
+  // startRef is initialised once at mount; NOT reset inside the effect so
+  // React Strict Mode's double-invocation doesn't reset the clock to zero.
   const startRef = useRef(Date.now());
   useEffect(() => {
+    // Only reset the clock when guideId actually changes (navigation between guides)
     startRef.current = Date.now();
     return () => {
       const secs = Math.floor((Date.now() - startRef.current) / 1000);
-      if (secs < 10 || !guideId) return;
       const token = getToken();
+      if (secs < 10 || !guideId || !token) return; // don't fire if logged out
       fetch(`${API_BASE}/guides/${guideId}/session`, {
         method: "POST",
         keepalive: true,
@@ -280,6 +283,7 @@ function AdaptiveQuizMode({ guideId, onXpEarned }) {
   const handleSelect = (oi) => { if (revealed) return; setSelected(oi); setRevealed(true); };
 
   const handleNext = async () => {
+    if (!currentQ) return; // guard against race if button clicked during phase transition
     const isCorrect = selected === currentQ.correctIndex;
     const newMastered = new Set(mastered);
     if (isCorrect) { newMastered.add(currentQIdx); if (round === 1) firstPassRef.current++; }
@@ -827,7 +831,7 @@ export default function GuideView() {
 
   useEffect(() => {
     if (showChat && messages.length === 0) loadChat();
-  }, [showChat]);
+  }, [showChat, loadChat]); // messages intentionally omitted — loading once on open is correct behaviour
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -837,20 +841,20 @@ export default function GuideView() {
     return () => { if (xpTimerRef.current) clearTimeout(xpTimerRef.current); };
   }, []);
 
-  // Set default mode once guide loads
+  // Set default mode once guide loads; studyMode in deps prevents resetting after user picks a tab
   useEffect(() => {
     if (guide && studyMode === null) {
       setStudyMode(guide.sections?.length > 0 ? "sections" : "notes");
     }
-  }, [guide]);
+  }, [guide, studyMode]);
 
   async function loadGuide() {
     try { const g = await api.guides.get(id); setGuide(g); }
     catch (err) { setLoadError(err.message || "Could not load this guide."); }
   }
-  async function loadChat() {
+  const loadChat = useCallback(async () => {
     try { const msgs = await api.chat.history(id); setMessages(Array.isArray(msgs) ? msgs : []); } catch (_) {}
-  }
+  }, [id]);
   const sendChat = async (e) => {
     e.preventDefault();
     if (!chatInput.trim() || chatLoading) return;

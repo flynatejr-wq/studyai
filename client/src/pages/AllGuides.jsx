@@ -88,8 +88,11 @@ export default function AllGuides() {
     if (!deleteTarget) return;
     try {
       await api.guides.delete(deleteTarget.id);
-      setGuides(g => g.filter(x => x.id !== deleteTarget.id));
-      setTotal(t => t - 1);
+      const newGuides = guides.filter(x => x.id !== deleteTarget.id);
+      const newTotal  = total - 1;
+      setGuides(newGuides);
+      setTotal(newTotal);
+      setHasMore(newGuides.length < newTotal); // recalculate so "Load more" disappears correctly
       toast({ message: "Guide deleted.", type: "success" });
     } catch (err) {
       toast({ message: err.message, type: "error" });
@@ -123,6 +126,16 @@ export default function AllGuides() {
       setDeleteFolderTarget(null);
     }
   };
+
+  // Compute sorted copy without mutating state
+  const sortedGuides = (() => {
+    const copy = [...guides];
+    if (sort === "oldest") copy.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    else if (sort === "alpha") copy.sort((a, b) => a.title.localeCompare(b.title));
+    else if (sort === "score") copy.sort((a, b) => (b.best_quiz_score || 0) - (a.best_quiz_score || 0));
+    else copy.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // newest
+    return copy;
+  })();
 
   return (
     <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
@@ -263,14 +276,6 @@ export default function AllGuides() {
             <BookOpen size={14} className="text-indigo-400" /> Guides
           </h2>
 
-          {/* Apply client-side sort */}
-          {(() => {
-            if (sort === "oldest") guides.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-            else if (sort === "alpha") guides.sort((a, b) => a.title.localeCompare(b.title));
-            else if (sort === "score") guides.sort((a, b) => (b.best_quiz_score || 0) - (a.best_quiz_score || 0));
-            else guides.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // newest
-          })()}
-
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 size={22} className="text-indigo-400 animate-spin" />
@@ -292,7 +297,7 @@ export default function AllGuides() {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {guides.map((guide, i) => (
+                {sortedGuides.map((guide, i) => (
                   <motion.div
                     key={guide.id}
                     initial={{ opacity: 0, y: 10 }}
@@ -375,7 +380,7 @@ export default function AllGuides() {
       <ConfirmModal
         open={!!deleteFolderTarget}
         title="Delete this folder?"
-        message={`"${deleteFolderTarget?.name}" and all guides inside it will be permanently deleted.`}
+        message={`"${deleteFolderTarget?.name}" will be deleted. Guides inside it will be moved to 'No folder' and kept.`}
         confirmText="Delete Folder"
         onConfirm={confirmDeleteFolder}
         onCancel={() => setDeleteFolderTarget(null)}

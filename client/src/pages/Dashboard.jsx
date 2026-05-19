@@ -36,9 +36,10 @@ export default function Dashboard() {
 
   async function loadData() {
     try {
-      const [f, g] = await Promise.all([api.folders.list(), api.guides.list()]);
+      // Use listPaged with limit=6 instead of list() to avoid loading all guides unboundedly
+      const [f, gRes] = await Promise.all([api.folders.list(), api.guides.listPaged(0, "")]);
       setFolders(Array.isArray(f) ? f : []);
-      setRecentGuides(Array.isArray(g) ? g.slice(0, 6) : []);
+      setRecentGuides(Array.isArray(gRes.guides) ? gRes.guides.slice(0, 6) : []);
     } catch (_) {}
   }
 
@@ -51,9 +52,10 @@ export default function Dashboard() {
       else if (type === "image")   data = await api.summarize.image(file, difficulty);
       else if (type === "audio")   data = await api.summarize.audio(file, difficulty);
       else                         data = await api.summarize.file(file, difficulty);
-      setResults(data);
+      // Attach the upload type so it's saved correctly (was always "text" before)
+      setResults({ ...data, type });
       // Auto-save draft to localStorage so it survives a page refresh
-      try { localStorage.setItem("studybuddi_draft", JSON.stringify(data)); } catch (_) {}
+      try { localStorage.setItem("studybuddi_draft", JSON.stringify({ ...data, type })); } catch (_) {}
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
   };
@@ -64,7 +66,7 @@ export default function Dashboard() {
       const guide = await api.guides.save({
         title:          results.title || "Untitled Guide",
         folder_id:      folderId || null,
-        type:           "text",
+        type:           results.type || "text",
         summary:        results.summary,
         key_terms:      results.keyTerms || results.key_terms,
         quiz_questions: results.quizQuestions || results.quiz_questions,
