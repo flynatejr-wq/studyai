@@ -74,7 +74,7 @@ export default function Sidebar({ onLogout }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto touch-pan-y">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {navItems.map(({ to, icon: Icon, label }) => {
             const active = pathname === to || (to !== "/dashboard" && pathname.startsWith(to));
             return (

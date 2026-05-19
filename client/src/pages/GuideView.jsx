@@ -94,8 +94,7 @@ function FlashcardMode({ terms }) {
         </motion.div>
       ) : (
         <>
-          {/* touch-manipulation prevents 300ms delay; touch-pan-y lets page scroll vertically */}
-          <div className="w-full max-w-lg cursor-pointer touch-manipulation" onClick={() => setFlipped(f => !f)} style={{ perspective: 1000 }}>
+          <div className="w-full max-w-lg cursor-pointer" onClick={() => setFlipped(f => !f)} style={{ perspective: 1000 }}>
             <motion.div animate={{ rotateY: flipped ? 180 : 0 }} transition={{ duration: 0.45, ease: "easeInOut" }}
               style={{ transformStyle: "preserve-3d", position: "relative", height: "min(240px, 50vw)" }}>
               <div style={{ backfaceVisibility: "hidden", position: "absolute", inset: 0 }}
@@ -560,8 +559,8 @@ function SectionsMode({ guide, guideId, onProgressUpdate }) {
             initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.5, ease: "easeOut" }} />
         </div>
 
-        {/* Section pills — horizontally scrollable on mobile, swipe left/right */}
-        <div className="mt-3 flex gap-1.5 overflow-x-auto touch-pan-x scrollbar-hide -mx-4 px-4 pb-1">
+        {/* Section pills — horizontally scrollable on mobile */}
+        <div className="mt-3 flex gap-1.5 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-1">
           {sections.map((s, i) => (
             <button key={i} onClick={() => setActiveIdx(i)}
               className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
@@ -768,7 +767,7 @@ export default function GuideView() {
           </div>
 
           {/* Mode Tabs — horizontally scrollable on mobile */}
-          <div className="flex gap-1 p-1 bg-white/5 border border-white/10 rounded-xl mb-6 overflow-x-auto touch-pan-x scrollbar-hide print:hidden">
+          <div className="flex gap-1 p-1 bg-white/5 border border-white/10 rounded-xl mb-6 overflow-x-auto scrollbar-hide print:hidden">
             {MODES.map(m => (
               <button key={m.id} onClick={() => { setStudyMode(m.id); resetQuiz(); }}
                 className={`shrink-0 flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all whitespace-nowrap min-w-max ${studyMode === m.id ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-white"}`}>
@@ -966,7 +965,7 @@ export default function GuideView() {
                 <button onClick={() => setShowChat(false)} className="text-gray-500 hover:text-white transition-colors p-1"><X size={18} /></button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto touch-pan-y p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.length === 0 && (
                 <div className="text-center text-gray-500 text-sm mt-8">
                   <MessageCircle size={32} className="mx-auto mb-3 opacity-30" />
