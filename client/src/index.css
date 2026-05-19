@@ -169,8 +169,16 @@ body {
 /* ═══════════════════════════════════════════════════════════════════════════════
    RICH TEXT (AI-generated HTML content)
 ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Base color on the root element — ensures direct text nodes (not wrapped in
+   p/li/strong) always inherit a visible color instead of the browser default
+   (black). Child rules below can still override for finer control. */
+.rich-text {
+  color: #e5e7eb;
+}
+
 .rich-text p {
-  color: #d1d5db;
+  color: #e5e7eb;
   font-size: 0.9375rem;
   line-height: 1.75;
   margin-bottom: 0.85em;
@@ -178,7 +186,7 @@ body {
 .rich-text p:last-child { margin-bottom: 0; }
 
 .rich-text strong {
-  color: #e5e7eb;
+  color: #f3f4f6;
   font-weight: 650;
 }
 
@@ -196,7 +204,7 @@ body {
 .rich-text ol { list-style-type: decimal; }
 
 .rich-text li {
-  color: #d1d5db;
+  color: #e5e7eb;
   font-size: 0.9375rem;
   line-height: 1.65;
   margin-bottom: 0.3em;
