@@ -27,27 +27,12 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:4173",
-  process.env.FRONTEND_URL,       // set this in Railway dashboard → Variables
-].filter(Boolean);
-
-if (!process.env.FRONTEND_URL) {
-  console.warn("⚠️  FRONTEND_URL env var not set — falling back to *.vercel.app wildcard for CORS.");
-}
-
+// Auth is Bearer-token based (not cookies), so reflecting the request origin is safe —
+// there is no CSRF risk. `origin: true` echoes the caller's Origin header back, which
+// is compatible with credentials:true and works for every deployment environment
+// (localhost, Vercel, Railway previews) without needing FRONTEND_URL to be configured.
 const corsOptions = {
-  origin: (origin, cb) => {
-    // No origin = curl / Postman / server-to-server → allow (auth is token-based, not cookie-based)
-    if (!origin) return cb(null, true);
-    // Exact match against the explicit allowlist
-    if (allowedOrigins.includes(origin)) return cb(null, true);
-    // Fallback: accept any *.vercel.app subdomain so Vercel preview deployments work
-    // even if FRONTEND_URL isn't configured yet
-    if (origin.endsWith(".vercel.app")) return cb(null, true);
-    cb(new Error("Not allowed by CORS"));
-  },
+  origin: true,
   credentials: true,
 };
 
