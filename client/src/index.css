@@ -45,7 +45,8 @@ body {
 }
 
 body {
-  min-height: 100dvh; /* dynamic viewport — accounts for iOS address bar */
+  /* dvh = dynamic viewport height — shrinks when iOS address bar collapses */
+  min-height: 100dvh;
 }
 
 #root {
@@ -55,6 +56,14 @@ body {
      off-screen right (e.g. chat panel initial:{x:384}) cannot widen the
      scroll area. position:relative makes #root a containing block. */
   isolation: isolate;
+}
+
+/* Use dvh instead of vh for full-height page containers.
+   100vh on iOS = full viewport incl. address bar (can clip content).
+   100dvh shrinks as the address bar collapses — always the visible area. */
+.min-h-dvh {
+  min-height: 100vh;       /* fallback: iOS < 15.4, older Android */
+  min-height: 100dvh;      /* modern: dynamic — shrinks with collapsing address bar */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

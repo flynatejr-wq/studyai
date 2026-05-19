@@ -688,7 +688,7 @@ export default function GuideView() {
 
   // Error / loading states
   if (loadError) return (
-    <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden">
+    <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
       <main className="flex-1 min-w-0 md:ml-64 flex items-center justify-center p-8 main-pt-snug">
         <div className="text-center max-w-sm">
@@ -704,7 +704,7 @@ export default function GuideView() {
   );
 
   if (!guide || studyMode === null) return (
-    <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden items-center justify-center">
+    <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden items-center justify-center">
       <div className="text-indigo-400 animate-pulse text-lg">Loading guide...</div>
     </div>
   );
@@ -722,7 +722,7 @@ export default function GuideView() {
   ];
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden">
+    <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
 
       <main className={`flex-1 min-w-0 md:ml-64 transition-[margin] main-pt-snug ${showChat ? "md:mr-96" : ""}`}>
@@ -732,37 +732,37 @@ export default function GuideView() {
           </button>
 
           {/* Title row */}
-          <div className="flex items-start justify-between mb-6 gap-3">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl md:text-2xl font-bold text-white mb-2 leading-tight">{guide.title}</h1>
-              <div className="flex items-center gap-3 flex-wrap">
-                <p className="text-gray-500 text-xs">{new Date(guide.created_at).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
-                {guide.best_quiz_score > 0 && guide.quiz_questions?.length > 0 && (
-                  <span className="flex items-center gap-1 text-yellow-400 text-xs font-medium">
-                    <Trophy size={11} /> Best: {guide.best_quiz_score}/{guide.quiz_questions.length} ({Math.round(guide.best_quiz_score / guide.quiz_questions.length * 100)}%)
-                  </span>
-                )}
-                {quizHistory.length > 1 && (
-                  <div className="flex items-center gap-2">
-                    <BarChart2 size={11} className="text-gray-500" />
-                    <QuizHistoryBar attempts={[...quizHistory].reverse()} />
-                  </div>
-                )}
+          <div className="mb-6">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <h1 className="text-xl md:text-2xl font-bold text-white leading-tight flex-1 min-w-0">{guide.title}</h1>
+              {/* Action buttons — always visible beside title */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <ShareButton guideId={id} initialToken={guide.share_token} />
+                <button onClick={() => window.print()} title="Print / Save as PDF"
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-lg text-gray-400 hover:text-white text-xs font-medium transition-all print:hidden">
+                  <Printer size={13} /> Print
+                </button>
+                <button onClick={() => setShowChat(!showChat)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all ${showChat ? "bg-indigo-600 text-white" : "bg-white/5 border border-white/10 text-gray-300 hover:border-indigo-500/40"}`}>
+                  <MessageCircle size={13} />
+                  <span className="hidden xs:inline">AI Tutor</span>
+                  <span className="xs:hidden">Chat</span>
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-              <ShareButton guideId={id} initialToken={guide.share_token} />
-              {/* Print hidden on mobile — small screens don't need it */}
-              <button onClick={() => window.print()} title="Print / Save as PDF"
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-lg text-gray-400 hover:text-white text-xs font-medium transition-all print:hidden">
-                <Printer size={13} /> Print
-              </button>
-              <button onClick={() => setShowChat(!showChat)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all ${showChat ? "bg-indigo-600 text-white" : "bg-white/5 border border-white/10 text-gray-300 hover:border-indigo-500/40"}`}>
-                <MessageCircle size={13} />
-                <span className="hidden xs:inline">AI Tutor</span>
-                <span className="xs:hidden">Chat</span>
-              </button>
+            <div className="flex items-center gap-3 flex-wrap">
+              <p className="text-gray-500 text-xs">{new Date(guide.created_at).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+              {guide.best_quiz_score > 0 && guide.quiz_questions?.length > 0 && (
+                <span className="flex items-center gap-1 text-yellow-400 text-xs font-medium">
+                  <Trophy size={11} /> Best: {guide.best_quiz_score}/{guide.quiz_questions.length} ({Math.round(guide.best_quiz_score / guide.quiz_questions.length * 100)}%)
+                </span>
+              )}
+              {quizHistory.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <BarChart2 size={11} className="text-gray-500" />
+                  <QuizHistoryBar attempts={[...quizHistory].reverse()} />
+                </div>
+              )}
             </div>
           </div>
 
@@ -931,6 +931,9 @@ export default function GuideView() {
               )}
             </section>
           )}
+
+          {/* iPhone home indicator clearance */}
+          <div aria-hidden="true" style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
         </div>
       </main>
 
@@ -953,7 +956,9 @@ export default function GuideView() {
           <motion.aside initial={{ x: 384 }} animate={{ x: 0 }} exit={{ x: 384 }}
             transition={{ type: "spring", damping: 25 }}
             className="fixed right-0 top-0 bottom-0 w-full sm:w-96 bg-slate-900 border-l border-white/10 flex flex-col z-50 print:hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+            {/* Header — paddingTop clears notch / Dynamic Island on mobile */}
+            <div className="flex items-center justify-between px-5 border-b border-white/10"
+              style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "1rem" }}>
               <div>
                 <h3 className="font-bold text-white flex items-center gap-2"><MessageCircle size={15} className="text-indigo-400" /> AI Tutor</h3>
                 <p className="text-xs text-gray-400 mt-0.5">Ask anything about this lecture</p>

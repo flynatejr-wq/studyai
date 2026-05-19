@@ -49,7 +49,7 @@ export default function FolderView() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden">
+    <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
       <main className="flex-1 min-w-0 md:ml-64 p-4 md:p-8 main-pt">
         <Link to="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors text-sm">
@@ -119,6 +119,8 @@ export default function FolderView() {
             ))}
           </div>
         )}
+
+        <div aria-hidden="true" style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
       </main>
 
       <ConfirmModal

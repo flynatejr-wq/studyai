@@ -160,7 +160,7 @@ export default function Dashboard() {
   const greeting   = hourNow < 12 ? "Good morning" : hourNow < 18 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden">
+    <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
 
       <main className="flex-1 min-w-0 md:ml-64 p-4 md:p-8 main-pt">
@@ -367,6 +367,9 @@ export default function Dashboard() {
             </div>
           )}
         </section>
+
+        {/* Safe-area bottom spacer — clears iPhone home indicator */}
+        <div aria-hidden="true" style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
       </main>
 
       <ConfirmModal

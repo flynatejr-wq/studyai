@@ -96,8 +96,9 @@ export default function Sidebar({ onLogout }) {
           })}
         </nav>
 
-        {/* XP + User */}
-        <div className="px-3 pb-4 border-t border-white/8 pt-4 space-y-3">
+        {/* XP + User — padding-bottom accounts for iPhone home indicator */}
+        <div className="px-3 border-t border-white/8 pt-4 space-y-3"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
           {/* Level card */}
           <div className="bg-white/4 border border-white/8 rounded-2xl p-3.5">
             <div className="flex items-center justify-between mb-2.5">

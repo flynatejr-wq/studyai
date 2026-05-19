@@ -101,7 +101,7 @@ export default function Progress() {
   }, []);
 
   if (loading) return (
-    <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden">
+    <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
       <main className="flex-1 min-w-0 md:ml-64 flex items-center justify-center main-pt-snug">
         <div className="flex flex-col items-center gap-3">
@@ -113,7 +113,7 @@ export default function Progress() {
   );
 
   if (error) return (
-    <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden">
+    <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
       <main className="flex-1 min-w-0 md:ml-64 flex items-center justify-center p-8 main-pt-snug">
         <div className="text-center max-w-sm">
@@ -151,7 +151,7 @@ export default function Progress() {
   })();
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden">
+    <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
       <main className="flex-1 min-w-0 md:ml-64 p-4 md:p-8 main-pt max-w-5xl w-full">
 
@@ -344,6 +344,8 @@ export default function Progress() {
             </div>
           )}
         </div>
+
+        <div aria-hidden="true" style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
       </main>
     </div>
   );
