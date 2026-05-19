@@ -690,7 +690,7 @@ export default function GuideView() {
   if (loadError) return (
     <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
-      <main className="flex-1 min-w-0 md:ml-64 flex items-center justify-center p-8 main-pt-snug">
+      <main className="flex-1 min-w-0 overflow-x-hidden md:ml-64 flex items-center justify-center p-8 main-pt-snug">
         <div className="text-center max-w-sm">
           <div className="text-5xl mb-4">📭</div>
           <h2 className="text-xl font-bold text-white mb-2">Guide not found</h2>
@@ -725,52 +725,58 @@ export default function GuideView() {
     <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
 
-      <main className={`flex-1 min-w-0 md:ml-64 transition-[margin] main-pt-snug ${showChat ? "md:mr-96" : ""}`}>
-        <div className="p-4 md:p-8 max-w-3xl mx-auto w-full min-w-0">
+      <main className={`flex-1 min-w-0 overflow-x-hidden md:ml-64 transition-[margin] main-pt-snug ${showChat ? "md:mr-96" : ""}`}>
+        <div className="p-4 md:p-8 max-w-3xl mx-auto w-full min-w-0 overflow-x-hidden">
           <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors text-sm">
             <ArrowLeft size={16} /> Back
           </button>
 
           {/* Title row */}
           <div className="mb-6">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <h1 className="text-xl md:text-2xl font-bold text-white leading-tight flex-1 min-w-0">{guide.title}</h1>
-              {/* Action buttons — always visible beside title */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                <ShareButton guideId={id} initialToken={guide.share_token} />
-                <button onClick={() => window.print()} title="Print / Save as PDF"
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-lg text-gray-400 hover:text-white text-xs font-medium transition-all print:hidden">
-                  <Printer size={13} /> Print
-                </button>
-                <button onClick={() => setShowChat(!showChat)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all ${showChat ? "bg-indigo-600 text-white" : "bg-white/5 border border-white/10 text-gray-300 hover:border-indigo-500/40"}`}>
-                  <MessageCircle size={13} />
-                  <span className="hidden xs:inline">AI Tutor</span>
-                  <span className="xs:hidden">Chat</span>
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <p className="text-gray-500 text-xs">{new Date(guide.created_at).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+            <h1 className="text-xl md:text-2xl font-bold text-white leading-tight mb-3">{guide.title}</h1>
+
+            {/* Meta + action buttons — wrap naturally, never overflow */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-gray-500 text-xs mr-1">
+                {new Date(guide.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </p>
               {guide.best_quiz_score > 0 && guide.quiz_questions?.length > 0 && (
                 <span className="flex items-center gap-1 text-yellow-400 text-xs font-medium">
-                  <Trophy size={11} /> Best: {guide.best_quiz_score}/{guide.quiz_questions.length} ({Math.round(guide.best_quiz_score / guide.quiz_questions.length * 100)}%)
+                  <Trophy size={11} /> {guide.best_quiz_score}/{guide.quiz_questions.length} ({Math.round(guide.best_quiz_score / guide.quiz_questions.length * 100)}%)
                 </span>
               )}
               {quizHistory.length > 1 && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <BarChart2 size={11} className="text-gray-500" />
                   <QuizHistoryBar attempts={[...quizHistory].reverse()} />
                 </div>
               )}
+
+              {/* Spacer pushes buttons to the right when there's room */}
+              <div className="flex-1" />
+
+              <ShareButton guideId={id} initialToken={guide.share_token} />
+              <button onClick={() => window.print()} title="Print / Save as PDF"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-lg text-gray-400 hover:text-white text-xs font-medium transition-all print:hidden">
+                <Printer size={13} /> Print
+              </button>
+              <button onClick={() => setShowChat(!showChat)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all print:hidden ${showChat ? "bg-indigo-600 text-white" : "bg-white/5 border border-white/10 text-gray-300 hover:border-indigo-500/40"}`}>
+                <MessageCircle size={13} />
+                <span className="hidden xs:inline">AI Tutor</span>
+                <span className="xs:hidden">Chat</span>
+              </button>
             </div>
           </div>
 
-          {/* Mode Tabs — horizontally scrollable on mobile */}
+          {/* Mode Tabs — horizontally scrollable on mobile.
+              shrink-0 + min-w-max: each button is at least its content width,
+              won't shrink. No flex-1 — that conflicted with min-w-max inside
+              an overflow-x:auto container and widened the parent layout. */}
           <div className="flex gap-1 p-1 bg-white/5 border border-white/10 rounded-xl mb-6 overflow-x-auto scrollbar-hide print:hidden">
             {MODES.map(m => (
               <button key={m.id} onClick={() => { setStudyMode(m.id); resetQuiz(); }}
-                className={`shrink-0 flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all whitespace-nowrap min-w-max ${studyMode === m.id ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-white"}`}>
+                className={`shrink-0 py-2 px-3 rounded-lg text-xs font-semibold transition-all whitespace-nowrap min-w-max ${studyMode === m.id ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-white"}`}>
                 {m.label}
               </button>
             ))}
