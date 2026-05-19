@@ -205,9 +205,14 @@ router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No audio provided." });
   const difficulty = req.body?.difficulty;
   try {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    // Use Groq (free) if key is set, otherwise fall back to OpenAI
+    const useGroq = !!process.env.GROQ_API_KEY;
+    const openai = useGroq
+      ? new OpenAI({ apiKey: process.env.GROQ_API_KEY, baseURL: "https://api.groq.com/openai/v1" })
+      : new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const whisperModel = useGroq ? "whisper-large-v3" : "whisper-1";
     const audioFile = new File([req.file.buffer], req.file.originalname, { type: req.file.mimetype });
-    const transcription = await openai.audio.transcriptions.create({ file: audioFile, model: "whisper-1" });
+    const transcription = await openai.audio.transcriptions.create({ file: audioFile, model: whisperModel });
     if (!transcription.text?.trim())
       return res.status(400).json({ error: "Could not transcribe audio. Make sure it contains clear speech." });
     res.json(await generateFromText(transcription.text, difficulty));
