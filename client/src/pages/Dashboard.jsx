@@ -163,7 +163,7 @@ export default function Dashboard() {
     <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
 
-      <main className="flex-1 min-w-0 overflow-x-hidden md:ml-64 p-4 md:p-8 pt-16 md:pt-8">
+      <main className="flex-1 min-w-0 md:ml-64 p-4 md:p-8 pt-16 md:pt-8">
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between mb-7 gap-3">

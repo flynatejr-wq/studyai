@@ -47,7 +47,7 @@ export default function Sidebar({ onLogout }) {
 
       {/* ── Mobile backdrop ─────────────────────────────────────── */}
       {open && (
-        <div className="md:hidden fixed inset-0 bg-black/70 z-40 backdrop-blur-sm" onClick={close} />
+        <div className="md:hidden fixed inset-0 bg-black/70 z-40 backdrop-blur-sm touch-none" onClick={close} />
       )}
 
       {/* ── Sidebar ─────────────────────────────────────────────── */}
@@ -74,7 +74,7 @@ export default function Sidebar({ onLogout }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto touch-pan-y">
           {navItems.map(({ to, icon: Icon, label }) => {
             const active = pathname === to || (to !== "/dashboard" && pathname.startsWith(to));
             return (

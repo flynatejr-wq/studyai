@@ -43,6 +43,7 @@ function FlashcardMode({ terms }) {
   const [flipped, setFlipped] = useState(false);
   const [known, setKnown] = useState(new Set());
   const [unknown, setUnknown] = useState(new Set());
+  const touchStartX = useRef(null);
   const card = terms[idx];
   const total = terms.length;
 
@@ -55,8 +56,20 @@ function FlashcardMode({ terms }) {
   const reset = () => { setIdx(0); setFlipped(false); setKnown(new Set()); setUnknown(new Set()); };
   const done = known.size + unknown.size === total;
 
+  // Swipe left = next card, swipe right = prev card
+  const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(delta) < 40) return; // ignore tiny nudges
+    if (delta < 0) { setIdx(i => (i + 1) % total); setFlipped(false); }  // swipe left → next
+    else           { setIdx(i => (i - 1 + total) % total); setFlipped(false); } // swipe right → prev
+  };
+
   return (
-    <div className="flex flex-col items-center gap-6 py-4">
+    <div className="flex flex-col items-center gap-6 py-4"
+      onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       <div className="flex items-center gap-4 text-sm text-gray-400 w-full max-w-lg">
         <span className="text-green-400 font-medium">✓ {known.size} known</span>
         <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
@@ -65,6 +78,10 @@ function FlashcardMode({ terms }) {
         </div>
         <span className="text-gray-500">{idx + 1}/{total}</span>
       </div>
+      {/* Swipe hint — only shown on touch devices */}
+      <p className="text-xs text-gray-600 -mt-3 select-none pointer-events-none sm:hidden">
+        ← swipe to navigate →
+      </p>
       {done ? (
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
           className="text-center bg-white/5 border border-white/10 rounded-2xl p-10 w-full max-w-lg">
@@ -77,7 +94,8 @@ function FlashcardMode({ terms }) {
         </motion.div>
       ) : (
         <>
-          <div className="w-full max-w-lg cursor-pointer" onClick={() => setFlipped(f => !f)} style={{ perspective: 1000 }}>
+          {/* touch-manipulation prevents 300ms delay; touch-pan-y lets page scroll vertically */}
+          <div className="w-full max-w-lg cursor-pointer touch-manipulation" onClick={() => setFlipped(f => !f)} style={{ perspective: 1000 }}>
             <motion.div animate={{ rotateY: flipped ? 180 : 0 }} transition={{ duration: 0.45, ease: "easeInOut" }}
               style={{ transformStyle: "preserve-3d", position: "relative", height: "min(240px, 50vw)" }}>
               <div style={{ backfaceVisibility: "hidden", position: "absolute", inset: 0 }}
@@ -340,9 +358,21 @@ function SectionQuiz({ questions }) {
 // ── Section Detail View ───────────────────────────────────────────────────────
 function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPrev, onNext }) {
   const [termFlipped, setTermFlipped] = useState({});
+  const touchStartX = useRef(null);
+
+  const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(delta) < 50) return;
+    if (delta < 0 && index < total - 1) onNext();   // swipe left → next section
+    else if (delta > 0 && index > 0) onPrev();       // swipe right → prev section
+  };
 
   return (
     <motion.div key={section.title} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
+      onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
       className="space-y-5">
 
       {/* Section header */}
@@ -530,11 +560,11 @@ function SectionsMode({ guide, guideId, onProgressUpdate }) {
             initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.5, ease: "easeOut" }} />
         </div>
 
-        {/* Section pills */}
-        <div className="mt-3 flex gap-1.5 flex-wrap">
+        {/* Section pills — horizontally scrollable on mobile, swipe left/right */}
+        <div className="mt-3 flex gap-1.5 overflow-x-auto touch-pan-x scrollbar-hide -mx-4 px-4 pb-1">
           {sections.map((s, i) => (
             <button key={i} onClick={() => setActiveIdx(i)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                 i === activeIdx
                   ? "bg-indigo-600 text-white"
                   : progress[i]
@@ -542,7 +572,7 @@ function SectionsMode({ guide, guideId, onProgressUpdate }) {
                     : "bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:text-white"
               }`}>
               {progress[i] ? <CheckCircle size={11} /> : <Circle size={11} />}
-              {i + 1}. {s.title.length > 20 ? s.title.slice(0, 20) + "…" : s.title}
+              {i + 1}. {s.title.length > 18 ? s.title.slice(0, 18) + "…" : s.title}
             </button>
           ))}
         </div>
@@ -661,7 +691,7 @@ export default function GuideView() {
   if (loadError) return (
     <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
-      <main className="flex-1 min-w-0 overflow-x-hidden md:ml-64 flex items-center justify-center p-8 pt-14 md:pt-0">
+      <main className="flex-1 min-w-0 md:ml-64 flex items-center justify-center p-8 pt-14 md:pt-0">
         <div className="text-center max-w-sm">
           <div className="text-5xl mb-4">📭</div>
           <h2 className="text-xl font-bold text-white mb-2">Guide not found</h2>
@@ -696,7 +726,7 @@ export default function GuideView() {
     <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
 
-      <main className={`flex-1 min-w-0 overflow-x-hidden md:ml-64 transition-[margin] pt-14 md:pt-0 ${showChat ? "md:mr-96" : ""}`}>
+      <main className={`flex-1 min-w-0 md:ml-64 transition-[margin] pt-14 md:pt-0 ${showChat ? "md:mr-96" : ""}`}>
         <div className="p-4 md:p-8 max-w-3xl mx-auto w-full min-w-0">
           <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors text-sm">
             <ArrowLeft size={16} /> Back
@@ -721,24 +751,27 @@ export default function GuideView() {
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
               <ShareButton guideId={id} initialToken={guide.share_token} />
+              {/* Print hidden on mobile — small screens don't need it */}
               <button onClick={() => window.print()} title="Print / Save as PDF"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-lg text-gray-400 hover:text-white text-xs font-medium transition-all print:hidden">
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-lg text-gray-400 hover:text-white text-xs font-medium transition-all print:hidden">
                 <Printer size={13} /> Print
               </button>
               <button onClick={() => setShowChat(!showChat)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all ${showChat ? "bg-indigo-600 text-white" : "bg-white/5 border border-white/10 text-gray-300 hover:border-indigo-500/40"}`}>
-                <MessageCircle size={13} /> AI Tutor
+                <MessageCircle size={13} />
+                <span className="hidden xs:inline">AI Tutor</span>
+                <span className="xs:hidden">Chat</span>
               </button>
             </div>
           </div>
 
-          {/* Mode Tabs */}
-          <div className="flex gap-1 p-1 bg-white/5 border border-white/10 rounded-xl mb-6 overflow-x-auto print:hidden">
+          {/* Mode Tabs — horizontally scrollable on mobile */}
+          <div className="flex gap-1 p-1 bg-white/5 border border-white/10 rounded-xl mb-6 overflow-x-auto touch-pan-x scrollbar-hide print:hidden">
             {MODES.map(m => (
               <button key={m.id} onClick={() => { setStudyMode(m.id); resetQuiz(); }}
-                className={`flex-1 py-2 px-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${studyMode === m.id ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-white"}`}>
+                className={`shrink-0 flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all whitespace-nowrap min-w-max ${studyMode === m.id ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-white"}`}>
                 {m.label}
               </button>
             ))}
@@ -933,7 +966,7 @@ export default function GuideView() {
                 <button onClick={() => setShowChat(false)} className="text-gray-500 hover:text-white transition-colors p-1"><X size={18} /></button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto touch-pan-y p-4 space-y-3">
               {messages.length === 0 && (
                 <div className="text-center text-gray-500 text-sm mt-8">
                   <MessageCircle size={32} className="mx-auto mb-3 opacity-30" />
@@ -956,7 +989,7 @@ export default function GuideView() {
               )}
               <div ref={chatEndRef} />
             </div>
-            <form onSubmit={sendChat} className="p-4 border-t border-white/10 flex gap-2">
+            <form onSubmit={sendChat} className="p-4 pb-safe border-t border-white/10 flex gap-2">
               <input value={chatInput} onChange={e => setChatInput(e.target.value)}
                 maxLength={1000} placeholder="Ask about this lecture..."
                 className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500 transition-colors" />
