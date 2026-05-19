@@ -15,17 +15,46 @@
    • Per-page layout wrappers (.flex.min-h-screen.overflow-x-hidden)
      are the real containment boundary. All 6 pages have this class.
 ═══════════════════════════════════════════════════════════════════════════════ */
-html {
-  overflow-x: clip;
+/*
+  THREE-LAYER horizontal containment — required for all iOS versions:
+
+  1. html  — iOS Safari's actual scroll root. overflow-x:hidden prevents
+             the window from scrolling horizontally. Must be on html, not
+             just body, because iOS uses html as the viewport scroll container.
+             overflow-x:clip was only supported from Safari 16 (iOS 16).
+             Using hidden ensures iOS 13/14/15 devices are covered.
+
+  2. body  — Android Chrome / standard browsers use body as scroll root.
+             Covering both means every engine is handled.
+
+  3. #root — React mounts here. ToastProvider renders a sibling div at this
+             level (outside page-wrapper divs). Without overflow:hidden on
+             #root, that toast container (w-full, fixed) can push layout width
+             beyond the viewport on some Safari versions.
+
+  None of these affect child overflow-x:auto scroll containers because
+  touch-action:manipulation has been removed from all button/link elements —
+  that was the actual gesture blocker. overflow:hidden on ancestors does NOT
+  set touch-action and does NOT block descendant scroll containers' touch
+  gesture recognition.
+*/
+html,
+body {
+  overflow-x: hidden;
+  min-height: 100%;
 }
 
 body {
-  overflow-x: hidden; /* fallback for Safari < 16 where clip is unsupported */
-  min-height: 100dvh;
+  min-height: 100dvh; /* dynamic viewport — accounts for iOS address bar */
 }
 
 #root {
   position: relative;
+  overflow-x: hidden;
+  /* Isolate #root so fixed/animated children that temporarily translate
+     off-screen right (e.g. chat panel initial:{x:384}) cannot widen the
+     scroll area. position:relative makes #root a containing block. */
+  isolation: isolate;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -54,6 +83,32 @@ body {
    Setting width=device-width removes the double-tap zoom on iOS 13+,
    which is what causes the 300ms delay. No CSS workaround needed.
 ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   MOBILE HEADER OFFSET
+   The fixed mobile header now includes env(safe-area-inset-top) in its height
+   (see Sidebar.jsx). Main content must clear it. Two variants:
+   - .main-pt      → pages whose desktop layout has 2rem (md:pt-8) top spacing
+   - .main-pt-snug → pages that go edge-to-edge on desktop (md:pt-0)
+═══════════════════════════════════════════════════════════════════════════════ */
+.main-pt {
+  /* Mobile: header (3.5rem) + notch (env) + 0.5rem gap */
+  padding-top: calc(3.5rem + env(safe-area-inset-top, 0px) + 0.5rem);
+}
+@media (min-width: 768px) {
+  .main-pt {
+    padding-top: 2rem; /* mirrors md:pt-8 */
+  }
+}
+
+.main-pt-snug {
+  padding-top: calc(3.5rem + env(safe-area-inset-top, 0px));
+}
+@media (min-width: 768px) {
+  .main-pt-snug {
+    padding-top: 0; /* mirrors md:pt-0 */
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    MOMENTUM SCROLL (iOS 12 – 15 compatibility)

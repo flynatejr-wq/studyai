@@ -64,7 +64,7 @@ export default function AllGuides() {
   return (
     <div className="flex min-h-screen bg-[#0a0a12] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
-      <main className="flex-1 min-w-0 md:ml-64 p-4 md:p-8 pt-16 md:pt-8">
+      <main className="flex-1 min-w-0 md:ml-64 p-4 md:p-8 main-pt">
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">

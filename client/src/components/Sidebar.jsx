@@ -29,7 +29,9 @@ export default function Sidebar({ onLogout }) {
   return (
     <>
       {/* ── Mobile top bar ──────────────────────────────────────── */}
-      <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-[#0e0e18]/95 backdrop-blur-md border-b border-white/8 flex items-center justify-between px-4 z-40">
+      {/* pt-safe-top + h-14: header grows to clear the notch/Dynamic Island */}
+      <header className="md:hidden fixed top-0 left-0 right-0 bg-[#0e0e18]/95 backdrop-blur-md border-b border-white/8 flex items-center justify-between px-4 z-40"
+        style={{ paddingTop: "env(safe-area-inset-top)", minHeight: "calc(3.5rem + env(safe-area-inset-top))" }}>
         <button onClick={() => setOpen(true)} className="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-white/8 transition-all">
           <Menu size={20} />
         </button>

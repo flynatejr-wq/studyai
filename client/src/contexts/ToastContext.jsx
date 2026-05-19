@@ -32,7 +32,8 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={toast}>
       {children}
-      <div className="fixed bottom-16 sm:bottom-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0">
+      {/* right-4 + max-w-sm: never wider than viewport, always anchored to right edge */}
+      <div className="fixed bottom-16 sm:bottom-4 right-4 left-4 sm:left-auto z-[9999] flex flex-col gap-2 max-w-sm pointer-events-none">
         <AnimatePresence>
           {toasts.map(({ id, message, type }) => (
             <motion.div key={id}
