@@ -554,16 +554,35 @@ function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPr
       className="space-y-5">
 
       {/* Section header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-1">Section {index + 1} of {total}</p>
-          <h2 className="text-xl md:text-2xl font-bold text-white leading-tight">{section.title}</h2>
+      <div className="space-y-2">
+        {/* Navigation row */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onPrev}
+              disabled={index === 0}
+              className="p-1.5 rounded-lg bg-white/8 border border-white/10 hover:bg-indigo-600/30 hover:border-indigo-500/50 disabled:opacity-25 disabled:cursor-not-allowed transition-all text-gray-300 hover:text-white"
+              aria-label="Previous section">
+              <ChevronLeft size={16} />
+            </button>
+            <p className="text-indigo-400 text-xs font-semibold uppercase tracking-wider">
+              Section {index + 1} of {total}
+            </p>
+            <button
+              onClick={onNext}
+              disabled={index === total - 1}
+              className="p-1.5 rounded-lg bg-white/8 border border-white/10 hover:bg-indigo-600/30 hover:border-indigo-500/50 disabled:opacity-25 disabled:cursor-not-allowed transition-all text-gray-300 hover:text-white"
+              aria-label="Next section">
+              <ChevronRight size={16} />
+            </button>
+          </div>
+          {isComplete && (
+            <span className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-xl text-green-400 text-xs font-semibold">
+              <CheckCircle size={13} /> Complete
+            </span>
+          )}
         </div>
-        {isComplete && (
-          <span className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-xl text-green-400 text-xs font-semibold">
-            <CheckCircle size={13} /> Complete
-          </span>
-        )}
+        <h2 className="text-xl md:text-2xl font-bold text-white leading-tight">{section.title}</h2>
       </div>
 
       {/* Overview */}
@@ -604,7 +623,7 @@ function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPr
                 <span className="shrink-0 w-5 h-5 rounded-full bg-yellow-500/20 border border-yellow-500/30 flex items-center justify-center mt-0.5">
                   <span className="text-yellow-400 text-xs font-bold">{i + 1}</span>
                 </span>
-                <RichText html={pt} className="rich-text-sm text-sm" />
+                <RichText html={pt} className="rich-text-sm text-sm text-gray-200" />
               </motion.li>
             ))}
           </ul>
