@@ -117,6 +117,13 @@ safeAlter("ALTER TABLE users ADD COLUMN plan TEXT DEFAULT 'free'");
 safeAlter("ALTER TABLE users ADD COLUMN stripe_customer_id TEXT");
 safeAlter("ALTER TABLE users ADD COLUMN stripe_subscription_id TEXT");
 safeAlter("ALTER TABLE users ADD COLUMN quiz_gen_count INTEGER DEFAULT 0");
-safeAlter("ALTER TABLE users ADD COLUMN quiz_gen_date TEXT DEFAULT ''")
+safeAlter("ALTER TABLE users ADD COLUMN quiz_gen_date TEXT DEFAULT ''");
+
+// Permanent free-tier usage tracking — never decremented (even on guide deletion)
+// so delete+recreate loops cannot bypass the limit.
+safeAlter("ALTER TABLE users ADD COLUMN guides_created_ever INTEGER DEFAULT 0");
+
+// Idempotency key on guides — prevents duplicate saves from spam-clicks or retries
+safeAlter("ALTER TABLE guides ADD COLUMN idempotency_key TEXT");
 
 export default db;

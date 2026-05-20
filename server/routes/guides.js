@@ -137,29 +137,70 @@ router.get("/:id", (req, res) => {
 });
 
 // Save a guide
+const FREE_GUIDE_LIMIT = 1;
+
 router.post("/", (req, res) => {
-  const { title, folder_id, type, summary, key_terms, quiz_questions, sections } = req.body;
+  const { title, folder_id, type, summary, key_terms, quiz_questions, sections, idempotency_key } = req.body;
   if (!title?.trim() || !summary || !key_terms || !quiz_questions)
     return res.status(400).json({ error: "Missing required fields." });
   if (title.trim().length > 200)
     return res.status(400).json({ error: "Title is too long." });
 
+  // ── Idempotency: if this exact generation was already saved, return it ─────
+  // Prevents duplicate guides from spam-clicking the Save button or API retries.
+  if (idempotency_key) {
+    const existing = db.prepare(
+      "SELECT * FROM guides WHERE user_id = ? AND idempotency_key = ?"
+    ).get(req.user.id, idempotency_key);
+    if (existing) return res.json(parseGuide(existing));
+  }
+
   const id = uuid();
   const today = new Date().toISOString().split("T")[0];
-  // Build initial section_progress: one false per section
   const sectionsArr = Array.isArray(sections) ? sections : [];
   const initialProgress = sectionsArr.map(() => false);
 
-  db.transaction(() => {
+  // ── Atomic limit check + insert (BEGIN IMMEDIATE prevents race conditions) ──
+  // Two concurrent save requests would both pass a plain SELECT check before
+  // either insert runs. IMMEDIATE acquires a reserved lock upfront so only one
+  // writer proceeds at a time, making the check+insert atomic.
+  const saveTxn = db.transaction(() => {
+    const user = db.prepare("SELECT plan, guides_created_ever FROM users WHERE id = ?").get(req.user.id);
+    if (!user) throw Object.assign(new Error("User not found."), { status: 404 });
+
+    if (user.plan !== "pro" && (user.guides_created_ever || 0) >= FREE_GUIDE_LIMIT) {
+      console.log(`[free-limit] user ${req.user.id} blocked at save step (guides_created_ever=${user.guides_created_ever})`);
+      throw Object.assign(new Error("FREE_LIMIT_GUIDES"), { status: 403 });
+    }
+
     db.prepare(
-      `INSERT INTO guides (id, user_id, folder_id, title, type, summary, key_terms, quiz_questions, sections, section_progress)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO guides (id, user_id, folder_id, title, type, summary, key_terms, quiz_questions, sections, section_progress, idempotency_key)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(id, req.user.id, folder_id || null, title.trim(), type || "text",
       JSON.stringify(summary), JSON.stringify(key_terms), JSON.stringify(quiz_questions),
-      JSON.stringify(sectionsArr), JSON.stringify(initialProgress));
-    db.prepare("UPDATE users SET total_guides = total_guides + 1, xp = xp + 50, last_study_date = ? WHERE id = ?")
-      .run(today, req.user.id);
-  })();
+      JSON.stringify(sectionsArr), JSON.stringify(initialProgress),
+      idempotency_key || null);
+
+    // Increment both the mutable counter (for stats) and the permanent counter (for limit enforcement)
+    db.prepare(
+      "UPDATE users SET total_guides = total_guides + 1, guides_created_ever = guides_created_ever + 1, xp = xp + 50, last_study_date = ? WHERE id = ?"
+    ).run(today, req.user.id);
+  });
+
+  try {
+    saveTxn.immediate();
+  } catch (err) {
+    if (err.status === 403) {
+      return res.status(403).json({
+        error: "FREE_LIMIT_GUIDES",
+        message: `Free accounts are limited to ${FREE_GUIDE_LIMIT} saved guide. Upgrade to Pro for unlimited guides.`,
+      });
+    }
+    if (err.status === 404) return res.status(404).json({ error: err.message });
+    console.error("[guides POST] unexpected error:", err);
+    return res.status(500).json({ error: "Something went wrong saving your guide." });
+  }
+
   updateLevel(req.user.id);
   checkAchievements(req.user.id);
 

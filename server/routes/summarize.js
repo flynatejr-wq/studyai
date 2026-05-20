@@ -136,10 +136,13 @@ const FREE_GUIDE_LIMIT = 1;
 
 // ── Free-tier guard ───────────────────────────────────────────────────────────
 // Returns true (and sends a 403) if the free user is over their guide limit.
+// Uses guides_created_ever — a permanent counter that never decrements — so
+// deleting a guide and recreating it cannot bypass the limit.
 function checkFreeGuideLimit(req, res) {
-  const user = db.prepare("SELECT plan, total_guides FROM users WHERE id = ?").get(req.user.id);
+  const user = db.prepare("SELECT plan, guides_created_ever FROM users WHERE id = ?").get(req.user.id);
   if (!user || user.plan === "pro") return false; // pro users are unrestricted
-  if ((user.total_guides || 0) >= FREE_GUIDE_LIMIT) {
+  if ((user.guides_created_ever || 0) >= FREE_GUIDE_LIMIT) {
+    console.log(`[free-limit] user ${req.user.id} blocked at generation step (guides_created_ever=${user.guides_created_ever})`);
     res.status(403).json({
       error: "FREE_LIMIT_GUIDES",
       message: `Free accounts are limited to ${FREE_GUIDE_LIMIT} saved guide. Upgrade to Pro for unlimited guides.`,

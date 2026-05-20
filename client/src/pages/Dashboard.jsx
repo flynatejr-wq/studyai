@@ -82,6 +82,11 @@ export default function Dashboard() {
   }
 
   const handleSubmit = async ({ type, transcript, youtubeUrl, file, difficulty = "standard", style = "detailed" }) => {
+    // Frontend pre-check: block free users who've already used their one guide
+    if (user?.plan !== "pro" && (user?.guides_created_ever ?? 0) >= 1) {
+      setUpgradeReason("FREE_LIMIT_GUIDES"); setUpgradeOpen(true);
+      return;
+    }
     setLoading(true); setError(""); setResults(null);
     try {
       let data;
@@ -90,8 +95,10 @@ export default function Dashboard() {
       else if (type === "image")   data = await api.summarize.image(file, difficulty, style);
       else if (type === "audio")   data = await api.summarize.audio(file, difficulty, style);
       else                         data = await api.summarize.file(file, difficulty, style);
-      setResults({ ...data, type });
-      try { localStorage.setItem("studybuddi_draft", JSON.stringify({ ...data, type })); } catch (_) {}
+      // Generate a unique idempotency key for this generation result so duplicate saves are safe
+      const generation_id = crypto.randomUUID();
+      setResults({ ...data, type, generation_id });
+      try { localStorage.setItem("studybuddi_draft", JSON.stringify({ ...data, type, generation_id })); } catch (_) {}
     } catch (err) {
       if ((err.message || "").includes("FREE_LIMIT")) {
         const reason = err.message.includes("QUIZZES") ? "FREE_LIMIT_QUIZZES" : "FREE_LIMIT_GUIDES";
@@ -106,13 +113,14 @@ export default function Dashboard() {
     if (!results) return;
     try {
       const guide = await api.guides.save({
-        title:          results.title || "Untitled Guide",
-        folder_id:      folderId || null,
-        type:           results.type || "text",
-        summary:        results.summary,
-        key_terms:      results.keyTerms || results.key_terms,
-        quiz_questions: results.quizQuestions || results.quiz_questions,
-        sections:       results.sections || [],
+        title:           results.title || "Untitled Guide",
+        folder_id:       folderId || null,
+        type:            results.type || "text",
+        summary:         results.summary,
+        key_terms:       results.keyTerms || results.key_terms,
+        quiz_questions:  results.quizQuestions || results.quiz_questions,
+        sections:        results.sections || [],
+        idempotency_key: results.generation_id || null,
       });
       await refreshUser();
       await loadData();
@@ -121,8 +129,12 @@ export default function Dashboard() {
       toast({ message: "Guide saved!", type: "success" });
       navigate(`/guide/${guide.id}`);
     } catch (err) {
-      setError(err.message);
-      toast({ message: err.message, type: "error" });
+      if ((err.message || "").includes("FREE_LIMIT")) {
+        setUpgradeReason("FREE_LIMIT_GUIDES"); setUpgradeOpen(true);
+      } else {
+        setError(err.message);
+        toast({ message: err.message, type: "error" });
+      }
     }
   };
 

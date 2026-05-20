@@ -39,7 +39,7 @@ router.post("/signup", async (req, res) => {
       "INSERT INTO users (id, name, email, password_hash) VALUES (?, ?, ?, ?)"
     ).run(id, name.trim(), email.toLowerCase().trim(), password_hash);
 
-    const user = db.prepare("SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, plan, created_at FROM users WHERE id = ?").get(id);
+    const user = db.prepare("SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, created_at FROM users WHERE id = ?").get(id);
     const token = signToken({ id });
     res.json({ token, user });
   } catch (err) {
@@ -56,7 +56,7 @@ router.post("/login", async (req, res) => {
 
   try {
     const user = db.prepare(
-      "SELECT id, name, email, password_hash, streak, last_study_date, total_guides, total_quizzes, xp, level, plan, total_study_time, reset_token, reset_token_expires FROM users WHERE email = ?"
+      "SELECT id, name, email, password_hash, streak, last_study_date, total_guides, total_quizzes, guides_created_ever, xp, level, plan, total_study_time, reset_token, reset_token_expires FROM users WHERE email = ?"
     ).get(email.toLowerCase().trim());
     if (!user) return res.status(400).json({ error: "No account found with that email." });
 
@@ -85,7 +85,7 @@ router.post("/login", async (req, res) => {
 // ── Get current user ──────────────────────────────────────────────────────────
 router.get("/me", requireAuth, (req, res) => {
   const user = db.prepare(
-    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, plan, last_study_date, created_at FROM users WHERE id = ?"
+    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, last_study_date, created_at FROM users WHERE id = ?"
   ).get(req.user.id);
   if (!user) return res.status(404).json({ error: "User not found." });
   res.json(user);
@@ -114,7 +114,7 @@ router.put("/profile", requireAuth, async (req, res) => {
     }
 
     const updated = db.prepare(
-      "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, plan, last_study_date, created_at FROM users WHERE id = ?"
+      "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, last_study_date, created_at FROM users WHERE id = ?"
     ).get(req.user.id);
     res.json(updated);
   } catch (err) {
