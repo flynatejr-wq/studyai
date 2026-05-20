@@ -18,6 +18,7 @@ import Results from "../components/Results.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import UpgradeModal from "../components/UpgradeModal.jsx";
 import OnboardingModal, { useOnboarding } from "../components/OnboardingModal.jsx";
+import DailyWidgets from "../components/DailyWidgets.jsx";
 import { analytics, Events } from "../lib/analytics.js";
 
 // ── Skeleton Cards ─────────────────────────────────────────────────────────────
@@ -207,6 +208,9 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
+
+        {/* ── Daily Widgets ── */}
+        <DailyWidgets />
 
         {/* ── Upgrade Banner ── */}
         <AnimatePresence>

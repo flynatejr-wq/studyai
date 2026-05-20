@@ -1,9 +1,11 @@
 ﻿import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { analytics } from "./lib/analytics.js";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import SplashScreen from "./components/SplashScreen.jsx";
 import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
@@ -105,12 +107,26 @@ function AppRoutes() {
 }
 
 export default function App() {
+  const [splashDone, setSplashDone] = useState(
+    () => !!sessionStorage.getItem("sb_splash_done")
+  );
+
+  const handleSplashComplete = () => {
+    sessionStorage.setItem("sb_splash_done", "1");
+    setSplashDone(true);
+  };
+
   return (
     <BrowserRouter>
       <ErrorBoundary>
         <ToastProvider>
           <AuthProvider>
-            <AppRoutes />
+            <AnimatePresence>
+              {!splashDone && (
+                <SplashScreen key="splash" onComplete={handleSplashComplete} />
+              )}
+            </AnimatePresence>
+            {splashDone && <AppRoutes />}
           </AuthProvider>
         </ToastProvider>
       </ErrorBoundary>
