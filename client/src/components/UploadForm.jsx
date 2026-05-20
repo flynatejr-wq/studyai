@@ -193,17 +193,20 @@ export default function UploadForm({ onSubmit, loading, dark }) {
           </div>
         )}
 
-        {/* File / Image / Audio dropzone */}
+        {/* File / Image / Audio dropzone — uses <label> so tapping anywhere on mobile
+            directly opens the native file picker without JS .click() tricks, which
+            iOS Safari blocks when not directly triggered by a user gesture. */}
         {activeTab !== "text" && activeTab !== "youtube" && (
-          <div onDrop={handleDrop}
+          <label
+            onDrop={handleDrop}
             onDragOver={e => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
-            onClick={() => fileInputRef.current?.click()}
             className={`h-36 sm:h-48 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors ${dragOver ? "border-indigo-500 bg-indigo-500/10" : base.dropzone}`}>
-            <input ref={fileInputRef} type="file" accept={acceptMap[activeTab]} className="hidden"
+            <input ref={fileInputRef} type="file" accept={acceptMap[activeTab]}
+              className="sr-only"
               onChange={e => handleFileSelect(e.target.files[0])} />
             {dropzoneContent()}
-          </div>
+          </label>
         )}
 
         {formError && (
