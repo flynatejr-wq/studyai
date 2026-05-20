@@ -97,12 +97,30 @@ async function generateFromText(text, difficulty = "standard", style = "detailed
     throw new Error("AI response could not be parsed. Please try again.");
   }
 
-  const sections = Array.isArray(parsed.sections) ? parsed.sections : [];
+  // Strip HTML tags from fields that should be plain text (key points, term names,
+  // term definitions, quiz questions/answers). Only section content paragraphs and
+  // overviews are allowed to carry HTML — they are always rendered via RichText.
+  const stripHtml = (s) => typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : s;
+
+  const rawSections = Array.isArray(parsed.sections) ? parsed.sections : [];
+  const sections = rawSections.map(s => ({
+    ...s,
+    // overview may contain inline HTML — kept as-is for RichText rendering
+    keyPoints: Array.isArray(s.keyPoints) ? s.keyPoints.map(stripHtml) : [],
+    terms: Array.isArray(s.terms)
+      ? s.terms.map(t => ({ term: stripHtml(t.term), definition: stripHtml(t.definition) }))
+      : [],
+    quiz: Array.isArray(s.quiz)
+      ? s.quiz.map(q => ({ question: stripHtml(q.question), answer: stripHtml(q.answer) }))
+      : [],
+    // content paragraphs keep HTML for rich rendering
+    content: Array.isArray(s.content) ? s.content : [],
+  }));
 
   // Derive backward-compatible flat fields from sections so older code still works
   const summary = sections.map(s => s.overview).filter(Boolean);
-  const keyTerms = sections.flatMap(s => Array.isArray(s.terms) ? s.terms : []);
-  const quizQuestions = sections.flatMap(s => Array.isArray(s.quiz) ? s.quiz : []);
+  const keyTerms = sections.flatMap(s => s.terms);
+  const quizQuestions = sections.flatMap(s => s.quiz);
 
   return {
     title: parsed.title || "Untitled Guide",
@@ -214,10 +232,18 @@ router.post("/image", requireAuth, upload.single("image"), async (req, res) => {
     const end = raw.lastIndexOf("}");
     if (start === -1 || end === -1) throw new Error("Invalid AI response");
     const parsed = JSON.parse(raw.slice(start, end + 1));
-    const sections = Array.isArray(parsed.sections) ? parsed.sections : [];
+    const stripHtml = (s) => typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : s;
+    const rawSections = Array.isArray(parsed.sections) ? parsed.sections : [];
+    const sections = rawSections.map(s => ({
+      ...s,
+      keyPoints: Array.isArray(s.keyPoints) ? s.keyPoints.map(stripHtml) : [],
+      terms: Array.isArray(s.terms) ? s.terms.map(t => ({ term: stripHtml(t.term), definition: stripHtml(t.definition) })) : [],
+      quiz: Array.isArray(s.quiz) ? s.quiz.map(q => ({ question: stripHtml(q.question), answer: stripHtml(q.answer) })) : [],
+      content: Array.isArray(s.content) ? s.content : [],
+    }));
     const summary = sections.map(s => s.overview).filter(Boolean);
-    const keyTerms = sections.flatMap(s => Array.isArray(s.terms) ? s.terms : []);
-    const quizQuestions = sections.flatMap(s => Array.isArray(s.quiz) ? s.quiz : []);
+    const keyTerms = sections.flatMap(s => s.terms);
+    const quizQuestions = sections.flatMap(s => s.quiz);
     res.json({
       title: parsed.title || "Untitled Guide",
       sections,
