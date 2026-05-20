@@ -1,27 +1,34 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { User, Lock, Trash2, Save, LogOut } from "lucide-react";
+import {
+  User, Lock, Trash2, Save, LogOut, Crown, CreditCard,
+  Check, ExternalLink, Sparkles, Shield,
+} from "lucide-react";
 import { api } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 
+const INPUT_CLS = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all text-sm";
+
 export default function Settings() {
   const { user, refreshUser, logout } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
 
-  const [name, setName] = useState(user?.name || "");
+  const [name,            setName]            = useState(user?.name || "");
   const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
+  const [newPassword,     setNewPassword]     = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [profileLoading, setProfileLoading] = useState(false);
-
-  const [deletePassword, setDeletePassword] = useState("");
+  const [profileLoading,  setProfileLoading]  = useState(false);
+  const [deletePassword,  setDeletePassword]  = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteLoading,   setDeleteLoading]   = useState(false);
+  const [billingLoading,  setBillingLoading]  = useState(false);
+
+  const isPro = user?.plan === "pro";
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -47,6 +54,18 @@ export default function Settings() {
     }
   };
 
+  const handleUpgrade = async () => {
+    setBillingLoading(true);
+    try {
+      const { url } = await api.stripe.checkout();
+      window.location.href = url;
+    } catch (err) {
+      toast({ message: err.message || "Could not open checkout.", type: "error" });
+    } finally {
+      setBillingLoading(false);
+    }
+  };
+
   const handleDeleteAccount = async () => {
     setDeleteLoading(true);
     try {
@@ -62,96 +81,219 @@ export default function Settings() {
     }
   };
 
+  const Section = ({ children, delay = 0 }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.4 }}>
+      {children}
+    </motion.div>
+  );
+
   return (
-    <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
+    <div className="flex min-h-dvh bg-[#080810] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
+
       <main className="flex-1 min-w-0 overflow-x-hidden md:ml-64 p-4 md:p-8 main-pt max-w-2xl">
 
+        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <User className="text-indigo-400" size={28} /> Account Settings
+          <p className="text-gray-500 text-xs font-medium uppercase tracking-widest mb-1">Account</p>
+          <h1 className="text-2xl font-black text-white flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center">
+              <User size={18} className="text-indigo-400" />
+            </div>
+            Settings
           </h1>
-          <p className="text-gray-400 mt-1">Manage your profile and account preferences.</p>
+          <p className="text-gray-500 text-sm mt-1.5">Manage your profile, password, and subscription.</p>
         </div>
 
-        {/* Profile Section */}
-        <motion.form onSubmit={handleSaveProfile} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
-          <h2 className="text-white font-bold mb-5 flex items-center gap-2">
-            <User size={16} className="text-indigo-400" /> Profile
-          </h2>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-gray-400 text-sm font-medium mb-1.5">Display Name</label>
-              <input value={name} onChange={e => setName(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition-colors text-sm"
-                placeholder="Your name" />
+        {/* ── Plan & Billing ── */}
+        <Section delay={0}>
+          <div className={`rounded-2xl p-6 mb-5 ${isPro
+            ? "bg-gradient-to-br from-yellow-500/10 to-amber-500/5 border border-yellow-500/20"
+            : "bg-gradient-to-br from-indigo-600/10 to-violet-600/5 border border-indigo-500/20"
+          }`}>
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Crown size={16} className={isPro ? "text-yellow-400" : "text-indigo-400"} />
+                  <h2 className="text-white font-bold text-sm">{isPro ? "Pro Plan" : "Free Plan"}</h2>
+                </div>
+                <p className="text-gray-400 text-xs">
+                  {isPro
+                    ? "Unlimited guides, quizzes, and full AI tutor access."
+                    : "5 guides included. Upgrade to unlock unlimited everything."}
+                </p>
+              </div>
+              <div className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-black ${isPro ? "bg-yellow-500/20 text-yellow-400" : "bg-indigo-500/20 text-indigo-400"}`}>
+                {isPro ? "Active" : "Free"}
+              </div>
             </div>
-            <div>
-              <label className="block text-gray-400 text-sm font-medium mb-1.5">Email</label>
-              <input value={user?.email || ""} disabled
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-gray-500 text-sm cursor-not-allowed" />
-              <p className="text-gray-600 text-xs mt-1">Email cannot be changed.</p>
+
+            {isPro ? (
+              <div className="space-y-2">
+                {["Unlimited AI study guides", "Unlimited quiz generations", "Full AI tutor access", "Priority support"].map(f => (
+                  <div key={f} className="flex items-center gap-2 text-xs text-gray-300">
+                    <Check size={13} className="text-yellow-400 shrink-0" />
+                    {f}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    ["Unlimited guides", "indigo"],
+                    ["Unlimited quizzes", "violet"],
+                    ["Full AI tutor", "pink"],
+                    ["Priority support", "sky"],
+                  ].map(([f, c]) => (
+                    <div key={f} className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <Sparkles size={11} className={`text-${c}-400 shrink-0`} />
+                      {f}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={handleUpgrade}
+                  disabled={billingLoading}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-xl text-white font-bold text-sm transition-all hover:-translate-y-0.5 shadow-lg shadow-indigo-500/20">
+                  <Crown size={15} />
+                  {billingLoading ? "Opening checkout…" : "Upgrade to Pro — $4.99/month"}
+                </button>
+                <p className="text-center text-xs text-gray-600 flex items-center justify-center gap-1.5">
+                  <Shield size={10} /> Secure payment via Stripe · Cancel anytime
+                </p>
+              </div>
+            )}
+          </div>
+        </Section>
+
+        {/* ── Profile ── */}
+        <Section delay={0.06}>
+          <form onSubmit={handleSaveProfile} className="bg-white/3 border border-white/8 rounded-2xl p-6 mb-5">
+            <h2 className="text-white font-bold mb-5 flex items-center gap-2 text-sm">
+              <div className="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center">
+                <User size={14} className="text-indigo-400" />
+              </div>
+              Profile Information
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-gray-400 text-xs font-semibold mb-2 uppercase tracking-wider">Display Name</label>
+                <input
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  className={INPUT_CLS}
+                  placeholder="Your name" />
+              </div>
+              <div>
+                <label className="block text-gray-400 text-xs font-semibold mb-2 uppercase tracking-wider">Email Address</label>
+                <input
+                  value={user?.email || ""}
+                  disabled
+                  className={`${INPUT_CLS} opacity-50 cursor-not-allowed`} />
+                <p className="text-gray-600 text-xs mt-1.5">Email cannot be changed.</p>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-5 border-t border-white/8">
+              <h3 className="text-white font-semibold mb-4 flex items-center gap-2 text-sm">
+                <Lock size={14} className="text-indigo-400" />
+                Change Password
+                <span className="text-gray-600 font-normal text-xs">(leave blank to keep current)</span>
+              </h3>
+              <div className="space-y-3">
+                <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
+                  placeholder="Current password" className={INPUT_CLS} />
+                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                  placeholder="New password (min 8 characters)" className={INPUT_CLS} />
+                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password" className={INPUT_CLS} />
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-5">
+              <button
+                type="submit"
+                disabled={profileLoading}
+                className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-xl text-white font-bold text-sm transition-all hover:-translate-y-0.5">
+                <Save size={15} />
+                {profileLoading ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        </Section>
+
+        {/* ── Account stats ── */}
+        <Section delay={0.1}>
+          <div className="bg-white/3 border border-white/8 rounded-2xl p-5 mb-5">
+            <h2 className="text-white font-bold mb-4 text-sm flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center">
+                <Sparkles size={14} className="text-violet-400" />
+              </div>
+              Your Stats
+            </h2>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "Total Guides", value: user?.total_guides ?? 0, emoji: "📚" },
+                { label: "Day Streak",   value: `${user?.streak ?? 0}d`, emoji: "🔥" },
+                { label: "XP Earned",   value: (user?.xp ?? 0).toLocaleString(), emoji: "⚡" },
+              ].map(s => (
+                <div key={s.label} className="bg-white/3 border border-white/6 rounded-xl p-3 text-center">
+                  <div className="text-xl mb-1">{s.emoji}</div>
+                  <p className="text-white font-black text-base leading-none">{s.value}</p>
+                  <p className="text-gray-500 text-xs mt-1">{s.label}</p>
+                </div>
+              ))}
             </div>
           </div>
+        </Section>
 
-          <div className="mt-6 pt-5 border-t border-white/10">
-            <h3 className="text-white font-semibold mb-4 flex items-center gap-2 text-sm">
-              <Lock size={14} className="text-indigo-400" /> Change Password
-              <span className="text-gray-500 font-normal">(optional)</span>
-            </h3>
-            <div className="space-y-3">
-              <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
-                placeholder="Current password"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition-colors text-sm" />
-              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                placeholder="New password (min 8 characters)"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition-colors text-sm" />
-              <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition-colors text-sm" />
-            </div>
-          </div>
-
-          <div className="flex justify-end mt-5">
-            <button type="submit" disabled={profileLoading}
-              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl text-white font-semibold text-sm transition-colors">
-              <Save size={15} />
-              {profileLoading ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </motion.form>
-
-        {/* Danger Zone */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6 mb-6">
-          <h2 className="text-red-400 font-bold mb-1 flex items-center gap-2">
-            <Trash2 size={16} /> Danger Zone
-          </h2>
-          <p className="text-gray-500 text-sm mb-5">
-            Permanently delete your account and all your data. This cannot be undone.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input type="password" value={deletePassword} onChange={e => setDeletePassword(e.target.value)}
-              placeholder="Enter your password to confirm"
-              className="flex-1 bg-white/5 border border-red-500/20 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition-colors text-sm" />
+        {/* ── Sign out ── */}
+        <Section delay={0.13}>
+          <div className="bg-white/3 border border-white/8 rounded-2xl p-5 mb-5">
             <button
-              onClick={() => {
-                if (!deletePassword) return toast({ message: "Enter your password first.", type: "error" });
-                setShowDeleteModal(true);
-              }}
-              className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-500 rounded-xl text-white font-semibold text-sm transition-colors shrink-0">
-              <Trash2 size={15} /> Delete Account
+              onClick={logout}
+              className="flex items-center gap-2.5 text-gray-400 hover:text-white text-sm font-medium transition-colors group">
+              <div className="w-8 h-8 rounded-xl bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors">
+                <LogOut size={15} />
+              </div>
+              Sign out of your account
             </button>
           </div>
-        </motion.div>
+        </Section>
 
-        {/* Logout */}
-        <button onClick={logout}
-          className="flex items-center gap-2 text-gray-400 hover:text-white text-sm transition-colors">
-          <LogOut size={15} /> Sign out
-        </button>
+        {/* ── Danger Zone ── */}
+        <Section delay={0.16}>
+          <div className="bg-red-500/5 border border-red-500/15 rounded-2xl p-6 mb-6">
+            <h2 className="text-red-400 font-bold mb-1.5 flex items-center gap-2 text-sm">
+              <Trash2 size={15} /> Danger Zone
+            </h2>
+            <p className="text-gray-500 text-xs mb-5 leading-relaxed">
+              Permanently delete your account and all your data. This cannot be undone.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={e => setDeletePassword(e.target.value)}
+                placeholder="Enter your password to confirm"
+                className="flex-1 bg-white/3 border border-red-500/15 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-red-500/40 transition-colors text-sm"
+              />
+              <button
+                onClick={() => {
+                  if (!deletePassword) return toast({ message: "Enter your password first.", type: "error" });
+                  setShowDeleteModal(true);
+                }}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600/20 border border-red-500/25 hover:bg-red-600/30 hover:border-red-500/40 rounded-xl text-red-400 font-semibold text-sm transition-all shrink-0">
+                <Trash2 size={14} /> Delete Account
+              </button>
+            </div>
+          </div>
+        </Section>
 
         <div aria-hidden="true" style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
       </main>
@@ -159,8 +301,8 @@ export default function Settings() {
       <ConfirmModal
         open={showDeleteModal}
         title="Delete your account?"
-        message="This will permanently delete your account, all guides, quizzes, and progress. There is no way to recover this data."
-        confirmText={deleteLoading ? "Deleting..." : "Yes, Delete Everything"}
+        message="This will permanently delete your account, all guides, quizzes, and progress. There is absolutely no way to recover this data."
+        confirmText={deleteLoading ? "Deleting…" : "Yes, Delete Everything"}
         onConfirm={handleDeleteAccount}
         onCancel={() => { setShowDeleteModal(false); setDeletePassword(""); }}
       />

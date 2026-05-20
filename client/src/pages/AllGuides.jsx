@@ -142,16 +142,19 @@ export default function AllGuides() {
   })();
 
   return (
-    <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
+    <div className="flex min-h-dvh bg-[#080810] w-full overflow-x-hidden">
       <Sidebar onLogout={logout} />
       <main className="flex-1 min-w-0 overflow-x-hidden md:ml-64 p-4 md:p-8 main-pt">
 
         {/* ── Page header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-7">
           <div>
-            <h1 className="text-xl md:text-2xl font-black text-white">All Guides</h1>
+            <p className="text-gray-500 text-xs font-medium uppercase tracking-widest mb-1">Library</p>
+            <h1 className="text-xl md:text-2xl font-black text-white flex items-center gap-2">
+              <BookOpen size={22} className="text-indigo-400" /> All Guides
+            </h1>
             <p className="text-gray-500 mt-0.5 text-sm">
-              {loading ? "Loading…" : `${total} guide${total !== 1 ? "s" : ""} total`}
+              {loading ? "Loading…" : `${total} guide${total !== 1 ? "s" : ""} in your library`}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">

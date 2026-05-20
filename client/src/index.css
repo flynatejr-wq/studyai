@@ -1,181 +1,217 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ═══════════════════════════════════════════════════════════════════════════════
-   GLOBAL LAYOUT & OVERFLOW CONTAINMENT
-   ─────────────────────────────────────────────────────────────────────────────
-   • html: overflow-x clip (Chrome 90+, Firefox 81+, Safari 16+).
-     Falls back to visible on older Safari — body catches it below.
-     'clip' does NOT create a scroll container, so it never interferes
-     with child overflow-x:auto containers.
-   • body: overflow-x hidden is safe — it creates a BFC but its
-     touch-action remains the default 'auto', so it does NOT block
-     any horizontal or vertical gesture on child elements.
-   • Per-page layout wrappers (.flex.min-h-screen.overflow-x-hidden)
-     are the real containment boundary. All 6 pages have this class.
-═══════════════════════════════════════════════════════════════════════════════ */
-/*
-  THREE-LAYER horizontal containment — required for all iOS versions:
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE RESET & FONT
+═══════════════════════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
 
-  1. html  — iOS Safari's actual scroll root. overflow-x:hidden prevents
-             the window from scrolling horizontally. Must be on html, not
-             just body, because iOS uses html as the viewport scroll container.
-             overflow-x:clip was only supported from Safari 16 (iOS 16).
-             Using hidden ensures iOS 13/14/15 devices are covered.
-
-  2. body  — Android Chrome / standard browsers use body as scroll root.
-             Covering both means every engine is handled.
-
-  3. #root — React mounts here. ToastProvider renders a sibling div at this
-             level (outside page-wrapper divs). Without overflow:hidden on
-             #root, that toast container (w-full, fixed) can push layout width
-             beyond the viewport on some Safari versions.
-
-  None of these affect child overflow-x:auto scroll containers because
-  touch-action:manipulation has been removed from all button/link elements —
-  that was the actual gesture blocker. overflow:hidden on ancestors does NOT
-  set touch-action and does NOT block descendant scroll containers' touch
-  gesture recognition.
-*/
-html,
-body {
+html, body {
   overflow-x: hidden;
   min-height: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 body {
-  /* dvh = dynamic viewport height — shrinks when iOS address bar collapses */
   min-height: 100dvh;
 }
 
 #root {
   position: relative;
   overflow-x: hidden;
-  /* Isolate #root so fixed/animated children that temporarily translate
-     off-screen right (e.g. chat panel initial:{x:384}) cannot widen the
-     scroll area. position:relative makes #root a containing block. */
   isolation: isolate;
 }
 
-/* Use dvh instead of vh for full-height page containers.
-   100vh on iOS = full viewport incl. address bar (can clip content).
-   100dvh shrinks as the address bar collapses — always the visible area. */
+/* ═══════════════════════════════════════════════════════════════════════════
+   CUSTOM SCROLLBAR
+═══════════════════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.5); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VIEWPORT UTILITIES
+═══════════════════════════════════════════════════════════════════════════ */
 .min-h-dvh {
-  min-height: 100vh;       /* fallback: iOS < 15.4, older Android */
-  min-height: 100dvh;      /* modern: dynamic — shrinks with collapsing address bar */
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════════
-   TOUCH GESTURES — WHY WE DO NOT SET touch-action ON BUTTONS/LINKS GLOBALLY
-   ─────────────────────────────────────────────────────────────────────────────
-   The W3C Pointer Events spec §12.1 states:
-     "If any element in the ancestor chain from the touch target up to and
-      including the scroll container has a touch-action that prevents panning
-      in a given axis, panning in that axis is prevented."
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOUCH & SCROLL
+═══════════════════════════════════════════════════════════════════════════ */
+.overflow-y-auto, .overflow-y-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+.overflow-x-auto, .overflow-x-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
 
-   touch-action:manipulation = tap allowed, ALL panning disabled.
-
-   Applying this to ALL <button> elements means that ANY scroll container
-   (overflow-x:auto, overflow-y:auto) whose interactive area is fully covered
-   by buttons becomes completely unscrollable by touch — the parent's
-   touch-action:pan-x / pan-y is overridden by the child button's
-   touch-action:manipulation.
-
-   This was the root cause of blocked horizontal scroll in mode tabs and
-   section pills (100% button coverage), and blocked vertical scroll in
-   the chat message list (suggestion buttons covering the empty state).
-
-   The 300ms tap delay that 'manipulation' was meant to fix is already
-   handled on iOS 13 + by the viewport meta tag:
-     <meta name="viewport" content="width=device-width, ...">
-   Setting width=device-width removes the double-tap zoom on iOS 13+,
-   which is what causes the 300ms delay. No CSS workaround needed.
-═══════════════════════════════════════════════════════════════════════════════ */
-
-/* ═══════════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════════
    MOBILE HEADER OFFSET
-   The fixed mobile header now includes env(safe-area-inset-top) in its height
-   (see Sidebar.jsx). Main content must clear it. Two variants:
-   - .main-pt      → pages whose desktop layout has 2rem (md:pt-8) top spacing
-   - .main-pt-snug → pages that go edge-to-edge on desktop (md:pt-0)
-═══════════════════════════════════════════════════════════════════════════════ */
+═══════════════════════════════════════════════════════════════════════════ */
 .main-pt {
-  /* Mobile: header (3.5rem) + notch (env) + 0.5rem gap */
   padding-top: calc(3.5rem + env(safe-area-inset-top, 0px) + 0.5rem);
 }
 @media (min-width: 768px) {
-  .main-pt {
-    padding-top: 2rem; /* mirrors md:pt-8 */
-  }
+  .main-pt { padding-top: 2rem; }
 }
 
 .main-pt-snug {
   padding-top: calc(3.5rem + env(safe-area-inset-top, 0px));
 }
 @media (min-width: 768px) {
-  .main-pt-snug {
-    padding-top: 0; /* mirrors md:pt-0 */
-  }
+  .main-pt-snug { padding-top: 0; }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════════
-   MOMENTUM SCROLL (iOS 12 – 15 compatibility)
-   ─────────────────────────────────────────────────────────────────────────────
-   -webkit-overflow-scrolling:touch enables momentum (rubber-band) scrolling
-   on iOS 12–15. iOS 16+ uses overscroll-behavior instead.
-   Applied to scroll containers via Tailwind class selectors.
-   We do NOT add touch-action here — leave it as 'auto' (browser decides).
-═══════════════════════════════════════════════════════════════════════════════ */
-.overflow-y-auto,
-.overflow-y-scroll {
-  -webkit-overflow-scrolling: touch;
-}
-
-.overflow-x-auto,
-.overflow-x-scroll {
-  -webkit-overflow-scrolling: touch;
-  /* Prevent horizontal scroll chaining to the page on iOS 16+ */
-  overscroll-behavior-x: contain;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════════
-   UTILITY CLASSES
-═══════════════════════════════════════════════════════════════════════════════ */
-
-/* Hide scrollbars while preserving scroll functionality */
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════════════════════════════ */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+.pb-safe { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+.pb-safe-sm { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
+
+.touch-lock { touch-action: none; overflow: hidden; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLASSMORPHISM
+═══════════════════════════════════════════════════════════════════════════ */
+.glass {
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.glass-strong {
+  background: rgba(255,255,255,0.07);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.12);
 }
 
-/* Safe-area padding for fixed bottom bars (iPhone home indicator) */
-.pb-safe {
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLOW EFFECTS
+═══════════════════════════════════════════════════════════════════════════ */
+.glow-indigo {
+  box-shadow: 0 0 30px rgba(99,102,241,0.15), 0 0 60px rgba(99,102,241,0.05);
 }
-.pb-safe-sm {
-  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-}
-
-/* Scroll-lock for modals / sheets — blocks all touch gestures */
-.touch-lock {
-  touch-action: none;
-  overflow: hidden;
+.glow-violet {
+  box-shadow: 0 0 30px rgba(139,92,246,0.15), 0 0 60px rgba(139,92,246,0.05);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════════
+   GRADIENT TEXT
+═══════════════════════════════════════════════════════════════════════════ */
+.gradient-text {
+  background: linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #f472b6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.gradient-text-cool {
+  background: linear-gradient(135deg, #60a5fa 0%, #818cf8 50%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SKELETON LOADERS
+═══════════════════════════════════════════════════════════════════════════ */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.03) 25%,
+    rgba(255,255,255,0.07) 50%,
+    rgba(255,255,255,0.03) 75%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 0.75rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CARD HOVER EFFECTS
+═══════════════════════════════════════════════════════════════════════════ */
+.card-hover {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(99,102,241,0.12);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATED BACKGROUND ORBS
+═══════════════════════════════════════════════════════════════════════════ */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-20px) scale(1.03); }
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-30px) rotate(5deg); }
+}
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-float-slow { animation: float-slow 9s ease-in-out infinite; }
+.animate-float-delay { animation: float 8s ease-in-out infinite 2s; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PULSE RING (for CTA buttons)
+═══════════════════════════════════════════════════════════════════════════ */
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(99,102,241,0); }
+  100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); }
+}
+.pulse-ring { animation: pulse-ring 2s ease-out infinite; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROGRESS BAR ANIMATION
+═══════════════════════════════════════════════════════════════════════════ */
+@keyframes progress-fill {
+  from { width: 0; }
+}
+.progress-animated {
+  animation: progress-fill 1.2s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FOCUS RING — accessible but premium
+═══════════════════════════════════════════════════════════════════════════ */
+:focus-visible {
+  outline: 2px solid rgba(99,102,241,0.6);
+  outline-offset: 2px;
+}
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    RICH TEXT (AI-generated HTML content)
-═══════════════════════════════════════════════════════════════════════════════ */
-
-/* Base color on the root element — ensures direct text nodes (not wrapped in
-   p/li/strong) always inherit a visible color instead of the browser default
-   (black). Child rules below can still override for finer control. */
-.rich-text {
-  color: #e5e7eb;
-}
+═══════════════════════════════════════════════════════════════════════════ */
+.rich-text { color: #e5e7eb; }
 
 .rich-text p {
   color: #e5e7eb;
@@ -195,8 +231,7 @@ body {
   font-style: italic;
 }
 
-.rich-text ul,
-.rich-text ol {
+.rich-text ul, .rich-text ol {
   margin: 0.5em 0 0.85em 0;
   padding-left: 1.4em;
 }
@@ -210,25 +245,83 @@ body {
   margin-bottom: 0.3em;
 }
 
-.rich-text-sm p,
-.rich-text-sm li {
+.rich-text-sm p, .rich-text-sm li {
   font-size: 0.875rem;
   line-height: 1.6;
   margin-bottom: 0.2em;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════════
-   PRINT / SAVE AS PDF
-═══════════════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+   TYPING INDICATOR (chat)
+═══════════════════════════════════════════════════════════════════════════ */
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+.typing-dot {
+  width: 6px; height: 6px;
+  background: #6366f1;
+  border-radius: 50%;
+  animation: blink 1.4s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ACHIEVEMENT UNLOCK ANIMATION
+═══════════════════════════════════════════════════════════════════════════ */
+@keyframes achievement-pop {
+  0% { transform: scale(0.5) rotate(-10deg); opacity: 0; }
+  60% { transform: scale(1.1) rotate(3deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.achievement-pop { animation: achievement-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CARD GRID RESPONSIVE
+═══════════════════════════════════════════════════════════════════════════ */
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+@media (min-width: 640px) {
+  .guide-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .guide-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STREAK FIRE ANIMATION
+═══════════════════════════════════════════════════════════════════════════ */
+@keyframes fire {
+  0%, 100% { transform: scaleY(1) rotate(-2deg); }
+  50% { transform: scaleY(1.1) rotate(2deg); }
+}
+.animate-fire { animation: fire 0.8s ease-in-out infinite; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LANDING PAGE — HERO GRADIENT ANIMATION
+═══════════════════════════════════════════════════════════════════════════ */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.animated-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRINT STYLES
+═══════════════════════════════════════════════════════════════════════════ */
 @media print {
-  .rich-text p,
-  .rich-text li { color: #222 !important; }
+  .rich-text p, .rich-text li { color: #222 !important; }
   .rich-text strong { color: #111 !important; }
   .rich-text em { color: #4338ca !important; }
 
-  aside, header, nav, .print\:hidden {
-    display: none !important;
-  }
+  aside, header, nav, .print\:hidden { display: none !important; }
 
   body {
     background: white !important;

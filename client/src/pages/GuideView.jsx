@@ -43,102 +43,200 @@ function useStudyTimer(guideId) {
 
 // ── Flashcard Mode ────────────────────────────────────────────────────────────
 function FlashcardMode({ terms }) {
-  const [idx, setIdx] = useState(0);
+  const [deck, setDeck] = useState(() => terms.map((_, i) => i)); // index order
+  const [pos, setPos] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [known, setKnown] = useState(new Set());
   const [unknown, setUnknown] = useState(new Set());
+  const [shuffled, setShuffled] = useState(false);
   const touchStartX = useRef(null);
+
+  const idx = deck[pos];
   const card = terms[idx];
   const total = terms.length;
+  const done = known.size + unknown.size === total;
+
+  const shuffle = () => {
+    const newDeck = [...deck].sort(() => Math.random() - 0.5);
+    setDeck(newDeck); setPos(0); setFlipped(false);
+    setKnown(new Set()); setUnknown(new Set());
+    setShuffled(true);
+  };
+  const unShuffle = () => {
+    setDeck(terms.map((_, i) => i)); setPos(0); setFlipped(false);
+    setKnown(new Set()); setUnknown(new Set());
+    setShuffled(false);
+  };
 
   const mark = (correct) => {
     if (correct) setKnown(s => new Set([...s, idx]));
     else setUnknown(s => new Set([...s, idx]));
     setFlipped(false);
-    setTimeout(() => setIdx(i => (i + 1) % total), 150);
+    setTimeout(() => setPos(p => (p + 1) % total), 150);
   };
-  const reset = () => { setIdx(0); setFlipped(false); setKnown(new Set()); setUnknown(new Set()); };
-  const done = known.size + unknown.size === total;
+  const reset = () => { setPos(0); setFlipped(false); setKnown(new Set()); setUnknown(new Set()); };
 
-  // Swipe left = next card, swipe right = prev card
   const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
   const handleTouchEnd = (e) => {
     if (touchStartX.current === null) return;
     const delta = e.changedTouches[0].clientX - touchStartX.current;
     touchStartX.current = null;
-    if (Math.abs(delta) < 40) return; // ignore tiny nudges
-    if (delta < 0) { setIdx(i => (i + 1) % total); setFlipped(false); }  // swipe left → next
-    else           { setIdx(i => (i - 1 + total) % total); setFlipped(false); } // swipe right → prev
+    if (Math.abs(delta) < 40) return;
+    if (delta < 0) { setPos(p => (p + 1) % total); setFlipped(false); }
+    else           { setPos(p => (p - 1 + total) % total); setFlipped(false); }
   };
 
+  // Keyboard navigation
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") { setPos(p => (p + 1) % total); setFlipped(false); }
+    if (e.key === "ArrowLeft"  || e.key === "ArrowUp")   { setPos(p => (p - 1 + total) % total); setFlipped(false); }
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); setFlipped(f => !f); }
+  }, [total]);
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
   return (
-    <div className="flex flex-col items-center gap-6 py-4"
+    <div className="flex flex-col items-center gap-5 py-2"
       onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-      <div className="flex items-center gap-4 text-sm text-gray-400 w-full max-w-lg">
-        <span className="text-green-400 font-medium">✓ {known.size} known</span>
-        <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all"
+
+      {/* Controls row */}
+      <div className="flex items-center justify-between w-full max-w-lg gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-green-400 text-xs font-bold">✓ {known.size}</span>
+          <span className="text-gray-600 text-xs">·</span>
+          <span className="text-red-400 text-xs font-bold">✗ {unknown.size}</span>
+        </div>
+        <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden mx-2">
+          <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-300"
             style={{ width: `${((known.size + unknown.size) / total) * 100}%` }} />
         </div>
-        <span className="text-gray-500">{idx + 1}/{total}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500 text-xs">{pos + 1}/{total}</span>
+          <button
+            onClick={shuffled ? unShuffle : shuffle}
+            title={shuffled ? "Restore order" : "Shuffle cards"}
+            className={`p-1.5 rounded-lg transition-all text-xs ${shuffled ? "bg-indigo-600/30 border border-indigo-500/40 text-indigo-300" : "bg-white/5 border border-white/10 text-gray-500 hover:text-white"}`}>
+            🔀
+          </button>
+        </div>
       </div>
-      {/* Swipe hint — only shown on touch devices */}
-      <p className="text-xs text-gray-600 -mt-3 select-none pointer-events-none sm:hidden">
-        ← swipe to navigate →
+
+      <p className="text-xs text-gray-600 -mt-2 select-none pointer-events-none sm:hidden">
+        ← swipe · tap to flip · ←→ keys →
       </p>
+      <p className="text-xs text-gray-600 -mt-2 select-none pointer-events-none hidden sm:block">
+        ← → arrow keys to navigate · Space to flip
+      </p>
+
       {done ? (
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
           className="text-center bg-white/5 border border-white/10 rounded-2xl p-10 w-full max-w-lg">
-          <div className="text-5xl mb-3">{known.size === total ? "🏆" : "💪"}</div>
+          <div className="text-5xl mb-4">{known.size === total ? "🏆" : known.size >= total * 0.7 ? "⭐" : "💪"}</div>
           <p className="text-2xl font-bold text-white mb-1">{known.size}/{total} cards known</p>
-          <p className="text-gray-400 mb-6">{known.size === total ? "You know all of them!" : `${unknown.size} to review.`}</p>
-          <button onClick={reset} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold text-sm transition-all">
-            <RotateCcw size={14} className="inline mr-2" />Restart
-          </button>
+          <p className="text-gray-400 mb-2">{known.size === total ? "Perfect! You know all of them!" : `${unknown.size} card${unknown.size !== 1 ? "s" : ""} to review.`}</p>
+          {shuffled && <p className="text-indigo-400 text-xs mb-5">🔀 Shuffle mode was on</p>}
+          <div className="flex items-center justify-center gap-3 mt-5">
+            <button onClick={reset}
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold text-sm transition-all">
+              <RotateCcw size={14} /> Restart
+            </button>
+            {unknown.size > 0 && (
+              <button onClick={() => {
+                const reviewDeck = [...unknown];
+                setDeck(reviewDeck); setPos(0);
+                setKnown(new Set()); setUnknown(new Set()); setFlipped(false);
+              }}
+                className="flex items-center gap-2 px-5 py-2.5 bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/30 rounded-xl font-semibold text-sm transition-all">
+                Review {unknown.size} missed
+              </button>
+            )}
+          </div>
         </motion.div>
       ) : (
         <>
-          <div className="w-full max-w-lg cursor-pointer" onClick={() => setFlipped(f => !f)} style={{ perspective: "1000px" }}>
-            <motion.div animate={{ rotateY: flipped ? 180 : 0 }} transition={{ duration: 0.45, ease: "easeInOut" }}
-              style={{ transformStyle: "preserve-3d", WebkitTransformStyle: "preserve-3d", position: "relative", height: "min(240px, 50vw)" }}>
-              {/* Front face */}
-              <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", position: "absolute", inset: 0 }}
-                className="bg-gradient-to-br from-indigo-600/30 to-violet-600/20 border border-indigo-500/40 rounded-2xl flex flex-col items-center justify-center p-8 text-center">
-                <p className="text-gray-400 text-xs uppercase tracking-widest mb-3">Term</p>
-                <p className="text-white text-2xl font-bold leading-tight">{card.term}</p>
-                <p className="text-indigo-400 text-xs mt-4">Tap to reveal definition</p>
-              </div>
-              {/* Back face */}
-              <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)", WebkitTransform: "rotateY(180deg)", position: "absolute", inset: 0 }}
-                className="bg-gradient-to-br from-violet-600/30 to-indigo-600/20 border border-violet-500/40 rounded-2xl flex flex-col items-center justify-center p-8 text-center">
-                <p className="text-gray-400 text-xs uppercase tracking-widest mb-3">Definition</p>
-                <p className="text-white text-lg leading-relaxed">{card.definition}</p>
-              </div>
+          {/* Card */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${pos}-${idx}`}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-lg cursor-pointer"
+              onClick={() => setFlipped(f => !f)}
+              style={{ perspective: "1000px" }}>
+              <motion.div
+                animate={{ rotateY: flipped ? 180 : 0 }}
+                transition={{ duration: 0.45, ease: "easeInOut" }}
+                style={{ transformStyle: "preserve-3d", WebkitTransformStyle: "preserve-3d", position: "relative", minHeight: "220px" }}>
+                {/* Front */}
+                <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", position: "absolute", inset: 0 }}
+                  className="bg-gradient-to-br from-indigo-600/30 to-violet-600/20 border border-indigo-500/40 rounded-2xl flex flex-col items-center justify-center p-8 text-center min-h-[220px]">
+                  <p className="text-indigo-400/70 text-[10px] uppercase tracking-widest mb-4 font-bold">Term</p>
+                  <p className="text-white text-xl sm:text-2xl font-bold leading-snug">{card.term}</p>
+                  <p className="text-indigo-400/60 text-xs mt-5 flex items-center gap-1.5">
+                    <span>Tap to reveal</span>
+                    <span className="w-1 h-1 bg-indigo-500/40 rounded-full" />
+                    <span>Space bar</span>
+                  </p>
+                </div>
+                {/* Back */}
+                <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)", WebkitTransform: "rotateY(180deg)", position: "absolute", inset: 0 }}
+                  className="bg-gradient-to-br from-violet-600/30 to-indigo-600/20 border border-violet-500/40 rounded-2xl flex flex-col items-center justify-center p-8 text-center min-h-[220px]">
+                  <p className="text-violet-400/70 text-[10px] uppercase tracking-widest mb-4 font-bold">Definition</p>
+                  <p className="text-white text-base sm:text-lg leading-relaxed">{card.definition}</p>
+                </div>
+              </motion.div>
             </motion.div>
-          </div>
-          <div className="flex items-center gap-4">
-            <button onClick={() => { setIdx(i => (i - 1 + total) % total); setFlipped(false); }}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+          </AnimatePresence>
+
+          {/* Actions */}
+          <div className="flex items-center gap-3 flex-wrap justify-center">
+            <button onClick={() => { setPos(p => (p - 1 + total) % total); setFlipped(false); }}
+              className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors border border-white/8">
               <ChevronLeft size={20} />
             </button>
+
             {flipped ? (
               <>
-                <button onClick={() => mark(false)} className="flex items-center gap-2 px-5 py-2.5 bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 rounded-xl font-semibold text-sm transition-all">
+                <button onClick={() => mark(false)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-red-500/15 border border-red-500/25 text-red-400 hover:bg-red-500/25 rounded-xl font-semibold text-sm transition-all">
                   <XCircle size={15} /> Still learning
                 </button>
-                <button onClick={() => mark(true)} className="flex items-center gap-2 px-5 py-2.5 bg-green-500/20 border border-green-500/30 text-green-400 hover:bg-green-500/30 rounded-xl font-semibold text-sm transition-all">
+                <button onClick={() => mark(true)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-green-500/15 border border-green-500/25 text-green-400 hover:bg-green-500/25 rounded-xl font-semibold text-sm transition-all">
                   <CheckCircle size={15} /> Got it!
                 </button>
               </>
             ) : (
-              <button onClick={() => setFlipped(true)} className="px-6 py-2.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/30 rounded-xl font-semibold text-sm transition-all">
-                Reveal
+              <button onClick={() => setFlipped(true)}
+                className="px-8 py-2.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/30 rounded-xl font-semibold text-sm transition-all">
+                Flip Card
               </button>
             )}
-            <button onClick={() => { setIdx(i => (i + 1) % total); setFlipped(false); }}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+
+            <button onClick={() => { setPos(p => (p + 1) % total); setFlipped(false); }}
+              className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors border border-white/8">
               <ChevronRight size={20} />
             </button>
+          </div>
+
+          {/* Mini dot indicators */}
+          <div className="flex gap-1.5 mt-1">
+            {deck.slice(Math.max(0, pos - 4), Math.min(total, pos + 5)).map((di, si) => {
+              const realPos = Math.max(0, pos - 4) + si;
+              const termIdx = deck[realPos];
+              const isKnown = known.has(termIdx);
+              const isUnknown = unknown.has(termIdx);
+              return (
+                <div key={realPos}
+                  className={`rounded-full transition-all ${realPos === pos ? "w-4 h-2 bg-indigo-400" : isKnown ? "w-2 h-2 bg-green-500/60" : isUnknown ? "w-2 h-2 bg-red-500/60" : "w-2 h-2 bg-white/15"}`}
+                />
+              );
+            })}
           </div>
         </>
       )}

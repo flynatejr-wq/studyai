@@ -18,13 +18,28 @@ import Terms from "./pages/Terms.jsx";
 import Privacy from "./pages/Privacy.jsx";
 import NotFound from "./pages/NotFound.jsx";
 
-function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return (
-    <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center">
-      <div className="text-indigo-400 animate-pulse text-lg font-medium">Loading StudyBuddi...</div>
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen bg-[#080810] flex flex-col items-center justify-center gap-4">
+      <div className="relative">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-xl shadow-indigo-500/30 animate-pulse">
+          <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+            <rect x="6" y="8" width="8" height="16" rx="1.5" fill="rgba(255,255,255,0.9)"/>
+            <rect x="18" y="8" width="8" height="16" rx="1.5" fill="rgba(255,255,255,0.6)"/>
+          </svg>
+        </div>
+      </div>
+      <div className="text-center">
+        <p className="text-white font-bold text-sm">StudyBuddi</p>
+        <p className="text-gray-600 text-xs mt-1">Loading your workspace…</p>
+      </div>
     </div>
   );
+}
+
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
   return user ? children : <Navigate to="/login" replace />;
 }
 
