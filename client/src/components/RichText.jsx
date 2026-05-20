@@ -16,17 +16,19 @@ const PURIFY_CONFIG = {
 export default function RichText({ html, className = "" }) {
   if (!html) return null;
 
-  // Strip any stray markdown syntax the AI might leak into HTML fields
+  // Strip any stray markdown syntax the AI might leak into HTML fields.
+  // Bold before italic so **text** is not accidentally eaten by the italic rule.
+  // The italic regex uses a negative lookahead/lookbehind to avoid matching * inside **.
   const normalized = html
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "<em>$1</em>")
     .replace(/^#{1,6}\s+/gm, ""); // strip # headings
 
   const clean = DOMPurify.sanitize(normalized, PURIFY_CONFIG);
 
-  // If DOMPurify stripped everything to empty, fall back to escaped plain text
+  // If DOMPurify stripped everything to empty, fall back to plain text (strip HTML tags first)
   if (!clean.trim()) {
-    return <p className={`rich-text ${className}`}>{html}</p>;
+    return <p className={`rich-text ${className}`}>{html.replace(/<[^>]+>/g, "")}</p>;
   }
 
   return (

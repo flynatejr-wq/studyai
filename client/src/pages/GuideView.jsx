@@ -864,10 +864,11 @@ export default function GuideView() {
     e.preventDefault();
     if (!chatInput.trim() || chatLoading) return;
     const msg = chatInput; setChatInput("");
-    setMessages(prev => [...prev, { id: Date.now(), role: "user", content: msg }]);
+    // Bug 8 fix: use crypto.randomUUID() instead of Date.now() to avoid key collisions
+    setMessages(prev => [...prev, { id: crypto.randomUUID(), role: "user", content: msg }]);
     setChatLoading(true);
     try { const reply = await api.chat.send(id, msg); setMessages(prev => [...prev, reply]); }
-    catch { setMessages(prev => [...prev, { id: Date.now(), role: "assistant", content: "Sorry, couldn't respond. Try again." }]); }
+    catch { setMessages(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", content: "Sorry, couldn't respond. Try again." }]); }
     finally { setChatLoading(false); }
   };
   const showXpToast = useCallback((xp) => {
@@ -877,8 +878,13 @@ export default function GuideView() {
   }, []);
   const resetQuiz = () => { setQuizAnswers({}); setQuizSubmitted(false); setScore(0); setFlipped({}); };
   const generateQuiz = async () => {
-    setGeneratingQuiz(true); setQuizError(""); resetQuiz();
-    try { const { questions } = await api.guides.generateQuiz(id, quizCount, "self-grade"); setActiveQuestions(Array.isArray(questions) ? questions : []); }
+    // Bug 7 fix: don't clear current quiz answers until AI responds successfully
+    setGeneratingQuiz(true); setQuizError("");
+    try {
+      const { questions } = await api.guides.generateQuiz(id, quizCount, "self-grade");
+      resetQuiz(); // only reset AFTER we have new questions
+      setActiveQuestions(Array.isArray(questions) ? questions : []);
+    }
     catch (e) {
       if (e.message === "FREE_LIMIT_QUIZZES" || (e.message || "").includes("FREE_LIMIT")) {
         setUpgradeReason("FREE_LIMIT_QUIZZES"); setUpgradeOpen(true);
@@ -1008,7 +1014,7 @@ export default function GuideView() {
 
           {/* ── SECTIONS MODE ── */}
           {studyMode === "sections" && (
-            <SectionsMode guide={guide} guideId={id} onProgressUpdate={() => {}} />
+            <SectionsMode guide={guide} guideId={id} onProgressUpdate={(next) => setGuide(g => ({ ...g, section_progress: next }))} />
           )}
 
           {/* ── NOTES MODE ── */}

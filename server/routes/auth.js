@@ -55,7 +55,9 @@ router.post("/login", async (req, res) => {
     return res.status(400).json({ error: "Email and password are required." });
 
   try {
-    const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email.toLowerCase().trim());
+    const user = db.prepare(
+      "SELECT id, name, email, password_hash, streak, last_study_date, total_guides, total_quizzes, xp, level, plan, total_study_time, reset_token, reset_token_expires FROM users WHERE email = ?"
+    ).get(email.toLowerCase().trim());
     if (!user) return res.status(400).json({ error: "No account found with that email." });
 
     const valid = await bcrypt.compare(password, user.password_hash);
@@ -112,7 +114,7 @@ router.put("/profile", requireAuth, async (req, res) => {
     }
 
     const updated = db.prepare(
-      "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, last_study_date, created_at FROM users WHERE id = ?"
+      "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, plan, last_study_date, created_at FROM users WHERE id = ?"
     ).get(req.user.id);
     res.json(updated);
   } catch (err) {

@@ -64,9 +64,9 @@ export const api = {
   summarize: {
     text:    (transcript, difficulty = "standard", style = "detailed") => request("/summarize", { method: "POST", headers: headers(), body: JSON.stringify({ transcript, difficulty, style }) }),
     youtube: (url, difficulty = "standard", style = "detailed") => request("/summarize/youtube", { method: "POST", headers: headers(), body: JSON.stringify({ url, difficulty, style }) }),
-    image:   (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("image", file); fd.append("difficulty", difficulty); fd.append("style", style); return request("/summarize/image", { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd }); },
-    audio:   (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("audio", file); fd.append("difficulty", difficulty); fd.append("style", style); return request("/summarize/audio", { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd }); },
-    file:    (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("file",  file); fd.append("difficulty", difficulty); fd.append("style", style); return request("/summarize/file",  { method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd }); },
+    image:   (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("image", file); fd.append("difficulty", difficulty); fd.append("style", style); const tok = getToken(); return request("/summarize/image", { method: "POST", headers: tok ? { Authorization: `Bearer ${tok}` } : {}, body: fd }); },
+    audio:   (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("audio", file); fd.append("difficulty", difficulty); fd.append("style", style); const tok = getToken(); return request("/summarize/audio", { method: "POST", headers: tok ? { Authorization: `Bearer ${tok}` } : {}, body: fd }); },
+    file:    (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("file",  file); fd.append("difficulty", difficulty); fd.append("style", style); const tok = getToken(); return request("/summarize/file",  { method: "POST", headers: tok ? { Authorization: `Bearer ${tok}` } : {}, body: fd }); },
   },
   folders: {
     list:   ()         => request("/folders",      { headers: headers() }),

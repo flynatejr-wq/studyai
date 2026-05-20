@@ -95,8 +95,15 @@ db.exec(`
   );
 `);
 
-// Safely add new columns to existing tables (ignore if already exists)
-const safeAlter = (sql) => { try { db.exec(sql); } catch (_) {} };
+// Safely add new columns to existing tables — only swallows "duplicate column" errors.
+// Any other error (typo in column type, wrong table name, etc.) is re-thrown so it
+// doesn't silently corrupt the schema on a fresh database.
+const safeAlter = (sql) => {
+  try { db.exec(sql); }
+  catch (err) {
+    if (!err.message?.includes("duplicate column name")) throw err;
+  }
+};
 safeAlter("ALTER TABLE users ADD COLUMN total_study_time INTEGER DEFAULT 0");
 safeAlter("ALTER TABLE users ADD COLUMN reset_token TEXT");
 safeAlter("ALTER TABLE users ADD COLUMN reset_token_expires TEXT");

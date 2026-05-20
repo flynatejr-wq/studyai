@@ -67,10 +67,21 @@ export default function UploadForm({ onSubmit, loading, dark }) {
     audio: "audio/*,.mp3,.mp4,.m4a,.wav,.webm",
   };
 
+  // Bug 36 fix: track the object URL so we can revoke it when it's replaced or the tab changes
+  const objectUrlRef = useRef(null);
+
   const handleFileSelect = (f) => {
     if (!f) return;
+    // Revoke any previous object URL to avoid memory leaks
+    if (objectUrlRef.current) { URL.revokeObjectURL(objectUrlRef.current); objectUrlRef.current = null; }
+    if (activeTab === "image") {
+      const url = URL.createObjectURL(f);
+      objectUrlRef.current = url;
+      setPreview(url);
+    } else {
+      setPreview(f.name);
+    }
     setFile(f);
-    setPreview(activeTab === "image" ? URL.createObjectURL(f) : f.name);
   };
 
   const handleDrop = (e) => {
@@ -78,7 +89,11 @@ export default function UploadForm({ onSubmit, loading, dark }) {
     handleFileSelect(e.dataTransfer.files[0]);
   };
 
-  const handleTabChange = (tab) => { setActiveTab(tab); setFile(null); setPreview(null); setFormError(""); setYoutubeUrl(""); };
+  const handleTabChange = (tab) => {
+    // Revoke any object URL when switching away from the image tab
+    if (objectUrlRef.current) { URL.revokeObjectURL(objectUrlRef.current); objectUrlRef.current = null; }
+    setActiveTab(tab); setFile(null); setPreview(null); setFormError(""); setYoutubeUrl("");
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();

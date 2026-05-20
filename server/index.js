@@ -81,7 +81,14 @@ const aiLimiter = rateLimit({
 });
 
 app.use(generalLimiter);
-app.use(express.json({ limit: "10mb" }));
+// Preserve the raw body for Stripe webhook signature verification.
+// express.json() must NOT consume the raw buffer before stripe.webhooks.constructEvent() sees it.
+app.use(express.json({
+  limit: "10mb",
+  verify: (req, _res, buf) => {
+    if (req.originalUrl === "/api/stripe/webhook") req.rawBody = buf;
+  },
+}));
 
 app.use("/api/auth", authLimiter, authRoute);
 app.use("/api/summarize", aiLimiter, summarizeRoute);

@@ -74,9 +74,11 @@ export default function AllGuides() {
     } catch (_) {}
   }, []);
 
+  // Bug 9 fix: fetch folders only on mount, not on every search change
+  useEffect(() => { fetchFolders(); }, []);
+
   const isFirstRender = useRef(true);
   useEffect(() => {
-    fetchFolders();
     if (isFirstRender.current) { isFirstRender.current = false; fetchGuides(0, search); return; }
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => { setOffset(0); fetchGuides(0, search); }, 350);

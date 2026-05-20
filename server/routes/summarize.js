@@ -243,7 +243,9 @@ router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
       ? new OpenAI({ apiKey: process.env.GROQ_API_KEY, baseURL: "https://api.groq.com/openai/v1" })
       : new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const whisperModel = useGroq ? "whisper-large-v3" : "whisper-1";
-    const audioFile = new File([req.file.buffer], req.file.originalname, { type: req.file.mimetype });
+    // Use toFile() from the openai package — compatible with Node 18+ (avoids the browser-only File constructor)
+    const { toFile } = await import("openai");
+    const audioFile = await toFile(req.file.buffer, req.file.originalname, { type: req.file.mimetype });
     const transcription = await openai.audio.transcriptions.create({ file: audioFile, model: whisperModel });
     if (!transcription.text?.trim())
       return res.status(400).json({ error: "Could not transcribe audio. Make sure it contains clear speech." });

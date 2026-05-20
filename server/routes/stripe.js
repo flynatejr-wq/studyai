@@ -69,8 +69,8 @@ router.post("/portal", requireAuth, async (req, res) => {
 });
 
 // ── POST /api/stripe/webhook — handle subscription events ─────────────────────
-// Must be registered BEFORE express.json() since Stripe needs the raw body
-router.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
+// Raw body is preserved via the express.json verify() function in index.js (req.rawBody).
+router.post("/webhook", (req, res) => {
   if (!stripe) return res.status(503).json({ error: "Payments not configured." });
 
   const sig = req.headers["stripe-signature"];
@@ -79,10 +79,12 @@ router.post("/webhook", express.raw({ type: "application/json" }), (req, res) =>
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    // req.rawBody is set by the verify() callback in express.json() — it's the raw Buffer
+    const payload = req.rawBody || req.body;
+    event = stripe.webhooks.constructEvent(payload, sig, webhookSecret);
   } catch (err) {
     console.error("[webhook] signature verification failed:", err.message);
-    return res.status(400).json({ error: `Webhook error: ${err.message}` });
+    return res.status(400).json({ error: "Webhook signature verification failed." });
   }
 
   const data = event.data.object;
