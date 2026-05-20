@@ -54,10 +54,12 @@ const corsOptions = {
 app.options("*", cors(corsOptions));
 app.use(cors(corsOptions));
 
-// Rate limiting
+// Rate limiting — disabled in test mode so Jest suites don't hit 429s
+const IS_TEST = process.env.NODE_ENV === "test";
+
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200,
+  max: IS_TEST ? 100_000 : 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests. Please wait a moment and try again." },
@@ -65,7 +67,7 @@ const generalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: IS_TEST ? 100_000 : 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many login attempts. Please wait 15 minutes and try again." },
@@ -75,7 +77,7 @@ const authLimiter = rateLimit({
 // keyGenerator decodes the JWT to extract the user ID; falls back to IP for unauthenticated requests
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10,
+  max: IS_TEST ? 100_000 : 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many AI requests. Please wait a moment." },
@@ -170,6 +172,12 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err?.message || "Something went wrong." });
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
-});
+// Export the app for Supertest integration tests.
+// Only bind to a port when not running under Jest (process.env.NODE_ENV === "test").
+export default app;
+
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
+    console.log(`✅ Server running on http://localhost:${PORT}`);
+  });
+}
