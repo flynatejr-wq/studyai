@@ -13,6 +13,7 @@ import chatRoute from "./routes/chat.js";
 import progressRoute from "./routes/progress.js";
 import publicRoute from "./routes/public.js";
 import stripeRoute from "./routes/stripe.js";
+import adminRoute from "./routes/admin.js";
 
 dotenv.config();
 
@@ -100,6 +101,7 @@ app.use("/api/progress", progressRoute);
 app.use("/api/public", publicRoute);
 // Stripe webhook must come before express.json() body parser — raw body needed for signature verification
 app.use("/api/stripe", stripeRoute);
+app.use("/api/admin", adminRoute);
 
 app.get("/health", (_, res) => res.json({ status: "ok" }));
 

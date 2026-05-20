@@ -165,10 +165,11 @@ router.post("/", (req, res) => {
   // either insert runs. IMMEDIATE acquires a reserved lock upfront so only one
   // writer proceeds at a time, making the check+insert atomic.
   const saveTxn = db.transaction(() => {
-    const user = db.prepare("SELECT plan, guides_created_ever FROM users WHERE id = ?").get(req.user.id);
+    const user = db.prepare("SELECT plan, role, is_whitelisted, guides_created_ever FROM users WHERE id = ?").get(req.user.id);
     if (!user) throw Object.assign(new Error("User not found."), { status: 404 });
 
-    if (user.plan !== "pro" && (user.guides_created_ever || 0) >= FREE_GUIDE_LIMIT) {
+    const isUnrestricted = user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin";
+    if (!isUnrestricted && (user.guides_created_ever || 0) >= FREE_GUIDE_LIMIT) {
       console.log(`[free-limit] user ${req.user.id} blocked at save step (guides_created_ever=${user.guides_created_ever})`);
       throw Object.assign(new Error("FREE_LIMIT_GUIDES"), { status: 403 });
     }

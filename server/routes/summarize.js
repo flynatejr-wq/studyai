@@ -138,9 +138,12 @@ const FREE_GUIDE_LIMIT = 1;
 // Returns true (and sends a 403) if the free user is over their guide limit.
 // Uses guides_created_ever — a permanent counter that never decrements — so
 // deleting a guide and recreating it cannot bypass the limit.
+// Bypassed for: pro, lifetime, whitelisted users, and admins.
 function checkFreeGuideLimit(req, res) {
-  const user = db.prepare("SELECT plan, guides_created_ever FROM users WHERE id = ?").get(req.user.id);
-  if (!user || user.plan === "pro") return false; // pro users are unrestricted
+  const user = db.prepare("SELECT plan, role, is_whitelisted, guides_created_ever FROM users WHERE id = ?").get(req.user.id);
+  if (!user) return false;
+  // Bypass: pro plan, lifetime plan, whitelisted, or admin role
+  if (user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin") return false;
   if ((user.guides_created_ever || 0) >= FREE_GUIDE_LIMIT) {
     console.log(`[free-limit] user ${req.user.id} blocked at generation step (guides_created_ever=${user.guides_created_ever})`);
     res.status(403).json({

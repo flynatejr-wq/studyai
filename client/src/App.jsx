@@ -17,6 +17,7 @@ import PublicGuide from "./pages/PublicGuide.jsx";
 import Terms from "./pages/Terms.jsx";
 import Privacy from "./pages/Privacy.jsx";
 import NotFound from "./pages/NotFound.jsx";
+import Admin from "./pages/Admin.jsx";
 
 function LoadingScreen() {
   return (
@@ -49,6 +50,14 @@ function GuestRoute({ children }) {
   return !user ? children : <Navigate to="/dashboard" replace />;
 }
 
+function AdminRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== "admin") return <Navigate to="/dashboard" replace />;
+  return children;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -69,6 +78,7 @@ function AppRoutes() {
       <Route path="/guides"     element={<ProtectedRoute><AllGuides /></ProtectedRoute>} />
       <Route path="/progress"   element={<ProtectedRoute><Progress /></ProtectedRoute>} />
       <Route path="/settings"   element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/admin"      element={<AdminRoute><Admin /></AdminRoute>} />
 
       {/* 404 */}
       <Route path="*" element={<NotFound />} />

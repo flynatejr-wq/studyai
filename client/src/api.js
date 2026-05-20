@@ -106,4 +106,13 @@ export const api = {
     checkout: () => request("/stripe/checkout", { method: "POST", headers: headers() }),
     portal:   () => request("/stripe/portal",   { method: "POST", headers: headers() }),
   },
+  admin: {
+    setup:       (body)         => request("/admin/setup",              { method: "POST",  headers: headers(), body: JSON.stringify(body) }),
+    stats:       ()             => request("/admin/stats",              { headers: headers() }),
+    users:       (params = {})  => request(`/admin/users?${new URLSearchParams(params)}`, { headers: headers() }),
+    getUser:     (id)           => request(`/admin/users/${id}`,        { headers: headers() }),
+    updateUser:  (id, body)     => request(`/admin/users/${id}`,        { method: "PATCH", headers: headers(), body: JSON.stringify(body) }),
+    resetLimits: (id)           => request(`/admin/users/${id}/reset-limits`, { method: "POST", headers: headers() }),
+    auditLogs:   (params = {})  => request(`/admin/audit-logs?${new URLSearchParams(params)}`, { headers: headers() }),
+  },
 };

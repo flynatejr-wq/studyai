@@ -126,4 +126,26 @@ safeAlter("ALTER TABLE users ADD COLUMN guides_created_ever INTEGER DEFAULT 0");
 // Idempotency key on guides — prevents duplicate saves from spam-clicks or retries
 safeAlter("ALTER TABLE guides ADD COLUMN idempotency_key TEXT");
 
+// Admin & moderation columns
+safeAlter("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'");
+safeAlter("ALTER TABLE users ADD COLUMN is_whitelisted INTEGER DEFAULT 0");
+safeAlter("ALTER TABLE users ADD COLUMN is_banned INTEGER DEFAULT 0");
+safeAlter("ALTER TABLE users ADD COLUMN admin_notes TEXT DEFAULT ''");
+
+// Audit log — permanent record of every admin action (emails stored so records
+// survive user deletion; no FK constraint intentionally).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS audit_logs (
+    id TEXT PRIMARY KEY,
+    admin_id TEXT,
+    admin_email TEXT NOT NULL,
+    target_user_id TEXT,
+    target_email TEXT NOT NULL,
+    action TEXT NOT NULL,
+    old_value TEXT,
+    new_value TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 export default db;
