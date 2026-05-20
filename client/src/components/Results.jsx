@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, BookOpen } from "lucide-react";
+import RichText from "./RichText.jsx";
 
 function SectionPreview({ section, index, dark }) {
   const [open, setOpen] = useState(index === 0);
@@ -24,7 +25,7 @@ function SectionPreview({ section, index, dark }) {
 
       {open && (
         <div className={`px-5 pb-5 border-t ${dark ? "border-white/10" : "border-gray-100"}`}>
-          <p className={`text-sm leading-relaxed mt-4 ${sub}`}>{section.overview}</p>
+          <RichText html={section.overview} className={`text-sm leading-relaxed mt-4 ${sub}`} />
 
           {section.keyPoints?.length > 0 && (
             <div className="mt-4">
@@ -33,7 +34,7 @@ function SectionPreview({ section, index, dark }) {
                 {section.keyPoints.map((pt, i) => (
                   <li key={i} className={`flex items-start gap-2 text-sm ${dark ? "text-gray-300" : "text-gray-700"}`}>
                     <span className={`mt-1 shrink-0 ${dark ? "text-indigo-400" : "text-indigo-500"}`}>•</span>
-                    <span>{pt}</span>
+                    <RichText html={pt} className="rich-text-sm" />
                   </li>
                 ))}
               </ul>
@@ -45,7 +46,7 @@ function SectionPreview({ section, index, dark }) {
               {section.terms.map((t, i) => (
                 <div key={i} className={`rounded-xl p-3 ${dark ? "bg-indigo-500/10 border border-indigo-500/20" : "bg-indigo-50 border border-indigo-100"}`}>
                   <p className={`font-semibold text-sm ${dark ? "text-indigo-300" : "text-indigo-700"}`}>{t.term}</p>
-                  <p className={`text-xs mt-1 leading-relaxed ${sub}`}>{t.definition}</p>
+                  <RichText html={t.definition} className={`text-xs mt-1 leading-relaxed ${sub}`} />
                 </div>
               ))}
             </div>
@@ -92,7 +93,8 @@ export default function Results({ results, onReset, dark }) {
             <ul className="space-y-2">
               {summary.map((p, i) => (
                 <li key={i} className={`flex items-start gap-2 text-sm ${text}`}>
-                  <span className="text-indigo-400 mt-0.5">•</span><span>{p}</span>
+                  <span className="text-indigo-400 mt-0.5 shrink-0">•</span>
+                  <RichText html={p} className="rich-text-sm" />
                 </li>
               ))}
             </ul>
@@ -105,7 +107,7 @@ export default function Results({ results, onReset, dark }) {
               {terms.map((item, i) => (
                 <div key={i} className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3">
                   <p className="font-semibold text-indigo-400 text-sm">{item.term}</p>
-                  <p className={`text-xs mt-1 leading-relaxed ${sub}`}>{item.definition}</p>
+                  <RichText html={item.definition} className={`text-xs mt-1 leading-relaxed ${sub}`} />
                 </div>
               ))}
             </div>
