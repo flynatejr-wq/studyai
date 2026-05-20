@@ -223,7 +223,7 @@ export default function UploadForm({ onSubmit, loading, dark }) {
               {STYLE_OPTIONS.map(s => (
                 <button key={s.id} type="button" onClick={() => setStyle(s.id)}
                   title={s.desc}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${style === s.id ? base.chipActive : base.chip}`}>
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all border min-h-[36px] ${style === s.id ? base.chipActive : base.chip}`}>
                   {s.emoji} {s.label}
                 </button>
               ))}
@@ -236,7 +236,7 @@ export default function UploadForm({ onSubmit, loading, dark }) {
             <div className="flex gap-1.5">
               {DIFFICULTY_OPTIONS.map(d => (
                 <button key={d.id} type="button" onClick={() => setDifficulty(d.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${difficulty === d.id ? base.chipActive : base.chip}`}>
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all border min-h-[36px] ${difficulty === d.id ? base.chipActive : base.chip}`}>
                   {d.emoji} {d.label}
                 </button>
               ))}
@@ -249,7 +249,7 @@ export default function UploadForm({ onSubmit, loading, dark }) {
             ? <span className={`text-xs ${base.sub} ${transcript.length > MAX_TEXT ? "text-red-400" : ""}`}>{transcript.length.toLocaleString()} / {MAX_TEXT.toLocaleString()}</span>
             : <span />}
           <button type="submit" disabled={loading || !canSubmit}
-            className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white font-semibold px-6 py-2.5 rounded-xl transition-all text-sm">
+            className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white font-semibold px-6 py-3 rounded-xl transition-all text-sm min-h-[44px]">
             {loading ? "⏳ Processing..." : "✨ Generate Notes"}
           </button>
         </div>

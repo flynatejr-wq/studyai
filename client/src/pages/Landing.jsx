@@ -323,7 +323,7 @@ export default function Landing() {
             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
           </div>
 
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tight mb-6">
+          <h1 className="text-3xl xs:text-4xl sm:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tight mb-6">
             Turn any lecture into a{" "}
             <span className="relative inline-block">
               <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-pink-400 bg-clip-text text-transparent animated-gradient">
@@ -482,10 +482,10 @@ export default function Landing() {
           <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-indigo-600/20 rounded-full blur-3xl" />
 
           <div className="relative">
-            <div className="flex justify-center gap-6 mb-8">
+            <div className="flex justify-center gap-3 sm:gap-6 mb-8">
               {[["⚡", "XP System", "indigo"], ["🔥", "Streaks", "orange"], ["🏆", "Achievements", "yellow"], ["🧠", "Levels", "violet"]].map(([e, l, c]) => (
                 <div key={l} className="flex flex-col items-center gap-2">
-                  <div className={`w-12 h-12 rounded-2xl bg-${c}-500/15 border border-${c}-500/25 flex items-center justify-center text-xl`}>
+                  <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-${c}-500/15 border border-${c}-500/25 flex items-center justify-center text-lg sm:text-xl`}>
                     {e}
                   </div>
                   <span className="text-xs text-gray-400 font-medium hidden sm:block">{l}</span>
@@ -534,7 +534,7 @@ export default function Landing() {
               transition={{ delay: i * 0.1, duration: 0.5 }}
               className="bg-white/3 border border-white/8 rounded-2xl p-6 hover:border-white/15 transition-all">
               <StarRating count={t.stars} />
-              <p className="text-gray-300 text-sm leading-relaxed my-4">"{t.text}"</p>
+              <p className="text-gray-300 text-sm leading-relaxed my-4 break-words">"{t.text}"</p>
               <div className="flex items-center gap-3 pt-3 border-t border-white/8">
                 <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${t.color} flex items-center justify-center text-xs font-black text-white shrink-0`}>
                   {t.avatar}

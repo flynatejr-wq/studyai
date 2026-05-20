@@ -171,13 +171,14 @@ function FlashcardMode({ terms }) {
               <motion.div
                 animate={{ rotateY: flipped ? 180 : 0 }}
                 transition={{ duration: 0.45, ease: "easeInOut" }}
-                style={{ transformStyle: "preserve-3d", WebkitTransformStyle: "preserve-3d", position: "relative", minHeight: "220px" }}>
+                style={{ transformStyle: "preserve-3d", WebkitTransformStyle: "preserve-3d", position: "relative", minHeight: "clamp(180px, 40vw, 260px)" }}>
                 {/* Front */}
                 <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", position: "absolute", inset: 0 }}
-                  className="bg-gradient-to-br from-indigo-600/30 to-violet-600/20 border border-indigo-500/40 rounded-2xl flex flex-col items-center justify-center p-8 text-center min-h-[220px]">
-                  <p className="text-indigo-400/70 text-[10px] uppercase tracking-widest mb-4 font-bold">Term</p>
-                  <p className="text-white text-xl sm:text-2xl font-bold leading-snug">{card.term}</p>
-                  <p className="text-indigo-400/60 text-xs mt-5 flex items-center gap-1.5">
+                  className="bg-gradient-to-br from-indigo-600/30 to-violet-600/20 border border-indigo-500/40 rounded-2xl flex flex-col items-center justify-center px-5 sm:px-8 py-6 sm:py-8 text-center"
+                  style={{ minHeight: "clamp(180px, 40vw, 260px)" }}>
+                  <p className="text-indigo-400/70 text-[10px] uppercase tracking-widest mb-3 font-bold">Term</p>
+                  <p className="text-white text-lg sm:text-2xl font-bold leading-snug">{card.term}</p>
+                  <p className="text-indigo-400/60 text-xs mt-4 flex items-center gap-1.5">
                     <span>Tap to reveal</span>
                     <span className="w-1 h-1 bg-indigo-500/40 rounded-full" />
                     <span>Space bar</span>
@@ -185,41 +186,44 @@ function FlashcardMode({ terms }) {
                 </div>
                 {/* Back */}
                 <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)", WebkitTransform: "rotateY(180deg)", position: "absolute", inset: 0 }}
-                  className="bg-gradient-to-br from-violet-600/30 to-indigo-600/20 border border-violet-500/40 rounded-2xl flex flex-col items-center justify-center p-8 text-center min-h-[220px]">
-                  <p className="text-violet-400/70 text-[10px] uppercase tracking-widest mb-4 font-bold">Definition</p>
-                  <p className="text-white text-base sm:text-lg leading-relaxed">{card.definition}</p>
+                  className="bg-gradient-to-br from-violet-600/30 to-indigo-600/20 border border-violet-500/40 rounded-2xl flex flex-col items-center justify-center px-5 sm:px-8 py-6 sm:py-8 text-center overflow-y-auto"
+                  style={{ minHeight: "clamp(180px, 40vw, 260px)" }}>
+                  <p className="text-violet-400/70 text-[10px] uppercase tracking-widest mb-3 font-bold">Definition</p>
+                  <p className="text-white text-sm sm:text-lg leading-relaxed">{card.definition}</p>
                 </div>
               </motion.div>
             </motion.div>
           </AnimatePresence>
 
           {/* Actions */}
-          <div className="flex items-center gap-3 flex-wrap justify-center">
+          <div className="flex items-center gap-3 flex-wrap justify-center w-full max-w-lg">
             <button onClick={() => { setPos(p => (p - 1 + total) % total); setFlipped(false); }}
-              className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors border border-white/8">
+              aria-label="Previous card"
+              className="p-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors border border-white/8 min-h-[44px] min-w-[44px]">
               <ChevronLeft size={20} />
             </button>
 
             {flipped ? (
               <>
                 <button onClick={() => mark(false)}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-red-500/15 border border-red-500/25 text-red-400 hover:bg-red-500/25 rounded-xl font-semibold text-sm transition-all">
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500/15 border border-red-500/25 text-red-400 hover:bg-red-500/25 rounded-xl font-semibold text-sm transition-all min-h-[44px] flex-1 sm:flex-none">
                   <XCircle size={15} /> Still learning
                 </button>
                 <button onClick={() => mark(true)}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-green-500/15 border border-green-500/25 text-green-400 hover:bg-green-500/25 rounded-xl font-semibold text-sm transition-all">
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-green-500/15 border border-green-500/25 text-green-400 hover:bg-green-500/25 rounded-xl font-semibold text-sm transition-all min-h-[44px] flex-1 sm:flex-none">
                   <CheckCircle size={15} /> Got it!
                 </button>
               </>
             ) : (
               <button onClick={() => setFlipped(true)}
-                className="px-8 py-2.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/30 rounded-xl font-semibold text-sm transition-all">
+                className="px-8 py-3 bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/30 rounded-xl font-semibold text-sm transition-all min-h-[44px] flex-1 sm:flex-none">
                 Flip Card
               </button>
             )}
 
             <button onClick={() => { setPos(p => (p + 1) % total); setFlipped(false); }}
-              className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors border border-white/8">
+              aria-label="Next card"
+              className="p-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors border border-white/8 min-h-[44px] min-w-[44px]">
               <ChevronRight size={20} />
             </button>
           </div>
@@ -1096,7 +1100,7 @@ export default function GuideView() {
           <div className="flex gap-1 p-1 bg-white/5 border border-white/10 rounded-xl mb-6 overflow-x-auto scrollbar-hide print:hidden">
             {MODES.map(m => (
               <button key={m.id} onClick={() => { setStudyMode(m.id); resetQuiz(); }}
-                className={`shrink-0 py-2 px-3 rounded-lg text-xs font-semibold transition-all whitespace-nowrap min-w-max ${studyMode === m.id ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-white"}`}>
+                className={`shrink-0 py-2.5 px-3 rounded-lg text-xs font-semibold transition-all whitespace-nowrap min-w-max min-h-[40px] ${studyMode === m.id ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-white"}`}>
                 {m.label}
               </button>
             ))}
@@ -1298,9 +1302,9 @@ export default function GuideView() {
               </div>
               <div className="flex gap-2 items-center">
                 {messages.length > 0 && (
-                  <button onClick={() => setShowClearConfirm(true)} className="text-gray-500 hover:text-gray-300 text-xs transition-colors">Clear</button>
+                  <button onClick={() => setShowClearConfirm(true)} className="text-gray-500 hover:text-gray-300 text-xs transition-colors px-2 py-1.5 min-h-[36px]">Clear</button>
                 )}
-                <button onClick={() => setShowChat(false)} className="text-gray-500 hover:text-white transition-colors p-1"><X size={18} /></button>
+                <button onClick={() => setShowChat(false)} aria-label="Close chat" className="text-gray-500 hover:text-white transition-colors p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-white/8"><X size={18} /></button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -1326,12 +1330,14 @@ export default function GuideView() {
               )}
               <div ref={chatEndRef} />
             </div>
-            <form onSubmit={sendChat} className="p-4 pb-safe border-t border-white/10 flex gap-2">
+            <form onSubmit={sendChat} className="p-3 pb-safe border-t border-white/10 flex gap-2 items-center">
               <input value={chatInput} onChange={e => setChatInput(e.target.value)}
                 maxLength={1000} placeholder="Ask about this lecture..."
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500 transition-colors" />
+                enterKeyHint="send"
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500 transition-colors min-h-[44px]" />
               <button type="submit" disabled={!chatInput.trim() || chatLoading}
-                className="p-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 rounded-xl text-white transition-colors">
+                aria-label="Send message"
+                className="p-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 rounded-xl text-white transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0">
                 <Send size={15} />
               </button>
             </form>

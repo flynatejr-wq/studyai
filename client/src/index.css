@@ -22,6 +22,8 @@ html, body {
 
 body {
   min-height: 100dvh;
+  /* Prevent rubber-band / pull-to-refresh interference with app scrolling */
+  overscroll-behavior: none;
 }
 
 #root {
@@ -55,6 +57,67 @@ body {
 .overflow-x-auto, .overflow-x-scroll {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+}
+
+/* Eliminate the 300ms tap delay on all interactive elements without
+   disabling pinch-to-zoom on the page */
+button, a, label, [role="button"], [role="tab"],
+input[type="checkbox"], input[type="radio"],
+input[type="submit"], input[type="button"] {
+  touch-action: manipulation;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   iOS INPUT ZOOM PREVENTION
+   Safari auto-zooms when an input's font-size < 16px. Force 16px on mobile
+   so the viewport never jumps. Visual difference vs 14px is negligible.
+═══════════════════════════════════════════════════════════════════════════ */
+@media screen and (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MINIMUM TOUCH TARGETS
+   Ensures tappable elements are at least 44×44 pt (Apple HIG / WCAG 2.5.5)
+   Applied via utility class so we can opt in selectively.
+═══════════════════════════════════════════════════════════════════════════ */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REDUCED MOTION — respect user accessibility preferences
+═══════════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Named animations that are purely decorative */
+  .animate-float,
+  .animate-float-slow,
+  .animate-float-delay,
+  .animate-fire,
+  .pulse-ring,
+  .animated-gradient {
+    animation: none !important;
+  }
+
+  /* Let framer-motion detect the preference natively via its own hooks;
+     the CSS above is a backstop for non-framer animations */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -152,13 +215,17 @@ body {
 
 /* ═══════════════════════════════════════════════════════════════════════════
    CARD HOVER EFFECTS
+   Only fire on devices that support hover (not touch-primary) to avoid
+   sticky pressed states on mobile.
 ═══════════════════════════════════════════════════════════════════════════ */
 .card-hover {
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(99,102,241,0.12);
+@media (hover: hover) and (pointer: fine) {
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(99,102,241,0.12);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

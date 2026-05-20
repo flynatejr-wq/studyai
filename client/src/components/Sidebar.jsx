@@ -74,7 +74,8 @@ export default function Sidebar({ onLogout }) {
         style={{ paddingTop: "env(safe-area-inset-top)", minHeight: "calc(3.5rem + env(safe-area-inset-top))" }}>
         <button
           onClick={() => setOpen(true)}
-          className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/8 transition-all">
+          aria-label="Open menu"
+          className="text-gray-400 hover:text-white p-2.5 rounded-xl hover:bg-white/8 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center">
           <Menu size={20} />
         </button>
 
@@ -122,7 +123,8 @@ export default function Sidebar({ onLogout }) {
           </Link>
           <button
             onClick={close}
-            className="md:hidden text-gray-500 hover:text-white p-1.5 rounded-xl hover:bg-white/8 transition-all">
+            aria-label="Close menu"
+            className="md:hidden text-gray-500 hover:text-white p-2.5 rounded-xl hover:bg-white/8 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center">
             <X size={18} />
           </button>
         </div>
@@ -136,7 +138,7 @@ export default function Sidebar({ onLogout }) {
                 key={to}
                 to={to}
                 onClick={close}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all group relative overflow-hidden
+                className={`flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all group relative overflow-hidden
                   ${active
                     ? "bg-indigo-600/15 text-indigo-300 border border-indigo-500/20"
                     : "text-gray-500 hover:text-gray-200 hover:bg-white/4 border border-transparent"

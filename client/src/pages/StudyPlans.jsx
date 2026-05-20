@@ -110,10 +110,10 @@ function PlanForm({ initial = null, guides = [], onSave, onCancel, loading }) {
       </div>
 
       <div className="flex gap-3 justify-end pt-1">
-        <button type="button" onClick={onCancel} className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-sm font-medium transition-colors">
+        <button type="button" onClick={onCancel} className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-sm font-medium transition-colors min-h-[44px]">
           Cancel
         </button>
-        <button type="submit" disabled={loading} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-xl text-white font-bold text-sm transition-all">
+        <button type="submit" disabled={loading} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-xl text-white font-bold text-sm transition-all min-h-[44px]">
           <Save size={14} /> {loading ? "Saving…" : (initial ? "Save Changes" : "Create Plan")}
         </button>
       </div>
@@ -157,10 +157,10 @@ function PlanCard({ plan, guides, onEdit, onDelete }) {
               <h3 className="text-white font-bold text-base leading-tight">{plan.title}</h3>
             </div>
             <div className="flex items-center gap-1 shrink-0">
-              <button onClick={() => onEdit(plan)} className="p-1.5 text-gray-600 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors" title="Edit">
+              <button onClick={() => onEdit(plan)} className="p-2.5 text-gray-600 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center" title="Edit" aria-label="Edit plan">
                 <Edit3 size={13} />
               </button>
-              <button onClick={() => onDelete(plan)} className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete">
+              <button onClick={() => onDelete(plan)} className="p-2.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center" title="Delete" aria-label="Delete plan">
                 <Trash2 size={13} />
               </button>
             </div>

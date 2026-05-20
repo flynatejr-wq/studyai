@@ -334,13 +334,13 @@ export default function Settings() {
             {referralData ? (
               <>
                 {/* Share link */}
-                <div className="flex gap-2 mb-4">
-                  <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-gray-400 text-xs font-mono truncate">
+                <div className="flex gap-2 mb-4 min-w-0">
+                  <div className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-gray-400 text-xs font-mono truncate overflow-hidden">
                     {`${window.location.origin}/signup?ref=${referralData.referral_code}`}
                   </div>
                   <button
                     onClick={handleCopyReferral}
-                    className="flex items-center gap-1.5 px-4 py-2.5 bg-pink-600/20 border border-pink-500/25 hover:bg-pink-600/30 rounded-xl text-pink-400 font-semibold text-xs transition-all shrink-0">
+                    className="flex items-center gap-1.5 px-3 py-2.5 bg-pink-600/20 border border-pink-500/25 hover:bg-pink-600/30 rounded-xl text-pink-400 font-semibold text-xs transition-all shrink-0 min-h-[40px]">
                     {copied ? <CheckCheck size={13} /> : <Copy size={13} />}
                     {copied ? "Copied!" : "Copy"}
                   </button>
@@ -365,9 +365,11 @@ export default function Settings() {
                   <button
                     onClick={handleRedeemCredit}
                     disabled={redeemLoading}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-pink-600/20 border border-pink-500/25 hover:bg-pink-600/30 disabled:opacity-50 rounded-xl text-pink-400 font-semibold text-sm transition-all">
-                    <Gift size={14} />
-                    {redeemLoading ? "Redeeming…" : `Redeem 1 credit for a free guide (${referralData.referral_credits} available)`}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-pink-600/20 border border-pink-500/25 hover:bg-pink-600/30 disabled:opacity-50 rounded-xl text-pink-400 font-semibold text-sm transition-all min-h-[44px]">
+                    <Gift size={14} className="shrink-0" />
+                    <span className="text-center leading-tight">
+                      {redeemLoading ? "Redeeming…" : `Redeem 1 credit — ${referralData.referral_credits} available`}
+                    </span>
                   </button>
                 )}
               </>

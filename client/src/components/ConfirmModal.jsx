@@ -47,18 +47,18 @@ export default function ConfirmModal({
                   {danger && <AlertTriangle size={20} className="text-red-400 shrink-0 mt-0.5" />}
                   <h3 id="confirm-modal-title" className="text-white font-bold text-lg leading-tight">{title}</h3>
                 </div>
-                <button onClick={onCancel} aria-label="Close dialog" className="text-gray-500 hover:text-white transition-colors ml-2 shrink-0">
+                <button onClick={onCancel} aria-label="Close dialog" className="text-gray-500 hover:text-white transition-colors ml-2 shrink-0 p-1.5 rounded-lg hover:bg-white/8 min-h-[36px] min-w-[36px] flex items-center justify-center">
                   <X size={18} />
                 </button>
               </div>
               {message && <p className="text-gray-400 text-sm mb-6 leading-relaxed">{message}</p>}
               <div className="flex gap-3 justify-end">
                 <button onClick={onCancel} autoFocus
-                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-sm font-medium transition-colors">
+                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-sm font-medium transition-colors min-h-[44px]">
                   {cancelText}
                 </button>
                 <button onClick={onConfirm}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                  className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors min-h-[44px] ${
                     danger
                       ? "bg-red-600 hover:bg-red-500 text-white"
                       : "bg-indigo-600 hover:bg-indigo-500 text-white"
