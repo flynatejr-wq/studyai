@@ -18,10 +18,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy to Railway
-        run: railway up --service studyai-backend --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Trigger Railway redeploy
+        run: |
+          curl -s -X POST https://backboard.railway.app/graphql/v2 \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"mutation { serviceInstanceRedeploy(serviceId: \"1b2210b8-2e46-435b-afbb-caf5eea40f6f\", environmentId: \"180c10b2-1d6a-4a03-b5fd-673fa8e955e6\") }"}' \
+            | tee /tmp/railway_response.json
+          if grep -q '"serviceInstanceRedeploy":true' /tmp/railway_response.json; then
+            echo "✅ Railway deploy triggered successfully"
+          else
+            echo "❌ Railway deploy failed"
+            cat /tmp/railway_response.json
+            exit 1
+          fi
