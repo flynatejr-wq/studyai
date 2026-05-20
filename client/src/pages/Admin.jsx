@@ -4,6 +4,7 @@ import {
   Shield, Users, BarChart2, Search, RefreshCw, X, ChevronLeft,
   ChevronRight, Crown, Ban, Star, Zap, Clock, BookOpen, CheckCircle,
   AlertTriangle, Activity, Filter, RotateCcw, Save, ChevronDown,
+  Fingerprint, Trash2, Flag, Lock, Unlock, EyeOff,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { api } from "../api.js";
@@ -375,6 +376,21 @@ export default function Admin() {
   const [loadingLogs, setLoadingLogs] = useState(false);
   const searchTimeout = useRef(null);
 
+  // ── Abuse tab state ──────────────────────────────────────────────────────────
+  const [abuseStats,    setAbuseStats]    = useState(null);
+  const [abuseTab,      setAbuseTab]      = useState("flags");  // flags | signals | deleted
+  const [abuseFlags,    setAbuseFlags]    = useState([]);
+  const [abuseFlagsTotal, setAbuseFlagsTotal] = useState(0);
+  const [abuseFlagPage, setAbuseFlagPage] = useState(0);
+  const [abuseSignals,  setAbuseSignals]  = useState([]);
+  const [abuseSignalsTotal, setAbuseSignalsTotal] = useState(0);
+  const [abuseSignalPage, setAbuseSignalPage] = useState(0);
+  const [abuseSignalType, setAbuseSignalType] = useState("");
+  const [deletedAccts,  setDeletedAccts]  = useState([]);
+  const [deletedTotal,  setDeletedTotal]  = useState(0);
+  const [deletedPage,   setDeletedPage]   = useState(0);
+  const [loadingAbuse,  setLoadingAbuse]  = useState(false);
+
   const PAGE_SIZE = 25;
 
   // Guard: redirect non-admins
@@ -408,7 +424,37 @@ export default function Admin() {
       .finally(() => setLoadingLogs(false));
   }, [logPage, logSearch]);
 
-  useEffect(() => { loadStats(); }, [loadStats]);
+  const loadAbuseStats = useCallback(() => {
+    api.admin.abuse.stats().then(setAbuseStats).catch(() => {});
+  }, []);
+
+  const loadAbuseFlags = useCallback(() => {
+    setLoadingAbuse(true);
+    api.admin.abuse.flags({ limit: 25, offset: abuseFlagPage * 25 })
+      .then(d => { setAbuseFlags(d.rows || []); setAbuseFlagsTotal(d.total || 0); })
+      .catch(() => {})
+      .finally(() => setLoadingAbuse(false));
+  }, [abuseFlagPage]);
+
+  const loadAbuseSignals = useCallback(() => {
+    setLoadingAbuse(true);
+    const p = { limit: 25, offset: abuseSignalPage * 25 };
+    if (abuseSignalType) p.type = abuseSignalType;
+    api.admin.abuse.signals(p)
+      .then(d => { setAbuseSignals(d.rows || []); setAbuseSignalsTotal(d.total || 0); })
+      .catch(() => {})
+      .finally(() => setLoadingAbuse(false));
+  }, [abuseSignalPage, abuseSignalType]);
+
+  const loadDeletedAccts = useCallback(() => {
+    setLoadingAbuse(true);
+    api.admin.abuse.deletedAccounts({ limit: 25, offset: deletedPage * 25 })
+      .then(d => { setDeletedAccts(d.rows || []); setDeletedTotal(d.total || 0); })
+      .catch(() => {})
+      .finally(() => setLoadingAbuse(false));
+  }, [deletedPage]);
+
+  useEffect(() => { loadStats(); loadAbuseStats(); }, [loadStats, loadAbuseStats]);
 
   useEffect(() => {
     clearTimeout(searchTimeout.current);
@@ -419,6 +465,13 @@ export default function Admin() {
   useEffect(() => {
     if (activeTab === "audit") loadLogs();
   }, [activeTab, loadLogs]);
+
+  useEffect(() => {
+    if (activeTab !== "abuse") return;
+    if (abuseTab === "flags")   loadAbuseFlags();
+    if (abuseTab === "signals") loadAbuseSignals();
+    if (abuseTab === "deleted") loadDeletedAccts();
+  }, [activeTab, abuseTab, loadAbuseFlags, loadAbuseSignals, loadDeletedAccts]);
 
   const handleUserSaved = (updatedUser) => {
     setUsers(us => us.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
@@ -466,17 +519,21 @@ export default function Admin() {
         )}
 
         {/* ── Tabs ── */}
-        <div className="flex gap-1 mb-4 border-b border-white/8">
+        <div className="flex gap-1 mb-4 border-b border-white/8 overflow-x-auto">
           {[
-            { id: "users", label: "Users", icon: Users },
-            { id: "audit", label: "Audit Log", icon: Activity },
+            { id: "users",  label: "Users",     icon: Users    },
+            { id: "audit",  label: "Audit Log", icon: Activity },
+            { id: "abuse",  label: "Abuse",     icon: Shield, badge: abuseStats?.activeFlags || null },
           ].map(t => (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all -mb-px ${activeTab === t.id ? "border-indigo-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${activeTab === t.id ? "border-indigo-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
               <t.icon size={14} />
               {t.label}
+              {t.badge > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">{t.badge}</span>
+              )}
             </button>
           ))}
         </div>
@@ -656,6 +713,278 @@ export default function Admin() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+        {/* ── Abuse Tab ── */}
+        {activeTab === "abuse" && (
+          <div>
+            {/* Abuse overview stats */}
+            {abuseStats && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                {[
+                  { label: "Active Flags",       value: abuseStats.activeFlags,      color: "rose",    icon: Flag },
+                  { label: "High Severity",       value: abuseStats.highFlags,        color: "amber",   icon: AlertTriangle },
+                  { label: "Deleted (w/ usage)",  value: abuseStats.deletedWithUsage, color: "violet",  icon: Trash2 },
+                  { label: "Blocked Signals",     value: abuseStats.blockedSignals,   color: "rose",    icon: Lock },
+                  { label: "Multi-IP Accounts",   value: abuseStats.multiAccountIps,  color: "amber",   icon: Users },
+                  { label: "Fingerprints Seen",   value: abuseStats.fpSignals,        color: "sky",     icon: Fingerprint },
+                  { label: "IPs Tracked",         value: abuseStats.ipSignals,        color: "indigo",  icon: EyeOff },
+                  { label: "Total Deleted",        value: abuseStats.deletedAccounts,  color: "emerald", icon: Trash2 },
+                ].map(s => (
+                  <StatCard key={s.label} icon={s.icon} label={s.label} value={s.value} color={s.color} />
+                ))}
+              </div>
+            )}
+
+            {/* Sub-tabs */}
+            <div className="flex gap-1 mb-4 border-b border-white/8">
+              {[
+                { id: "flags",   label: "Flags",            icon: Flag },
+                { id: "signals", label: "Signals",          icon: Fingerprint },
+                { id: "deleted", label: "Deleted Accounts", icon: Trash2 },
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setAbuseTab(t.id)}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-all -mb-px ${abuseTab === t.id ? "border-rose-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
+                  <t.icon size={12} /> {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* ── Flags ── */}
+            {abuseTab === "flags" && (
+              <div className="bg-white/2 border border-white/6 rounded-2xl overflow-hidden">
+                {loadingAbuse ? (
+                  <div className="p-8 text-center text-gray-500 text-sm">Loading…</div>
+                ) : abuseFlags.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <CheckCircle size={28} className="text-emerald-400 mx-auto mb-2" />
+                    <p className="text-white font-semibold text-sm">No active flags</p>
+                    <p className="text-gray-600 text-xs mt-1">All abuse signals are resolved</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-white/6">
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Severity</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Reason</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 hidden md:table-cell">Target</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 hidden lg:table-cell">User</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 hidden xl:table-cell">Raised</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {abuseFlags.map(f => {
+                          const sevColor = { high: "text-rose-400 bg-rose-500/15 border-rose-500/30", medium: "text-amber-400 bg-amber-500/15 border-amber-500/30", low: "text-gray-400 bg-white/5 border-white/10" }[f.severity] || "text-gray-400 bg-white/5 border-white/10";
+                          return (
+                            <tr key={f.id} className="border-b border-white/4 last:border-0 hover:bg-white/2">
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${sevColor}`}>
+                                  {f.severity}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <p className="text-white text-xs font-mono">{f.reason.replace(/_/g, " ")}</p>
+                              </td>
+                              <td className="px-4 py-3 hidden md:table-cell">
+                                <p className="text-gray-500 text-xs">{f.target_type}</p>
+                                <p className="text-gray-700 text-xs font-mono truncate max-w-[140px]">{f.target_value.slice(0, 16)}…</p>
+                              </td>
+                              <td className="px-4 py-3 hidden lg:table-cell">
+                                <p className="text-gray-400 text-xs">{f.related_user_email || "—"}</p>
+                              </td>
+                              <td className="px-4 py-3 hidden xl:table-cell">
+                                <p className="text-gray-500 text-xs">{fmtDateTime(f.created_at)}</p>
+                              </td>
+                              <td className="px-4 py-3">
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm("Mark this flag as resolved?")) return;
+                                    try {
+                                      await api.admin.abuse.resolveFlag(f.id);
+                                      loadAbuseFlags();
+                                      loadAbuseStats();
+                                    } catch (err) { alert(err.message); }
+                                  }}
+                                  className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 text-xs font-semibold rounded-lg transition-all">
+                                  <CheckCircle size={11} /> Resolve
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {Math.ceil(abuseFlagsTotal / 25) > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-white/6">
+                    <p className="text-xs text-gray-500">Page {abuseFlagPage + 1} of {Math.ceil(abuseFlagsTotal / 25)}</p>
+                    <div className="flex gap-1">
+                      <button onClick={() => setAbuseFlagPage(p => Math.max(0, p - 1))} disabled={abuseFlagPage === 0} className="p-1.5 rounded-lg bg-white/4 disabled:opacity-30 text-gray-400 hover:text-white"><ChevronLeft size={14} /></button>
+                      <button onClick={() => setAbuseFlagPage(p => p + 1)} disabled={(abuseFlagPage + 1) * 25 >= abuseFlagsTotal} className="p-1.5 rounded-lg bg-white/4 disabled:opacity-30 text-gray-400 hover:text-white"><ChevronRight size={14} /></button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Signals ── */}
+            {abuseTab === "signals" && (
+              <div>
+                <div className="flex gap-2 mb-3">
+                  {["", "ip", "fp", "email"].map(t => (
+                    <button key={t} onClick={() => { setAbuseSignalType(t); setAbuseSignalPage(0); }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${abuseSignalType === t ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "bg-white/4 text-gray-500 border border-white/8 hover:text-gray-300"}`}>
+                      {t || "All"}
+                    </button>
+                  ))}
+                </div>
+                <div className="bg-white/2 border border-white/6 rounded-2xl overflow-hidden">
+                  {loadingAbuse ? (
+                    <div className="p-8 text-center text-gray-500 text-sm">Loading…</div>
+                  ) : abuseSignals.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500 text-sm">No signals recorded yet</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-white/6">
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Type</th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Signal (preview)</th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Accounts</th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Guides</th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 hidden lg:table-cell">Last Seen</th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {abuseSignals.map(s => (
+                            <tr key={s.id} className="border-b border-white/4 last:border-0 hover:bg-white/2">
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${
+                                  s.signal_type === "fp" ? "bg-violet-500/15 text-violet-400 border-violet-500/30" :
+                                  s.signal_type === "ip" ? "bg-sky-500/15 text-sky-400 border-sky-500/30" :
+                                  "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                                }`}>
+                                  {s.signal_type === "fp" ? <Fingerprint size={10} /> : s.signal_type === "ip" ? <EyeOff size={10} /> : <Flag size={10} />}
+                                  {s.signal_type}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-gray-500 text-xs font-mono">{s.signal_preview}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`text-sm font-bold ${s.accounts_created >= 3 ? "text-rose-400" : "text-gray-300"}`}>{s.accounts_created}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`text-sm font-bold ${s.guides_generated >= 1 ? "text-amber-400" : "text-gray-300"}`}>{s.guides_generated}</span>
+                              </td>
+                              <td className="px-4 py-3 hidden lg:table-cell">
+                                <span className="text-gray-500 text-xs">{fmtDate(s.last_seen_at)}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                {s.is_blocked ? (
+                                  <button
+                                    onClick={async () => {
+                                      try { await api.admin.abuse.blockSignal(s.id, false); loadAbuseSignals(); loadAbuseStats(); }
+                                      catch (err) { alert(err.message); }
+                                    }}
+                                    className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 text-xs font-semibold rounded-lg transition-all">
+                                    <Unlock size={11} /> Unblock
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={async () => {
+                                      if (!confirm("Block this signal? Any account associated with it will be denied free guide access.")) return;
+                                      try { await api.admin.abuse.blockSignal(s.id, true); loadAbuseSignals(); loadAbuseStats(); }
+                                      catch (err) { alert(err.message); }
+                                    }}
+                                    className="flex items-center gap-1 px-2.5 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-400 text-xs font-semibold rounded-lg transition-all">
+                                    <Lock size={11} /> Block
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {Math.ceil(abuseSignalsTotal / 25) > 1 && (
+                    <div className="flex items-center justify-between px-4 py-3 border-t border-white/6">
+                      <p className="text-xs text-gray-500">Page {abuseSignalPage + 1} of {Math.ceil(abuseSignalsTotal / 25)}</p>
+                      <div className="flex gap-1">
+                        <button onClick={() => setAbuseSignalPage(p => Math.max(0, p - 1))} disabled={abuseSignalPage === 0} className="p-1.5 rounded-lg bg-white/4 disabled:opacity-30 text-gray-400 hover:text-white"><ChevronLeft size={14} /></button>
+                        <button onClick={() => setAbuseSignalPage(p => p + 1)} disabled={(abuseSignalPage + 1) * 25 >= abuseSignalsTotal} className="p-1.5 rounded-lg bg-white/4 disabled:opacity-30 text-gray-400 hover:text-white"><ChevronRight size={14} /></button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── Deleted Accounts ── */}
+            {abuseTab === "deleted" && (
+              <div className="bg-white/2 border border-white/6 rounded-2xl overflow-hidden">
+                {loadingAbuse ? (
+                  <div className="p-8 text-center text-gray-500 text-sm">Loading…</div>
+                ) : deletedAccts.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500 text-sm">No deleted accounts on record</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-white/6">
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Email Domain</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Guides Used</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 hidden md:table-cell">Was Pro</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 hidden md:table-cell">FP Stored</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 hidden lg:table-cell">IP Stored</th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Deleted</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {deletedAccts.map(d => (
+                          <tr key={d.id} className="border-b border-white/4 last:border-0 hover:bg-white/2">
+                            <td className="px-4 py-3">
+                              <span className="text-gray-300 text-xs font-mono">@{d.email_domain || "unknown"}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`text-sm font-bold ${d.guides_generated > 0 ? "text-rose-400" : "text-gray-500"}`}>{d.guides_generated}</span>
+                            </td>
+                            <td className="px-4 py-3 hidden md:table-cell">
+                              {d.was_pro ? <span className="text-amber-400 text-xs font-semibold flex items-center gap-1"><Crown size={10} /> Yes</span> : <span className="text-gray-600 text-xs">No</span>}
+                            </td>
+                            <td className="px-4 py-3 hidden md:table-cell">
+                              {d.has_fp ? <CheckCircle size={13} className="text-emerald-400" /> : <X size={13} className="text-gray-700" />}
+                            </td>
+                            <td className="px-4 py-3 hidden lg:table-cell">
+                              {d.has_ip ? <CheckCircle size={13} className="text-emerald-400" /> : <X size={13} className="text-gray-700" />}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-gray-500 text-xs">{fmtDate(d.deleted_at)}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {Math.ceil(deletedTotal / 25) > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-white/6">
+                    <p className="text-xs text-gray-500">Page {deletedPage + 1} of {Math.ceil(deletedTotal / 25)}</p>
+                    <div className="flex gap-1">
+                      <button onClick={() => setDeletedPage(p => Math.max(0, p - 1))} disabled={deletedPage === 0} className="p-1.5 rounded-lg bg-white/4 disabled:opacity-30 text-gray-400 hover:text-white"><ChevronLeft size={14} /></button>
+                      <button onClick={() => setDeletedPage(p => p + 1)} disabled={(deletedPage + 1) * 25 >= deletedTotal} className="p-1.5 rounded-lg bg-white/4 disabled:opacity-30 text-gray-400 hover:text-white"><ChevronRight size={14} /></button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </main>

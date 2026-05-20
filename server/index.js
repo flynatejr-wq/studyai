@@ -1,7 +1,9 @@
+// Load .env FIRST — before any other import reads process.env at module-init time
+import "dotenv/config";
+
 import * as Sentry from "@sentry/node";
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 // v2
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -18,8 +20,6 @@ import adminRoute from "./routes/admin.js";
 import exportRoute from "./routes/export.js";
 import studyPlansRoute from "./routes/studyPlans.js";
 import referralsRoute from "./routes/referrals.js";
-
-dotenv.config();
 
 // ── Sentry (only when SENTRY_DSN is configured) ───────────────────────────────
 if (process.env.SENTRY_DSN) {

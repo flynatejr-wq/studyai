@@ -202,6 +202,56 @@ db.exec(`
   }
 }
 
+// ── Anti-abuse tables ─────────────────────────────────────────────────────────
+// These tables survive account deletion intentionally — they hold anonymised
+// metadata (hashes only, never raw PII) used to detect free-tier farming.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS deleted_accounts (
+    id                 TEXT PRIMARY KEY,
+    original_user_id   TEXT NOT NULL,
+    email_hash         TEXT NOT NULL,   -- SHA-256 of normalised email
+    email_domain       TEXT,            -- raw domain (e.g. gmail.com) for pattern detection
+    ip_hash            TEXT,            -- SHA-256 of client IP at deletion time
+    fp_hash            TEXT,            -- SHA-256 of browser fingerprint at deletion time
+    guides_generated   INTEGER DEFAULT 0,
+    was_pro            INTEGER DEFAULT 0,
+    deleted_at         TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS abuse_signals (
+    id                 TEXT PRIMARY KEY,
+    signal_type        TEXT NOT NULL,   -- 'ip' | 'fp' | 'email'
+    signal_hash        TEXT NOT NULL,
+    accounts_created   INTEGER DEFAULT 0,
+    guides_generated   INTEGER DEFAULT 0,
+    first_seen_at      TEXT DEFAULT (datetime('now')),
+    last_seen_at       TEXT DEFAULT (datetime('now')),
+    is_blocked         INTEGER DEFAULT 0,
+    UNIQUE(signal_type, signal_hash)
+  );
+
+  CREATE TABLE IF NOT EXISTS abuse_flags (
+    id                 TEXT PRIMARY KEY,
+    target_type        TEXT NOT NULL,   -- 'user_id' | 'email_hash' | 'ip_hash' | 'fp_hash'
+    target_value       TEXT NOT NULL,
+    reason             TEXT NOT NULL,
+    severity           TEXT DEFAULT 'low',  -- 'low' | 'medium' | 'high'
+    related_user_id    TEXT,
+    created_at         TEXT DEFAULT (datetime('now')),
+    resolved_at        TEXT,
+    resolved_by        TEXT,
+    notes              TEXT
+  );
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_deleted_accounts_email_hash ON deleted_accounts(email_hash);
+  CREATE INDEX IF NOT EXISTS idx_deleted_accounts_fp_hash    ON deleted_accounts(fp_hash);
+  CREATE INDEX IF NOT EXISTS idx_abuse_signals_type_hash     ON abuse_signals(signal_type, signal_hash);
+  CREATE INDEX IF NOT EXISTS idx_abuse_flags_unresolved      ON abuse_flags(resolved_at) WHERE resolved_at IS NULL;
+  CREATE INDEX IF NOT EXISTS idx_abuse_flags_target          ON abuse_flags(target_type, target_value);
+`);
+
 // ── Performance indexes ───────────────────────────────────────────────────────
 // Added after initial schema so existing DBs gain them automatically on restart.
 db.exec(`

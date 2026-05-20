@@ -3,6 +3,7 @@ import { v4 as uuid } from "uuid";
 import { timingSafeEqual } from "crypto";
 import db from "../db.js";
 import { requireAdmin } from "../middleware/auth.js";
+import { raiseFlag } from "../lib/abuse.js";
 
 const router = express.Router();
 
@@ -241,6 +242,152 @@ router.get("/audit-logs", (req, res) => {
   const total = db.prepare(`SELECT COUNT(*) as c FROM audit_logs WHERE ${where}`).get(...params).c;
 
   res.json({ logs, total, hasMore: offset + limit < total });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ABUSE MANAGEMENT ENDPOINTS
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Abuse overview stats ───────────────────────────────────────────────────────
+router.get("/abuse/stats", (req, res) => {
+  const deletedAccounts   = db.prepare("SELECT COUNT(*) as c FROM deleted_accounts").get().c;
+  const deletedWithUsage  = db.prepare("SELECT COUNT(*) as c FROM deleted_accounts WHERE guides_generated > 0").get().c;
+  const activeFlags       = db.prepare("SELECT COUNT(*) as c FROM abuse_flags WHERE resolved_at IS NULL").get().c;
+  const highFlags         = db.prepare("SELECT COUNT(*) as c FROM abuse_flags WHERE severity = 'high' AND resolved_at IS NULL").get().c;
+  const blockedSignals    = db.prepare("SELECT COUNT(*) as c FROM abuse_signals WHERE is_blocked = 1").get().c;
+  const ipSignals         = db.prepare("SELECT COUNT(*) as c FROM abuse_signals WHERE signal_type = 'ip'").get().c;
+  const fpSignals         = db.prepare("SELECT COUNT(*) as c FROM abuse_signals WHERE signal_type = 'fp'").get().c;
+  const multiAccountIps   = db.prepare(
+    "SELECT COUNT(*) as c FROM abuse_signals WHERE signal_type = 'ip' AND accounts_created >= 3"
+  ).get().c;
+
+  res.json({
+    deletedAccounts, deletedWithUsage, activeFlags, highFlags,
+    blockedSignals, ipSignals, fpSignals, multiAccountIps,
+  });
+});
+
+// ── Deleted accounts list ──────────────────────────────────────────────────────
+router.get("/abuse/deleted-accounts", (req, res) => {
+  const limit   = Math.min(Math.max(parseInt(req.query.limit) || 25, 1), 100);
+  const offset  = Math.max(parseInt(req.query.offset) || 0, 0);
+  const abused  = req.query.abused === "1"; // filter: only those with guide usage
+
+  let where = "1=1";
+  if (abused) where += " AND guides_generated > 0";
+
+  const rows  = db.prepare(
+    `SELECT id, original_user_id, email_domain, guides_generated, was_pro, deleted_at,
+            CASE WHEN fp_hash IS NOT NULL THEN 1 ELSE 0 END as has_fp,
+            CASE WHEN ip_hash IS NOT NULL THEN 1 ELSE 0 END as has_ip
+     FROM deleted_accounts WHERE ${where}
+     ORDER BY deleted_at DESC LIMIT ? OFFSET ?`
+  ).all(limit, offset);
+  const total = db.prepare(`SELECT COUNT(*) as c FROM deleted_accounts WHERE ${where}`).get().c;
+
+  res.json({ rows, total, hasMore: offset + limit < total });
+});
+
+// ── Abuse signals list ─────────────────────────────────────────────────────────
+router.get("/abuse/signals", (req, res) => {
+  const limit  = Math.min(Math.max(parseInt(req.query.limit) || 25, 1), 100);
+  const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+  const type   = ["ip", "fp", "email"].includes(req.query.type) ? req.query.type : null;
+  const blocked = req.query.blocked === "1";
+
+  let where = "1=1";
+  const params = [];
+  if (type)    { where += " AND signal_type = ?"; params.push(type); }
+  if (blocked) { where += " AND is_blocked = 1"; }
+
+  const rows  = db.prepare(
+    `SELECT id, signal_type,
+            substr(signal_hash, 1, 12) || '…' as signal_preview,
+            signal_hash,
+            accounts_created, guides_generated, first_seen_at, last_seen_at, is_blocked
+     FROM abuse_signals WHERE ${where}
+     ORDER BY guides_generated DESC, accounts_created DESC
+     LIMIT ? OFFSET ?`
+  ).all(...params, limit, offset);
+  const total = db.prepare(`SELECT COUNT(*) as c FROM abuse_signals WHERE ${where}`).get(...params).c;
+
+  res.json({ rows, total, hasMore: offset + limit < total });
+});
+
+// ── Block / unblock a signal ───────────────────────────────────────────────────
+router.patch("/abuse/signals/:id/block", (req, res) => {
+  const { block } = req.body; // true = block, false = unblock
+  const signal = db.prepare("SELECT * FROM abuse_signals WHERE id = ?").get(req.params.id);
+  if (!signal) return res.status(404).json({ error: "Signal not found." });
+
+  const val = block ? 1 : 0;
+  db.prepare("UPDATE abuse_signals SET is_blocked = ? WHERE id = ?").run(val, signal.id);
+
+  const admin = db.prepare("SELECT id, email FROM users WHERE id = ?").get(req.user.id);
+  auditLog(admin.id, admin.email, null, "system", block ? "block_signal" : "unblock_signal", signal.signal_hash, String(val));
+
+  res.json({ success: true, is_blocked: val });
+});
+
+// ── Abuse flags list ───────────────────────────────────────────────────────────
+router.get("/abuse/flags", (req, res) => {
+  const limit      = Math.min(Math.max(parseInt(req.query.limit) || 25, 1), 100);
+  const offset     = Math.max(parseInt(req.query.offset) || 0, 0);
+  const unresolved = req.query.unresolved !== "0"; // default: only unresolved
+
+  let where = "1=1";
+  if (unresolved) where += " AND resolved_at IS NULL";
+
+  const rows  = db.prepare(
+    `SELECT f.*, u.email as related_user_email
+     FROM abuse_flags f
+     LEFT JOIN users u ON u.id = f.related_user_id
+     WHERE ${where}
+     ORDER BY
+       CASE severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+       created_at DESC
+     LIMIT ? OFFSET ?`
+  ).all(limit, offset);
+  const total = db.prepare(`SELECT COUNT(*) as c FROM abuse_flags WHERE ${where}`).get().c;
+
+  res.json({ rows, total, hasMore: offset + limit < total });
+});
+
+// ── Resolve a flag ─────────────────────────────────────────────────────────────
+router.post("/abuse/flags/:id/resolve", (req, res) => {
+  const flag = db.prepare("SELECT * FROM abuse_flags WHERE id = ?").get(req.params.id);
+  if (!flag) return res.status(404).json({ error: "Flag not found." });
+  if (flag.resolved_at) return res.status(400).json({ error: "Flag already resolved." });
+
+  const admin = db.prepare("SELECT id, email FROM users WHERE id = ?").get(req.user.id);
+  const notes = typeof req.body.notes === "string" ? req.body.notes.slice(0, 500) : null;
+
+  db.prepare(
+    "UPDATE abuse_flags SET resolved_at = datetime('now'), resolved_by = ?, notes = ? WHERE id = ?"
+  ).run(admin.email, notes, flag.id);
+
+  auditLog(admin.id, admin.email, flag.related_user_id, flag.related_user_id || "system", "resolve_flag", flag.reason, "resolved");
+
+  res.json({ success: true });
+});
+
+// ── Raise a manual flag ────────────────────────────────────────────────────────
+router.post("/abuse/flags", (req, res) => {
+  const { target_type, target_value, reason, severity, related_user_id } = req.body;
+  if (!target_type || !target_value || !reason) {
+    return res.status(400).json({ error: "target_type, target_value, and reason are required." });
+  }
+  const validTypes = ["user_id", "email_hash", "ip_hash", "fp_hash"];
+  const validSev   = ["low", "medium", "high"];
+  if (!validTypes.includes(target_type)) return res.status(400).json({ error: `Invalid target_type. Use: ${validTypes.join(", ")}` });
+  const sev = validSev.includes(severity) ? severity : "medium";
+
+  raiseFlag(target_type, target_value.trim(), reason.trim(), sev, related_user_id || null);
+
+  const admin = db.prepare("SELECT id, email FROM users WHERE id = ?").get(req.user.id);
+  auditLog(admin.id, admin.email, related_user_id || null, related_user_id || "system", "manual_flag", null, reason);
+
+  res.json({ success: true });
 });
 
 export default router;

@@ -107,13 +107,16 @@ function AppRoutes() {
 }
 
 export default function App() {
-  const [splashDone, setSplashDone] = useState(
-    () => !!sessionStorage.getItem("sb_splash_done")
+  // Dev: always show splash on every page load so the animation is easy to iterate on.
+  // Prod: show once per browser session, then skip.
+  const [showSplash, setShowSplash] = useState(
+    () => import.meta.env.DEV || !sessionStorage.getItem("sb_splash_done")
   );
 
   const handleSplashComplete = () => {
+    // Mark as seen so production builds skip on subsequent visits
     sessionStorage.setItem("sb_splash_done", "1");
-    setSplashDone(true);
+    setShowSplash(false);
   };
 
   return (
@@ -121,12 +124,20 @@ export default function App() {
       <ErrorBoundary>
         <ToastProvider>
           <AuthProvider>
+            {/*
+             * AppRoutes ALWAYS renders — auth checks, data fetching, and route
+             * resolution all happen in the background while the splash plays.
+             * The splash sits on top via z-[9999] inside SplashScreen; the user
+             * never sees the underlying app until the exit animation completes.
+             */}
+            <AppRoutes />
+
+            {/* Splash overlay */}
             <AnimatePresence>
-              {!splashDone && (
-                <SplashScreen key="splash" onComplete={handleSplashComplete} />
+              {showSplash && (
+                <SplashScreen key="sb-splash" onComplete={handleSplashComplete} />
               )}
             </AnimatePresence>
-            {splashDone && <AppRoutes />}
           </AuthProvider>
         </ToastProvider>
       </ErrorBoundary>

@@ -7,6 +7,10 @@ import { parseOffice } from "officeparser";
 import { YoutubeTranscript } from "youtube-transcript";
 import { requireAuth } from "../middleware/auth.js";
 import db from "../db.js";
+import {
+  hashValue, getClientIp, isValidFp,
+  checkAbuseStatus, recordGeneration,
+} from "../lib/abuse.js";
 
 // ESM-native import of CJS pdf-parse — module.exports becomes .default
 const { default: pdfParse } = await import("pdf-parse/lib/pdf-parse.js");
@@ -136,23 +140,62 @@ const FREE_GUIDE_LIMIT = 1;
 
 // ── Free-tier guard ───────────────────────────────────────────────────────────
 // Returns true (and sends a 403) if the free user is over their guide limit.
-// Uses guides_created_ever — a permanent counter that never decrements — so
-// deleting a guide and recreating it cannot bypass the limit.
+// Two layers of enforcement:
+//   1. guides_created_ever counter (unchanged — covers same-account guide deletions)
+//   2. Anti-abuse signals (catches delete-account-and-recreate loops)
 // Bypassed for: pro, lifetime, whitelisted users, and admins.
 function checkFreeGuideLimit(req, res) {
-  const user = db.prepare("SELECT plan, role, is_whitelisted, guides_created_ever FROM users WHERE id = ?").get(req.user.id);
+  const user = db.prepare("SELECT plan, role, is_whitelisted, guides_created_ever, email FROM users WHERE id = ?").get(req.user.id);
   if (!user) return false;
   // Bypass: pro plan, lifetime plan, whitelisted, or admin role
   if (user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin") return false;
+
+  // Layer 1: standard counter
   if ((user.guides_created_ever || 0) >= FREE_GUIDE_LIMIT) {
-    console.log(`[free-limit] user ${req.user.id} blocked at generation step (guides_created_ever=${user.guides_created_ever})`);
-    res.status(403).json({
-      error: "FREE_LIMIT_GUIDES",
-      message: `Free accounts are limited to ${FREE_GUIDE_LIMIT} saved guide. Upgrade to Pro for unlimited guides.`,
-    });
+    console.log(`[free-limit] user ${req.user.id} blocked — counter (guides_created_ever=${user.guides_created_ever})`);
+    res.status(403).json({ error: "FREE_LIMIT_GUIDES", message: `Free accounts are limited to ${FREE_GUIDE_LIMIT} saved guide. Upgrade to Pro for unlimited guides.` });
     return true;
   }
+
+  // Layer 2: abuse signals (delete-and-recreate detection)
+  const rawIp = getClientIp(req);
+  const rawFp = req.headers["x-client-fp"];
+  const fp    = isValidFp(rawFp) ? rawFp : null;
+  try {
+    const abuse = checkAbuseStatus({
+      emailHash: hashValue(user.email),
+      ipHash:    hashValue(rawIp),
+      fpHash:    fp ? hashValue(fp) : null,
+    });
+    if (abuse) {
+      console.log(`[free-limit] user ${req.user.id} blocked — abuse signal: ${abuse.reason}`);
+      res.status(403).json({ error: "FREE_LIMIT_GUIDES", message: `Free accounts are limited to ${FREE_GUIDE_LIMIT} saved guide. Upgrade to Pro for unlimited guides.` });
+      return true;
+    }
+  } catch (err) {
+    // Abuse check failure must never block a legitimate generation
+    console.error("[abuse] checkAbuseStatus error:", err.message);
+  }
+
   return false;
+}
+
+/** Record a completed free-tier generation against all abuse signals */
+function recordFreeGeneration(req, userId) {
+  const user = db.prepare("SELECT email, plan, is_whitelisted, role FROM users WHERE id = ?").get(userId);
+  if (!user || user.plan !== "free" || user.is_whitelisted || user.role === "admin") return;
+  const rawIp = getClientIp(req);
+  const rawFp = req.headers["x-client-fp"];
+  const fp    = isValidFp(rawFp) ? rawFp : null;
+  try {
+    recordGeneration({
+      emailHash: hashValue(user.email),
+      ipHash:    hashValue(rawIp),
+      fpHash:    fp ? hashValue(fp) : null,
+    });
+  } catch (err) {
+    console.error("[abuse] recordGeneration error:", err.message);
+  }
 }
 
 // ── POST /api/summarize — paste text ────────────────────────────────────────
@@ -164,6 +207,7 @@ router.post("/", requireAuth, async (req, res) => {
     return res.status(400).json({ error: `Transcript is too long. Please limit to ${MAX_TEXT_CHARS.toLocaleString()} characters.` });
   try {
     const result = await generateFromText(transcript, difficulty, style);
+    recordFreeGeneration(req, req.user.id);
     res.json(result);
   } catch (err) {
     console.error(err);
@@ -191,7 +235,9 @@ router.post("/youtube", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "The transcript is too short to generate a study guide." });
     }
     console.log(`[youtube] OK for ${videoId} (${text.length} chars)`);
-    return res.json(await generateFromText(text.slice(0, 60000), difficulty, req.body?.style));
+    const ytResult = await generateFromText(text.slice(0, 60000), difficulty, req.body?.style);
+    recordFreeGeneration(req, req.user.id);
+    return res.json(ytResult);
   } catch (err) {
     console.error("[youtube] error:", err?.message);
     const msg = (err?.message || "").toLowerCase();
@@ -250,6 +296,7 @@ router.post("/image", requireAuth, upload.single("image"), async (req, res) => {
     const summary = sections.map(s => s.overview).filter(Boolean);
     const keyTerms = sections.flatMap(s => s.terms);
     const quizQuestions = sections.flatMap(s => s.quiz);
+    recordFreeGeneration(req, req.user.id);
     res.json({
       title: parsed.title || "Untitled Guide",
       sections,
@@ -281,7 +328,9 @@ router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
     const transcription = await openai.audio.transcriptions.create({ file: audioFile, model: whisperModel });
     if (!transcription.text?.trim())
       return res.status(400).json({ error: "Could not transcribe audio. Make sure it contains clear speech." });
-    res.json(await generateFromText(transcription.text, difficulty, req.body?.style));
+    const audioResult = await generateFromText(transcription.text, difficulty, req.body?.style);
+    recordFreeGeneration(req, req.user.id);
+    res.json(audioResult);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong processing your audio." });
@@ -335,7 +384,9 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
 
     // Trim to avoid token limits (roughly 15k words max)
     const trimmed = text.trim().slice(0, 60000);
-    res.json(await generateFromText(trimmed, difficulty, style));
+    const fileResult = await generateFromText(trimmed, difficulty, style);
+    recordFreeGeneration(req, req.user.id);
+    res.json(fileResult);
   } catch (err) {
     console.error("[file route error]", err?.message || err);
     res.status(500).json({ error: err?.message || "Something went wrong processing your file." });

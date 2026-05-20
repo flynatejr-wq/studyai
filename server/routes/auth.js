@@ -5,6 +5,10 @@ import { v4 as uuid } from "uuid";
 import db from "../db.js";
 import { signToken, requireAuth } from "../middleware/auth.js";
 import { sendPasswordReset, sendVerificationEmail, isEmailConfigured } from "../utils/email.js";
+import {
+  hashValue, getClientIp, isDisposableEmail, getEmailDomain, isValidFp,
+  recordSignup, archiveDeletedAccount,
+} from "../lib/abuse.js";
 
 // H-7: SHA-256 hash reset tokens before storing so a DB read can't be used to take over accounts
 function hashResetToken(token) {
@@ -53,6 +57,25 @@ router.post("/signup", async (req, res) => {
     if (referredBy) {
       db.prepare("INSERT OR IGNORE INTO referrals (id, referrer_id, referred_id) VALUES (?, ?, ?)").run(uuid(), referredBy, id);
       db.prepare("UPDATE users SET referral_credits = COALESCE(referral_credits, 0) + 1 WHERE id = ?").run(referredBy);
+    }
+
+    // ── Abuse tracking: record signup signals ────────────────────────────────
+    const rawIp    = getClientIp(req);
+    const rawFp    = req.headers["x-client-fp"];
+    const fp       = isValidFp(rawFp) ? rawFp : null;
+    const normEmail = email.toLowerCase().trim();
+    try {
+      recordSignup({
+        userId:       id,
+        emailHash:    hashValue(normEmail),
+        emailDomain:  getEmailDomain(normEmail),
+        ipHash:       hashValue(rawIp),
+        fpHash:       fp ? hashValue(fp) : null,
+        isDisposable: isDisposableEmail(normEmail),
+      });
+    } catch (abuseErr) {
+      // Never let abuse tracking break signup
+      console.error("[abuse] recordSignup failed:", abuseErr.message);
     }
 
     const user = db.prepare("SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, created_at FROM users WHERE id = ?").get(id);
@@ -286,6 +309,20 @@ router.delete("/account", requireAuth, async (req, res) => {
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(400).json({ error: "Incorrect password." });
+
+    // ── Archive anti-abuse data BEFORE deletion ──────────────────────────────
+    const rawIp = getClientIp(req);
+    const rawFp = req.headers["x-client-fp"];
+    const fp    = isValidFp(rawFp) ? rawFp : null;
+    try {
+      archiveDeletedAccount(user, {
+        ipHash: hashValue(rawIp),
+        fpHash: fp ? hashValue(fp) : null,
+      });
+    } catch (abuseErr) {
+      console.error("[abuse] archiveDeletedAccount failed:", abuseErr.message);
+      // Don't block deletion — log and continue
+    }
 
     // Wrap all deletions in a transaction so it's atomic
     db.transaction(() => {

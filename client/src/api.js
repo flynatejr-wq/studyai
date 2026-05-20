@@ -1,4 +1,6 @@
-﻿const BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
+﻿import { getFingerprintSync } from "./lib/fingerprint.js";
+
+const BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
 
 export function getToken() {
   return localStorage.getItem("token");
@@ -6,9 +8,11 @@ export function getToken() {
 
 function headers(extra = {}) {
   const token = getToken();
+  const fp    = getFingerprintSync(); // non-null once the SubtleCrypto promise resolves (~5ms)
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(fp    ? { "X-Client-FP": fp }               : {}),
     ...extra,
   };
 }
@@ -67,9 +71,9 @@ export const api = {
   summarize: {
     text:    (transcript, difficulty = "standard", style = "detailed") => request("/summarize", { method: "POST", headers: headers(), body: JSON.stringify({ transcript, difficulty, style }) }),
     youtube: (url, difficulty = "standard", style = "detailed") => request("/summarize/youtube", { method: "POST", headers: headers(), body: JSON.stringify({ url, difficulty, style }) }),
-    image:   (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("image", file); fd.append("difficulty", difficulty); fd.append("style", style); const tok = getToken(); return request("/summarize/image", { method: "POST", headers: tok ? { Authorization: `Bearer ${tok}` } : {}, body: fd }); },
-    audio:   (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("audio", file); fd.append("difficulty", difficulty); fd.append("style", style); const tok = getToken(); return request("/summarize/audio", { method: "POST", headers: tok ? { Authorization: `Bearer ${tok}` } : {}, body: fd }); },
-    file:    (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("file",  file); fd.append("difficulty", difficulty); fd.append("style", style); const tok = getToken(); return request("/summarize/file",  { method: "POST", headers: tok ? { Authorization: `Bearer ${tok}` } : {}, body: fd }); },
+    image:   (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("image", file); fd.append("difficulty", difficulty); fd.append("style", style); const tok = getToken(); const fp = getFingerprintSync(); const h = {}; if (tok) h.Authorization = `Bearer ${tok}`; if (fp) h["X-Client-FP"] = fp; return request("/summarize/image", { method: "POST", headers: h, body: fd }); },
+    audio:   (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("audio", file); fd.append("difficulty", difficulty); fd.append("style", style); const tok = getToken(); const fp = getFingerprintSync(); const h = {}; if (tok) h.Authorization = `Bearer ${tok}`; if (fp) h["X-Client-FP"] = fp; return request("/summarize/audio", { method: "POST", headers: h, body: fd }); },
+    file:    (file, difficulty = "standard", style = "detailed") => { const fd = new FormData(); fd.append("file",  file); fd.append("difficulty", difficulty); fd.append("style", style); const tok = getToken(); const fp = getFingerprintSync(); const h = {}; if (tok) h.Authorization = `Bearer ${tok}`; if (fp) h["X-Client-FP"] = fp; return request("/summarize/file",  { method: "POST", headers: h, body: fd }); },
   },
   folders: {
     list:   ()         => request("/folders",      { headers: headers() }),
@@ -135,5 +139,14 @@ export const api = {
     updateUser:  (id, body)     => request(`/admin/users/${id}`,        { method: "PATCH", headers: headers(), body: JSON.stringify(body) }),
     resetLimits: (id)           => request(`/admin/users/${id}/reset-limits`, { method: "POST", headers: headers() }),
     auditLogs:   (params = {})  => request(`/admin/audit-logs?${new URLSearchParams(params)}`, { headers: headers() }),
+    abuse: {
+      stats:           ()               => request("/admin/abuse/stats",             { headers: headers() }),
+      deletedAccounts: (params = {})    => request(`/admin/abuse/deleted-accounts?${new URLSearchParams(params)}`, { headers: headers() }),
+      signals:         (params = {})    => request(`/admin/abuse/signals?${new URLSearchParams(params)}`,          { headers: headers() }),
+      blockSignal:     (id, block)      => request(`/admin/abuse/signals/${id}/block`, { method: "PATCH", headers: headers(), body: JSON.stringify({ block }) }),
+      flags:           (params = {})    => request(`/admin/abuse/flags?${new URLSearchParams(params)}`,            { headers: headers() }),
+      resolveFlag:     (id, notes = "") => request(`/admin/abuse/flags/${id}/resolve`, { method: "POST",  headers: headers(), body: JSON.stringify({ notes }) }),
+      raiseFlag:       (body)           => request("/admin/abuse/flags",               { method: "POST",  headers: headers(), body: JSON.stringify(body) }),
+    },
   },
 };
