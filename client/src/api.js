@@ -106,6 +106,12 @@ export const api = {
   public: {
     getGuide: (token) => request(`/public/guide/${token}`),
   },
+  studyPlans: {
+    list:   ()         => request("/study-plans",      { headers: headers() }),
+    create: (body)     => request("/study-plans",      { method: "POST",  headers: headers(), body: JSON.stringify(body) }),
+    update: (id, body) => request(`/study-plans/${id}`,{ method: "PATCH", headers: headers(), body: JSON.stringify(body) }),
+    delete: (id)       => request(`/study-plans/${id}`,{ method: "DELETE",headers: headers() }),
+  },
   export: {
     download: () => {
       // Returns raw JSON blob — handled with fetch directly so we can trigger a download

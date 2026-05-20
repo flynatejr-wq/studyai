@@ -22,6 +22,7 @@ import NotFound from "./pages/NotFound.jsx";
 import Admin from "./pages/Admin.jsx";
 import VerifyEmail from "./pages/VerifyEmail.jsx";
 import UnverifiedBanner from "./components/UnverifiedBanner.jsx";
+import StudyPlans from "./pages/StudyPlans.jsx";
 
 function LoadingScreen() {
   return (
@@ -93,6 +94,7 @@ function AppRoutes() {
       <Route path="/guides"     element={<ProtectedRoute><AllGuides /></ProtectedRoute>} />
       <Route path="/progress"   element={<ProtectedRoute><Progress /></ProtectedRoute>} />
       <Route path="/settings"   element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/study-plans" element={<ProtectedRoute><StudyPlans /></ProtectedRoute>} />
       <Route path="/admin"      element={<AdminRoute><Admin /></AdminRoute>} />
 
       {/* 404 */}

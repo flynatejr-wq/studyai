@@ -139,6 +139,23 @@ safeAlter("ALTER TABLE users ADD COLUMN email_verify_token TEXT");
 // Guide favorites (bookmarks)
 safeAlter("ALTER TABLE guides ADD COLUMN is_favorite INTEGER DEFAULT 0");
 
+// Study plans / exam countdowns
+db.exec(`
+  CREATE TABLE IF NOT EXISTS study_plans (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    exam_date TEXT NOT NULL,
+    guide_ids TEXT DEFAULT '[]',
+    daily_goal_minutes INTEGER DEFAULT 30,
+    notes TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_study_plans_user_id ON study_plans(user_id);`);
+
 // Audit log — permanent record of every admin action (emails stored so records
 // survive user deletion; no FK constraint intentionally).
 db.exec(`

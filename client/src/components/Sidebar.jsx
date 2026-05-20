@@ -2,16 +2,17 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, BarChart2, LogOut, Zap,
-  Menu, X, Settings, ChevronRight, Crown, Flame, Sparkles,
+  Menu, X, Settings, ChevronRight, Crown, Flame, Sparkles, CalendarDays,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { api } from "../api.js";
 
 const navItems = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard",  desc: "Create & manage" },
-  { to: "/guides",    icon: BookOpen,         label: "All Guides", desc: "Browse your notes" },
-  { to: "/progress",  icon: BarChart2,        label: "Progress",   desc: "Stats & achievements" },
-  { to: "/settings",  icon: Settings,         label: "Settings",   desc: "Account & billing" },
+  { to: "/dashboard",   icon: LayoutDashboard, label: "Dashboard",   desc: "Create & manage" },
+  { to: "/guides",      icon: BookOpen,         label: "All Guides",  desc: "Browse your notes" },
+  { to: "/study-plans", icon: CalendarDays,     label: "Study Plans", desc: "Exam countdowns" },
+  { to: "/progress",    icon: BarChart2,        label: "Progress",    desc: "Stats & achievements" },
+  { to: "/settings",    icon: Settings,         label: "Settings",    desc: "Account & billing" },
 ];
 
 // Minimal SVG logo mark

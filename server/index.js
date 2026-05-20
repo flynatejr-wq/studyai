@@ -16,6 +16,7 @@ import publicRoute from "./routes/public.js";
 import stripeRoute from "./routes/stripe.js";
 import adminRoute from "./routes/admin.js";
 import exportRoute from "./routes/export.js";
+import studyPlansRoute from "./routes/studyPlans.js";
 
 dotenv.config();
 
@@ -116,6 +117,7 @@ app.use("/api/public", publicRoute);
 app.use("/api/stripe", stripeRoute);
 app.use("/api/admin", adminRoute);
 app.use("/api/export", exportRoute);
+app.use("/api/study-plans", studyPlansRoute);
 
 app.get("/health", (_, res) => res.json({ status: "ok" }));
 
