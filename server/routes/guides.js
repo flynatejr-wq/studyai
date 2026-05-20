@@ -13,13 +13,33 @@ function safeParse(str, fallback = []) {
   try { return JSON.parse(str); } catch { return fallback; }
 }
 
+// Strip HTML tags from plain-text fields so raw tags never reach the client,
+// regardless of whether the guide was created before or after the server-side fix.
+function stripHtml(s) {
+  return typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : s;
+}
+
 function parseGuide(g) {
+  const rawSections = safeParse(g.sections || "[]", []);
+  const cleanSections = rawSections.map(s => ({
+    ...s,
+    // overview keeps HTML — it is always rendered via RichText
+    keyPoints: Array.isArray(s.keyPoints) ? s.keyPoints.map(stripHtml) : [],
+    terms: Array.isArray(s.terms)
+      ? s.terms.map(t => ({ term: stripHtml(t.term), definition: stripHtml(t.definition) }))
+      : [],
+    quiz: Array.isArray(s.quiz)
+      ? s.quiz.map(q => ({ question: stripHtml(q.question), answer: stripHtml(q.answer) }))
+      : [],
+    content: Array.isArray(s.content) ? s.content : [],
+  }));
+
   return {
     ...g,
-    summary:          safeParse(g.summary,          []),
-    key_terms:        safeParse(g.key_terms,         []),
-    quiz_questions:   safeParse(g.quiz_questions,    []),
-    sections:         safeParse(g.sections || "[]",  []),
+    summary:        safeParse(g.summary, []).map(stripHtml),
+    key_terms:      safeParse(g.key_terms, []).map(t => ({ term: stripHtml(t.term), definition: stripHtml(t.definition) })),
+    quiz_questions: safeParse(g.quiz_questions, []).map(q => ({ question: stripHtml(q.question), answer: stripHtml(q.answer) })),
+    sections:         cleanSections,
     section_progress: safeParse(g.section_progress || "[]", []),
   };
 }
