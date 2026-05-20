@@ -62,9 +62,10 @@ export default function UploadForm({ onSubmit, loading, dark }) {
   };
 
   const acceptMap = {
-    file:  ".pdf,.docx,.doc,.pptx,.ppt,.txt,.md,.csv,.rtf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/*",
+    // iOS Safari works best with just the extensions — long MIME lists confuse it
+    file:  ".pdf,.doc,.docx,.ppt,.pptx,.txt,.md,.csv,.rtf",
     image: "image/*",
-    audio: "audio/*,.mp3,.mp4,.m4a,.wav,.webm",
+    audio: ".mp3,.m4a,.wav,.aac,.ogg,.webm,audio/*",
   };
 
   // Bug 36 fix: track the object URL so we can revoke it when it's replaced or the tab changes
