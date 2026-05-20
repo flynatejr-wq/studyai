@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronUp, Zap, RefreshCw, ChevronLeft,
   ChevronRight, CheckCircle, XCircle, Clock, BarChart2,
   Share2, Printer, Check, Link2Off, BookOpen, List,
-  Star, Target, Eye, EyeOff, Circle, CheckSquare, Brain,
+  Star, Target, Eye, EyeOff, Circle, CheckSquare, Brain, Crown,
 } from "lucide-react";
 import { api, getToken } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
