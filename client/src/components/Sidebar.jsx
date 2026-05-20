@@ -9,6 +9,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { useTheme } from "../contexts/ThemeContext.jsx";
 import { api } from "../api.js";
 import PlanUsageCard from "./PlanUsageCard.jsx";
+import ThemeToggle from "./ThemeToggle.jsx";
 
 const navItems = [
   { to: "/dashboard",   icon: LayoutDashboard, label: "Dashboard",   desc: "Create & manage" },
@@ -92,12 +93,7 @@ export default function Sidebar({ onLogout }) {
 
         {/* Theme toggle + level badge */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={toggleTheme}
-            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/8 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center">
-            {isDark ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+          <ThemeToggle size="sm" variant="icon" />
           <div className="flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/20 rounded-xl px-2.5 py-1.5">
             <Zap size={11} className="text-indigo-400" />
             <span className="text-xs text-indigo-400 font-black">Lv.{level}</span>

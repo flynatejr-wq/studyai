@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Sparkles, FileText, Brain, Trophy, ArrowRight, Check } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import ThemeToggle from "../components/ThemeToggle.jsx";
 
 const FEATURES = [
   { icon: FileText, text: "Upload PDFs, Word docs, PowerPoints & more" },
@@ -115,6 +116,11 @@ export default function Login() {
 
       {/* ── Right panel — form ── */}
       <div className="flex-1 flex flex-col items-center justify-center px-5 py-10 relative">
+        {/* Theme toggle — top-right */}
+        <div className="absolute top-4 right-4 z-10">
+          <ThemeToggle size="md" variant="pill" />
+        </div>
+
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-indigo-600/5 rounded-full blur-3xl" />
         </div>

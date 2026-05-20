@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Sparkles, ArrowRight, Check, Zap, Trophy, Brain } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import ThemeToggle from "../components/ThemeToggle.jsx";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -73,6 +74,11 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen bg-[#080810] flex items-center justify-center px-4 py-10 relative overflow-hidden">
+      {/* Theme toggle — top-right */}
+      <div className="fixed top-4 right-4 z-20">
+        <ThemeToggle size="md" variant="pill" />
+      </div>
+
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/10 rounded-full blur-[140px] animate-float-slow" />

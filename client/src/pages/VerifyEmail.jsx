@@ -3,6 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CheckCircle, XCircle, Loader2, Brain } from "lucide-react";
 import { api } from "../api.js";
+import ThemeToggle from "../components/ThemeToggle.jsx";
 
 export default function VerifyEmail() {
   const [params] = useSearchParams();
@@ -19,7 +20,10 @@ export default function VerifyEmail() {
   }, [token]);
 
   return (
-    <div className="min-h-screen bg-[#080810] flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-[#080810] flex flex-col items-center justify-center p-6 relative">
+      <div className="fixed top-4 right-4 z-20">
+        <ThemeToggle size="md" variant="pill" />
+      </div>
       {/* Logo */}
       <Link to="/" className="flex items-center gap-2 mb-10">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">

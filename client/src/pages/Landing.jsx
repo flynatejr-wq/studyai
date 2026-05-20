@@ -6,6 +6,7 @@ import {
   Sparkles, Brain, Trophy, Check, Star, Play, ChevronDown,
   Flame, Shield, Clock, Users, Crown, BarChart2, Target,
 } from "lucide-react";
+import ThemeToggle from "../components/ThemeToggle.jsx";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const features = [
@@ -297,6 +298,7 @@ export default function Landing() {
         </div>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle size="md" variant="pill" />
           <Link to="/login" className="px-4 py-2 text-gray-400 hover:text-white transition-colors font-medium text-sm rounded-xl hover:bg-white/5 hidden sm:block">
             Log in
           </Link>

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { BookOpen, Mail, ArrowLeft } from "lucide-react";
 import { api } from "../api.js";
+import ThemeToggle from "../components/ThemeToggle.jsx";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -24,7 +25,10 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center px-4 relative">
+      <div className="fixed top-4 right-4 z-20">
+        <ThemeToggle size="md" variant="pill" />
+      </div>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 text-xl font-bold mb-6">
