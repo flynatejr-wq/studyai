@@ -23,6 +23,9 @@ export default function Settings() {
   const [newPassword,     setNewPassword]     = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [profileLoading,  setProfileLoading]  = useState(false);
+  const [newEmail,        setNewEmail]        = useState("");
+  const [emailPassword,   setEmailPassword]   = useState("");
+  const [emailLoading,    setEmailLoading]    = useState(false);
   const [deletePassword,  setDeletePassword]  = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading,   setDeleteLoading]   = useState(false);
@@ -52,6 +55,21 @@ export default function Settings() {
     } finally {
       setProfileLoading(false);
     }
+  };
+
+  const handleChangeEmail = async (e) => {
+    e.preventDefault();
+    if (!newEmail.trim()) return toast({ message: "Enter a new email address.", type: "error" });
+    if (!emailPassword)   return toast({ message: "Enter your current password to confirm.", type: "error" });
+    setEmailLoading(true);
+    try {
+      await api.auth.changeEmail({ newEmail: newEmail.trim(), password: emailPassword });
+      await refreshUser();
+      setNewEmail(""); setEmailPassword("");
+      toast({ message: "Email updated successfully!", type: "success" });
+    } catch (err) {
+      toast({ message: err.message, type: "error" });
+    } finally { setEmailLoading(false); }
   };
 
   const handleUpgrade = async () => {
@@ -191,11 +209,7 @@ export default function Settings() {
               </div>
               <div>
                 <label className="block text-gray-400 text-xs font-semibold mb-2 uppercase tracking-wider">Email Address</label>
-                <input
-                  value={user?.email || ""}
-                  disabled
-                  className={`${INPUT_CLS} opacity-50 cursor-not-allowed`} />
-                <p className="text-gray-600 text-xs mt-1.5">Email cannot be changed.</p>
+                <input value={user?.email || ""} disabled className={`${INPUT_CLS} opacity-50 cursor-not-allowed`} />
               </div>
             </div>
 
@@ -250,6 +264,31 @@ export default function Settings() {
               ))}
             </div>
           </div>
+        </Section>
+
+        {/* ── Change Email ── */}
+        <Section delay={0.09}>
+          <form onSubmit={handleChangeEmail} className="bg-white/3 border border-white/8 rounded-2xl p-6 mb-5">
+            <h2 className="text-white font-bold mb-5 flex items-center gap-2 text-sm">
+              <div className="w-7 h-7 rounded-lg bg-sky-500/15 flex items-center justify-center">
+                <ExternalLink size={14} className="text-sky-400" />
+              </div>
+              Change Email Address
+            </h2>
+            <div className="space-y-3">
+              <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)}
+                placeholder="New email address" className={INPUT_CLS} />
+              <input type="password" value={emailPassword} onChange={e => setEmailPassword(e.target.value)}
+                placeholder="Current password to confirm" className={INPUT_CLS} />
+            </div>
+            <div className="flex justify-end mt-4">
+              <button type="submit" disabled={emailLoading}
+                className="flex items-center gap-2 px-5 py-2.5 bg-sky-600/80 hover:bg-sky-500/80 disabled:opacity-50 rounded-xl text-white font-bold text-sm transition-all">
+                <Save size={14} />
+                {emailLoading ? "Updating…" : "Update Email"}
+              </button>
+            </div>
+          </form>
         </Section>
 
         {/* ── Sign out ── */}

@@ -123,6 +123,33 @@ router.put("/profile", requireAuth, async (req, res) => {
   }
 });
 
+// ── Change email ──────────────────────────────────────────────────────────────
+router.put("/email", requireAuth, async (req, res) => {
+  const { newEmail, password } = req.body;
+  if (!newEmail || !password) return res.status(400).json({ error: "New email and current password are required." });
+  if (!EMAIL_RE.test(newEmail)) return res.status(400).json({ error: "Please enter a valid email address." });
+
+  try {
+    const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.user.id);
+    if (!user) return res.status(404).json({ error: "User not found." });
+
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return res.status(400).json({ error: "Incorrect password." });
+
+    const normalised = newEmail.toLowerCase().trim();
+    if (normalised === user.email) return res.status(400).json({ error: "That's already your current email." });
+
+    const taken = db.prepare("SELECT id FROM users WHERE email = ?").get(normalised);
+    if (taken) return res.status(400).json({ error: "An account with that email already exists." });
+
+    db.prepare("UPDATE users SET email = ? WHERE id = ?").run(normalised, req.user.id);
+    res.json({ success: true, email: normalised });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong." });
+  }
+});
+
 // ── Forgot password ───────────────────────────────────────────────────────────
 router.post("/forgot-password", async (req, res) => {
   const { email } = req.body;

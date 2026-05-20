@@ -1,5 +1,6 @@
 ﻿import { createContext, useContext, useState, useEffect } from "react";
 import { api } from "../api.js";
+import { analytics } from "../lib/analytics.js";
 
 const AuthContext = createContext(null);
 
@@ -23,6 +24,8 @@ export function AuthProvider({ children }) {
     const { token, user } = await api.auth.login({ email, password });
     localStorage.setItem("token", token);
     setUser(user);
+    analytics.identify(user.id, { plan: user.plan, role: user.role });
+    analytics.track("user_logged_in");
     return user;
   };
 
@@ -30,12 +33,15 @@ export function AuthProvider({ children }) {
     const { token, user } = await api.auth.signup({ name, email, password });
     localStorage.setItem("token", token);
     setUser(user);
+    analytics.identify(user.id, { plan: user.plan, role: user.role });
+    analytics.track("user_signed_up");
     return user;
   };
 
   const logout = () => {
     localStorage.removeItem("token");
     setUser(null);
+    analytics.reset();
   };
 
   const refreshUser = async () => {

@@ -1,4 +1,5 @@
-﻿import { Component } from "react";
+import { Component } from "react";
+import * as Sentry from "@sentry/react";
 import { RefreshCw, Home } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
@@ -18,19 +19,24 @@ export default class ErrorBoundary extends Component {
     this.setState({ stack });
     console.error("ErrorBoundary caught:", error, info);
 
-    // Report to server so the component stack appears in Railway logs
-    try {
-      fetch(`${API_BASE}/client-error`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: error?.message ?? String(error),
-          componentStack: stack,
-          url: window.location.href,
-          userAgent: navigator.userAgent,
-        }),
-      }).catch(() => {});
-    } catch (_) {}
+    // Report to Sentry if configured
+    Sentry.captureException(error, { extra: { componentStack: stack } });
+
+    // Fallback: report to server so the component stack appears in Railway logs
+    if (!import.meta.env.VITE_SENTRY_DSN) {
+      try {
+        fetch(`${API_BASE}/client-error`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: error?.message ?? String(error),
+            componentStack: stack,
+            url: window.location.href,
+            userAgent: navigator.userAgent,
+          }),
+        }).catch(() => {});
+      } catch (_) {}
+    }
   }
 
   render() {
@@ -41,7 +47,7 @@ export default class ErrorBoundary extends Component {
             <div className="text-6xl mb-6">💥</div>
             <h1 className="text-2xl font-bold text-white mb-2">Something went wrong</h1>
             <p className="text-gray-400 mb-4 text-sm">
-              An unexpected error occurred. This has been noted.
+              An unexpected error occurred. This has been reported automatically.
             </p>
             {this.state.error?.message && (
               <p className="text-red-400 text-xs font-mono bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-3 text-left break-all">

@@ -17,6 +17,8 @@ import UploadForm from "../components/UploadForm.jsx";
 import Results from "../components/Results.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import UpgradeModal from "../components/UpgradeModal.jsx";
+import OnboardingModal, { useOnboarding } from "../components/OnboardingModal.jsx";
+import { analytics, Events } from "../lib/analytics.js";
 
 // ── Skeleton Cards ─────────────────────────────────────────────────────────────
 function GuideCardSkeleton() {
@@ -52,6 +54,7 @@ export default function Dashboard() {
   const { user, refreshUser, logout } = useAuth();
   const toast    = useToast();
   const navigate = useNavigate();
+  const { show: showOnboarding, complete: completeOnboarding, skip: skipOnboarding } = useOnboarding(user);
 
   const [folders,       setFolders]       = useState([]);
   const [recentGuides,  setRecentGuides]  = useState([]);
@@ -88,6 +91,7 @@ export default function Dashboard() {
       return;
     }
     setLoading(true); setError(""); setResults(null);
+    analytics.track(Events.GENERATION_STARTED, { type });
     try {
       let data;
       if (type === "text")         data = await api.summarize.text(transcript, difficulty, style);
@@ -98,12 +102,15 @@ export default function Dashboard() {
       // Generate a unique idempotency key for this generation result so duplicate saves are safe
       const generation_id = crypto.randomUUID();
       setResults({ ...data, type, generation_id });
+      analytics.track(Events.GENERATION_COMPLETED, { type });
       try { localStorage.setItem("studybuddi_draft", JSON.stringify({ ...data, type, generation_id })); } catch (_) {}
     } catch (err) {
       if ((err.message || "").includes("FREE_LIMIT")) {
         const reason = err.message.includes("QUIZZES") ? "FREE_LIMIT_QUIZZES" : "FREE_LIMIT_GUIDES";
+        analytics.track(Events.FREE_LIMIT_HIT, { reason });
         setUpgradeReason(reason); setUpgradeOpen(true);
       } else {
+        analytics.track(Events.GENERATION_FAILED, { type, error: err.message });
         setError(err.message);
       }
     } finally { setLoading(false); }
@@ -126,6 +133,7 @@ export default function Dashboard() {
       await loadData();
       try { localStorage.removeItem("studybuddi_draft"); } catch (_) {}
       setResults(null);
+      analytics.track(Events.GUIDE_SAVED, { type: results?.type });
       toast({ message: "Guide saved!", type: "success" });
       navigate(`/guide/${guide.id}`);
     } catch (err) {
@@ -393,6 +401,13 @@ export default function Dashboard() {
         onClose={() => setUpgradeOpen(false)}
         reason={upgradeReason}
       />
+
+      {/* ── Onboarding modal (first-time users only) ── */}
+      <AnimatePresence>
+        {showOnboarding && (
+          <OnboardingModal onComplete={completeOnboarding} onSkip={skipOnboarding} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

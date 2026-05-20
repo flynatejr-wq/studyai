@@ -148,4 +148,21 @@ db.exec(`
   );
 `);
 
+// ── Performance indexes ───────────────────────────────────────────────────────
+// Added after initial schema so existing DBs gain them automatically on restart.
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_guides_user_id       ON guides(user_id);
+  CREATE INDEX IF NOT EXISTS idx_guides_created_at    ON guides(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_guides_folder_id     ON guides(folder_id);
+  CREATE INDEX IF NOT EXISTS idx_guides_idempotency   ON guides(user_id, idempotency_key);
+  CREATE INDEX IF NOT EXISTS idx_chat_guide_id        ON chat_messages(guide_id);
+  CREATE INDEX IF NOT EXISTS idx_quiz_guide_id        ON quiz_attempts(guide_id);
+  CREATE INDEX IF NOT EXISTS idx_quiz_user_id         ON quiz_attempts(user_id);
+  CREATE INDEX IF NOT EXISTS idx_sessions_user_id     ON study_sessions(user_id);
+  CREATE INDEX IF NOT EXISTS idx_audit_target         ON audit_logs(target_user_id);
+  CREATE INDEX IF NOT EXISTS idx_audit_created_at     ON audit_logs(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_users_email          ON users(email);
+  CREATE INDEX IF NOT EXISTS idx_users_plan           ON users(plan);
+`);
+
 export default db;

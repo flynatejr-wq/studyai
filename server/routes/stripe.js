@@ -114,9 +114,35 @@ router.post("/webhook", (req, res) => {
         const status = data.status;
         if (status === "active" || status === "trialing") {
           db.prepare("UPDATE users SET plan = 'pro' WHERE stripe_subscription_id = ?").run(subId);
+          console.log(`[stripe] Subscription ${subId} active (status: ${status})`);
         } else if (status === "past_due" || status === "unpaid" || status === "canceled") {
           db.prepare("UPDATE users SET plan = 'free' WHERE stripe_subscription_id = ?").run(subId);
+          console.log(`[stripe] Subscription ${subId} downgraded (status: ${status})`);
         }
+        break;
+      }
+      case "invoice.payment_succeeded": {
+        // Ensure plan is restored to pro when payment recovers (e.g. after past_due)
+        const subId = data.subscription;
+        if (subId) {
+          db.prepare("UPDATE users SET plan = 'pro' WHERE stripe_subscription_id = ?").run(subId);
+          console.log(`[stripe] Payment succeeded for subscription ${subId} — plan restored to pro`);
+        }
+        break;
+      }
+      case "invoice.payment_failed": {
+        const customerId  = data.customer;
+        const attemptCount = data.attempt_count || 1;
+        const subId        = data.subscription;
+        const amountDue    = (data.amount_due / 100).toFixed(2);
+        console.warn(`[stripe] ⚠️  Payment failed — customer: ${customerId}, sub: ${subId}, attempt: ${attemptCount}, amount: $${amountDue}`);
+        // Stripe will retry automatically and fire customer.subscription.deleted after max retries.
+        // We log here for visibility; admins can see the customer ID in Railway logs and look up in Stripe.
+        break;
+      }
+      case "customer.subscription.trial_will_end": {
+        // Trial ending in 3 days — logged for future email reminder implementation
+        console.log(`[stripe] Trial ending soon for subscription ${data.id}`);
         break;
       }
       default:

@@ -1,4 +1,6 @@
-﻿import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+﻿import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { analytics } from "./lib/analytics.js";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
@@ -50,6 +52,12 @@ function GuestRoute({ children }) {
   return !user ? children : <Navigate to="/dashboard" replace />;
 }
 
+function PageTracker() {
+  const location = useLocation();
+  useEffect(() => { analytics.page(location.pathname); }, [location.pathname]);
+  return null;
+}
+
 function AdminRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
@@ -61,6 +69,7 @@ function AdminRoute({ children }) {
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="*" element={<PageTracker />} />
       {/* Public */}
       <Route path="/"                element={<GuestRoute><Landing /></GuestRoute>} />
       <Route path="/login"           element={<GuestRoute><Login /></GuestRoute>} />

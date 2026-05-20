@@ -57,6 +57,7 @@ export const api = {
     login:          (body) => request("/auth/login",          { method: "POST",   headers: headers(), body: JSON.stringify(body) }),
     me:             ()     => request("/auth/me",              { headers: headers() }),
     updateProfile:  (body) => request("/auth/profile",        { method: "PUT",    headers: headers(), body: JSON.stringify(body) }),
+    changeEmail:    (body) => request("/auth/email",          { method: "PUT",    headers: headers(), body: JSON.stringify(body) }),
     deleteAccount:  (body) => request("/auth/account",        { method: "DELETE", headers: headers(), body: JSON.stringify(body) }),
     forgotPassword: (body) => request("/auth/forgot-password",{ method: "POST",   headers: headers(), body: JSON.stringify(body) }),
     resetPassword:  (body) => request("/auth/reset-password", { method: "POST",   headers: headers(), body: JSON.stringify(body) }),

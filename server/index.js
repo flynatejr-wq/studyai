@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -16,6 +17,15 @@ import stripeRoute from "./routes/stripe.js";
 import adminRoute from "./routes/admin.js";
 
 dotenv.config();
+
+// ── Sentry (only when SENTRY_DSN is configured) ───────────────────────────────
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || "production",
+    tracesSampleRate: 0.1,
+  });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -140,6 +150,7 @@ app.use((req, res) => {
 
 // Global error handler — catches multer "File too large" and any other unhandled errors
 // Must have 4 arguments for Express to treat it as an error handler
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   // Always set JSON content-type so the client can parse the error body
   res.setHeader("Content-Type", "application/json");
