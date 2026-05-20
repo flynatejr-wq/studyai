@@ -76,13 +76,13 @@ export default function UpgradeModal({ open, onClose, reason }) {
           />
 
           {/* Modal */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+          <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 pointer-events-none overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 24 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 24 }}
               transition={{ type: "spring", damping: 24, stiffness: 340 }}
-              className="relative w-full max-w-md pointer-events-auto">
+              className="relative w-full max-w-md pointer-events-auto my-4 sm:my-auto">
 
               <div className="relative bg-[#0e0e1a] border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/50">
 

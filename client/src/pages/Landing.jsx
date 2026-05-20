@@ -570,7 +570,7 @@ export default function Landing() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1, duration: 0.5 }}
-              className={`relative rounded-2xl p-7 ${
+              className={`relative rounded-2xl p-5 sm:p-7 ${
                 plan.highlight
                   ? "bg-gradient-to-br from-indigo-600/20 to-violet-600/15 border-2 border-indigo-500/50 shadow-xl shadow-indigo-500/10"
                   : "bg-white/3 border border-white/10"

@@ -139,7 +139,7 @@ export default function Login() {
             <p className="text-gray-500 mt-1 text-sm">Log in to continue studying</p>
           </div>
 
-          <div className="bg-white/3 border border-white/8 rounded-2xl p-6 shadow-xl shadow-black/20">
+          <div className="bg-white/3 border border-white/8 rounded-2xl p-5 sm:p-6 shadow-xl shadow-black/20">
             {error && (
               <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl px-4 py-3 mb-5 text-sm flex items-start gap-2">
                 <span className="shrink-0 mt-0.5">⚠️</span> {error}

@@ -15,7 +15,7 @@ const PERKS = [
 ];
 
 const FREE_FEATURES = [
-  "5 AI study guides included",
+  "1 AI study guide (lifetime)",
   "Flashcard & quiz modes",
   "Progress tracking & XP",
   "AI tutor chat (limited)",
@@ -110,7 +110,7 @@ export default function Signup() {
         </div>
 
         {/* Card */}
-        <div className="bg-white/3 border border-white/8 rounded-2xl p-7 shadow-2xl shadow-black/30 mb-4">
+        <div className="bg-white/3 border border-white/8 rounded-2xl p-5 sm:p-7 shadow-2xl shadow-black/30 mb-4">
           <div className="mb-6">
             <h1 className="text-2xl font-black text-white mb-1">Create your account</h1>
             <p className="text-gray-500 text-sm">Start studying smarter — free forever plan included</p>

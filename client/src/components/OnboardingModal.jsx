@@ -234,7 +234,7 @@ export default function OnboardingModal({ onComplete, onSkip }) {
   }, [step, current.id]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
       {/* Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -250,7 +250,7 @@ export default function OnboardingModal({ onComplete, onSkip }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 16 }}
         transition={{ type: "spring", stiffness: 300, damping: 28 }}
-        className="relative w-full max-w-sm bg-[#0d0d1a] border border-white/10 rounded-3xl shadow-2xl overflow-hidden">
+        className="relative w-full max-w-sm bg-[#0d0d1a] border border-white/10 rounded-3xl shadow-2xl overflow-hidden my-4 sm:my-auto">
 
         {/* Skip button */}
         <button

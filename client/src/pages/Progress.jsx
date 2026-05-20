@@ -248,9 +248,9 @@ export default function Progress() {
                       <p className="text-gray-500 text-xs mt-1">{user.name}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-black text-indigo-300">{(user.xp ?? 0).toLocaleString()}</p>
-                    <p className="text-gray-600 text-xs">XP · {xpNxt - (user.xp ?? 0)} to next level</p>
+                  <div className="text-right shrink-0">
+                    <p className="text-xl sm:text-2xl font-black text-indigo-300 tabular-nums">{(user.xp ?? 0).toLocaleString()}</p>
+                    <p className="text-gray-600 text-[10px] sm:text-xs">XP · {xpNxt - (user.xp ?? 0)} to next</p>
                   </div>
                 </div>
 
@@ -321,7 +321,7 @@ export default function Progress() {
                   <h2 className="text-white font-bold text-sm flex items-center gap-2">
                     <Zap size={14} className="text-indigo-400" /> 30-Day Study Activity
                   </h2>
-                  <span className="text-xs text-gray-600">Hover for details</span>
+                  <span className="text-xs text-gray-600 hidden sm:block">Hover for details</span>
                 </div>
                 <ActivityHeatmap activity={activity} />
               </motion.div>
