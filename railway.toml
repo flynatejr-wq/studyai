@@ -5,3 +5,4 @@ buildCommand = "cd server && npm install"
 [deploy]
 startCommand = "node server/index.js"
 watchPatterns = ["server/**", "railway.toml", "nixpacks.toml"]
+# last deploy trigger: 2026-05-20
