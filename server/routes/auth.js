@@ -39,7 +39,7 @@ router.post("/signup", async (req, res) => {
       "INSERT INTO users (id, name, email, password_hash) VALUES (?, ?, ?, ?)"
     ).run(id, name.trim(), email.toLowerCase().trim(), password_hash);
 
-    const user = db.prepare("SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, created_at FROM users WHERE id = ?").get(id);
+    const user = db.prepare("SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, plan, created_at FROM users WHERE id = ?").get(id);
     const token = signToken({ id });
     res.json({ token, user });
   } catch (err) {
@@ -72,7 +72,7 @@ router.post("/login", async (req, res) => {
       .run(newStreak, today, user.id);
 
     const token = signToken({ id: user.id });
-    const { password_hash, reset_token, reset_token_expires, ...safeUser } = user;
+    const { password_hash, reset_token, reset_token_expires, quiz_gen_count, quiz_gen_date, stripe_customer_id, stripe_subscription_id, ...safeUser } = user;
     res.json({ token, user: { ...safeUser, streak: newStreak } });
   } catch (err) {
     console.error(err);
@@ -83,7 +83,7 @@ router.post("/login", async (req, res) => {
 // ── Get current user ──────────────────────────────────────────────────────────
 router.get("/me", requireAuth, (req, res) => {
   const user = db.prepare(
-    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, last_study_date, created_at FROM users WHERE id = ?"
+    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, plan, last_study_date, created_at FROM users WHERE id = ?"
   ).get(req.user.id);
   if (!user) return res.status(404).json({ error: "User not found." });
   res.json(user);

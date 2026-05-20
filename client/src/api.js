@@ -43,7 +43,11 @@ async function request(path, options = {}) {
     throw new Error(`Unexpected server response (${res.status}). Please try again.`);
   }
 
-  if (!res.ok) throw new Error(data.error || "Something went wrong. Please try again.");
+  if (!res.ok) {
+    // Propagate structured error codes (e.g. FREE_LIMIT_GUIDES) so callers can
+    // show the upgrade modal instead of a generic error message.
+    throw new Error(data.error || "Something went wrong. Please try again.");
+  }
   return data;
 }
 
@@ -97,5 +101,9 @@ export const api = {
   },
   public: {
     getGuide: (token) => request(`/public/guide/${token}`),
+  },
+  stripe: {
+    checkout: () => request("/stripe/checkout", { method: "POST", headers: headers() }),
+    portal:   () => request("/stripe/portal",   { method: "POST", headers: headers() }),
   },
 };

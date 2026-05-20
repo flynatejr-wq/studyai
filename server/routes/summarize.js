@@ -6,6 +6,7 @@ import mammoth from "mammoth";
 import { parseOffice } from "officeparser";
 import { YoutubeTranscript } from "youtube-transcript";
 import { requireAuth } from "../middleware/auth.js";
+import db from "../db.js";
 
 // ESM-native import of CJS pdf-parse — module.exports becomes .default
 const { default: pdfParse } = await import("pdf-parse/lib/pdf-parse.js");
@@ -113,9 +114,26 @@ async function generateFromText(text, difficulty = "standard", style = "detailed
 }
 
 const MAX_TEXT_CHARS = 50000;
+const FREE_GUIDE_LIMIT = 1;
+
+// ── Free-tier guard ───────────────────────────────────────────────────────────
+// Returns true (and sends a 403) if the free user is over their guide limit.
+function checkFreeGuideLimit(req, res) {
+  const user = db.prepare("SELECT plan, total_guides FROM users WHERE id = ?").get(req.user.id);
+  if (!user || user.plan === "pro") return false; // pro users are unrestricted
+  if ((user.total_guides || 0) >= FREE_GUIDE_LIMIT) {
+    res.status(403).json({
+      error: "FREE_LIMIT_GUIDES",
+      message: `Free accounts are limited to ${FREE_GUIDE_LIMIT} saved guide. Upgrade to Pro for unlimited guides.`,
+    });
+    return true;
+  }
+  return false;
+}
 
 // ── POST /api/summarize — paste text ────────────────────────────────────────
 router.post("/", requireAuth, async (req, res) => {
+  if (checkFreeGuideLimit(req, res)) return;
   const { transcript, difficulty, style } = req.body;
   if (!transcript?.trim()) return res.status(400).json({ error: "No transcript provided." });
   if (transcript.length > MAX_TEXT_CHARS)
@@ -131,6 +149,7 @@ router.post("/", requireAuth, async (req, res) => {
 
 // ── POST /api/summarize/youtube — YouTube URL ─────────────────────────────────
 router.post("/youtube", requireAuth, async (req, res) => {
+  if (checkFreeGuideLimit(req, res)) return;
   const { url, difficulty } = req.body;
   if (!url?.trim()) return res.status(400).json({ error: "No YouTube URL provided." });
 
@@ -164,6 +183,7 @@ router.post("/youtube", requireAuth, async (req, res) => {
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 
 router.post("/image", requireAuth, upload.single("image"), async (req, res) => {
+  if (checkFreeGuideLimit(req, res)) return;
   if (!req.file) return res.status(400).json({ error: "No image provided." });
   // M-1: Reject unsupported MIME types server-side (client Content-Type is not trustworthy on its own,
   // but this prevents accidental misuse and limits the attack surface)
@@ -213,6 +233,7 @@ router.post("/image", requireAuth, upload.single("image"), async (req, res) => {
 
 // ── POST /api/summarize/audio — upload audio ─────────────────────────────────
 router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
+  if (checkFreeGuideLimit(req, res)) return;
   if (!req.file) return res.status(400).json({ error: "No audio provided." });
   const difficulty = req.body?.difficulty;
   try {
@@ -235,6 +256,7 @@ router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
 
 // ── POST /api/summarize/file — PDF, DOCX, PPTX, TXT, CSV, MD ────────────────
 router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
+  if (checkFreeGuideLimit(req, res)) return;
   if (!req.file) return res.status(400).json({ error: "No file provided." });
 
   const difficulty = req.body?.difficulty;

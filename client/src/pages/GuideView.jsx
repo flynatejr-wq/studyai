@@ -15,6 +15,7 @@ import Sidebar from "../components/Sidebar.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import RichText from "../components/RichText.jsx";
 import ChatMessage from "../components/ChatMessage.jsx";
+import UpgradeModal from "../components/UpgradeModal.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
 
@@ -97,16 +98,18 @@ function FlashcardMode({ terms }) {
         </motion.div>
       ) : (
         <>
-          <div className="w-full max-w-lg cursor-pointer" onClick={() => setFlipped(f => !f)} style={{ perspective: 1000 }}>
+          <div className="w-full max-w-lg cursor-pointer" onClick={() => setFlipped(f => !f)} style={{ perspective: "1000px" }}>
             <motion.div animate={{ rotateY: flipped ? 180 : 0 }} transition={{ duration: 0.45, ease: "easeInOut" }}
-              style={{ transformStyle: "preserve-3d", position: "relative", height: "min(240px, 50vw)" }}>
-              <div style={{ backfaceVisibility: "hidden", position: "absolute", inset: 0 }}
+              style={{ transformStyle: "preserve-3d", WebkitTransformStyle: "preserve-3d", position: "relative", height: "min(240px, 50vw)" }}>
+              {/* Front face */}
+              <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", position: "absolute", inset: 0 }}
                 className="bg-gradient-to-br from-indigo-600/30 to-violet-600/20 border border-indigo-500/40 rounded-2xl flex flex-col items-center justify-center p-8 text-center">
                 <p className="text-gray-400 text-xs uppercase tracking-widest mb-3">Term</p>
                 <p className="text-white text-2xl font-bold leading-tight">{card.term}</p>
                 <p className="text-indigo-400 text-xs mt-4">Tap to reveal definition</p>
               </div>
-              <div style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", position: "absolute", inset: 0 }}
+              {/* Back face */}
+              <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)", WebkitTransform: "rotateY(180deg)", position: "absolute", inset: 0 }}
                 className="bg-gradient-to-br from-violet-600/30 to-indigo-600/20 border border-violet-500/40 rounded-2xl flex flex-col items-center justify-center p-8 text-center">
                 <p className="text-gray-400 text-xs uppercase tracking-widest mb-3">Definition</p>
                 <p className="text-white text-lg leading-relaxed">{card.definition}</p>
@@ -819,6 +822,8 @@ export default function GuideView() {
   const [quizHistory, setQuizHistory] = useState([]);
   const [xpToast, setXpToast] = useState(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [upgradeOpen, setUpgradeOpen]   = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState("");
   const chatEndRef = useRef(null);
   const xpTimerRef = useRef(null);
 
@@ -874,7 +879,13 @@ export default function GuideView() {
   const generateQuiz = async () => {
     setGeneratingQuiz(true); setQuizError(""); resetQuiz();
     try { const { questions } = await api.guides.generateQuiz(id, quizCount, "self-grade"); setActiveQuestions(Array.isArray(questions) ? questions : []); }
-    catch (e) { setQuizError(e.message); } finally { setGeneratingQuiz(false); }
+    catch (e) {
+      if (e.message === "FREE_LIMIT_QUIZZES" || (e.message || "").includes("FREE_LIMIT")) {
+        setUpgradeReason("FREE_LIMIT_QUIZZES"); setUpgradeOpen(true);
+      } else {
+        setQuizError(e.message);
+      }
+    } finally { setGeneratingQuiz(false); }
   };
   const submitQuiz = async () => {
     const questions = activeQuestions || guide.quiz_questions || [];
@@ -1221,6 +1232,12 @@ export default function GuideView() {
           </motion.aside>
         )}
       </AnimatePresence>
+
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        reason={upgradeReason}
+      />
     </div>
   );
 }

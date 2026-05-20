@@ -280,6 +280,25 @@ router.post("/:id/generate-quiz", async (req, res) => {
   const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
+  // Free-tier limit: 3 quiz generations per day
+  const user = db.prepare("SELECT plan, quiz_gen_count, quiz_gen_date FROM users WHERE id = ?").get(req.user.id);
+  if (user && user.plan !== "pro") {
+    const today = new Date().toISOString().slice(0, 10);
+    const genCount = user.quiz_gen_date === today ? (user.quiz_gen_count || 0) : 0;
+    if (genCount >= 3) {
+      return res.status(403).json({
+        error: "FREE_LIMIT_QUIZZES",
+        message: "Free accounts are limited to 3 AI quiz generations per day. Upgrade to Pro for unlimited quizzes.",
+      });
+    }
+    // Reset or increment the daily counter
+    if (user.quiz_gen_date !== today) {
+      db.prepare("UPDATE users SET quiz_gen_count = 1, quiz_gen_date = ? WHERE id = ?").run(today, req.user.id);
+    } else {
+      db.prepare("UPDATE users SET quiz_gen_count = quiz_gen_count + 1 WHERE id = ?").run(req.user.id);
+    }
+  }
+
   const count = Math.min(Math.max(parseInt(req.body.count) || 5, 3), 30);
   const mode = req.body.mode === "mcq" ? "mcq" : "self-grade";
 

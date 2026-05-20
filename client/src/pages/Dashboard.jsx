@@ -11,6 +11,7 @@ import { api } from "../api.js";
 import UploadForm from "../components/UploadForm.jsx";
 import Results from "../components/Results.jsx";
 import Sidebar from "../components/Sidebar.jsx";
+import UpgradeModal from "../components/UpgradeModal.jsx";
 
 export default function Dashboard() {
   const { user, refreshUser, logout } = useAuth();
@@ -19,11 +20,13 @@ export default function Dashboard() {
 
   const [folders,      setFolders]      = useState([]);
   const [recentGuides, setRecentGuides] = useState([]);
-  const [showCreate,   setShowCreate]   = useState(false);
+  const [showCreate,   setShowCreate]   = useState(true);
   const [results,      setResults]      = useState(null);
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState("");
   const [saveFolder,   setSaveFolder]   = useState("");
+  const [upgradeOpen,  setUpgradeOpen]  = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState("");
 
   useEffect(() => {
     loadData();
@@ -53,7 +56,15 @@ export default function Dashboard() {
       else                         data = await api.summarize.file(file, difficulty, style);
       setResults({ ...data, type });
       try { localStorage.setItem("studybuddi_draft", JSON.stringify({ ...data, type })); } catch (_) {}
-    } catch (err) { setError(err.message); }
+    } catch (err) {
+      // Show upgrade modal for free-tier limit errors instead of a generic message
+      if (err.message === "FREE_LIMIT_GUIDES" || (err.message || "").includes("FREE_LIMIT")) {
+        const reason = err.message.includes("QUIZZES") ? "FREE_LIMIT_QUIZZES" : "FREE_LIMIT_GUIDES";
+        setUpgradeReason(reason); setUpgradeOpen(true);
+      } else {
+        setError(err.message);
+      }
+    }
     finally { setLoading(false); }
   };
 
@@ -218,8 +229,8 @@ export default function Dashboard() {
             <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
               <BookOpen size={15} className="text-indigo-400" /> Recent Guides
             </h2>
-            <Link to="/guides" className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors px-2.5 py-1.5 rounded-lg hover:bg-indigo-500/10">
-              View all <ChevronRight size={13} />
+            <Link to="/guides" className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-indigo-400 hover:text-white hover:bg-indigo-600/20 hover:border-indigo-500/30 transition-all">
+              See All Guides <ChevronRight size={13} />
             </Link>
           </div>
 
@@ -267,6 +278,12 @@ export default function Dashboard() {
 
         <div aria-hidden="true" style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
       </main>
+
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        reason={upgradeReason}
+      />
     </div>
   );
 }

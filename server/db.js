@@ -105,4 +105,11 @@ safeAlter("ALTER TABLE guides ADD COLUMN last_studied_at TEXT");
 safeAlter("ALTER TABLE guides ADD COLUMN sections TEXT DEFAULT '[]'");
 safeAlter("ALTER TABLE guides ADD COLUMN section_progress TEXT DEFAULT '[]'");
 
+// Monetization columns
+safeAlter("ALTER TABLE users ADD COLUMN plan TEXT DEFAULT 'free'");
+safeAlter("ALTER TABLE users ADD COLUMN stripe_customer_id TEXT");
+safeAlter("ALTER TABLE users ADD COLUMN stripe_subscription_id TEXT");
+safeAlter("ALTER TABLE users ADD COLUMN quiz_gen_count INTEGER DEFAULT 0");
+safeAlter("ALTER TABLE users ADD COLUMN quiz_gen_date TEXT DEFAULT ''")
+
 export default db;
