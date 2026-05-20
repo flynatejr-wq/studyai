@@ -1,6 +1,6 @@
 import express from "express";
 import bcrypt from "bcryptjs";
-import { createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { v4 as uuid } from "uuid";
 import db from "../db.js";
 import { signToken, requireAuth } from "../middleware/auth.js";
@@ -35,9 +35,25 @@ router.post("/signup", async (req, res) => {
 
     const password_hash = await bcrypt.hash(password, 10);
     const id = uuid();
+    const referralCode = randomBytes(4).toString("hex").toUpperCase();
+
+    // Handle referral: if a ref code was provided, link it
+    const { ref } = req.body;
+    let referredBy = null;
+    if (ref) {
+      const referrer = db.prepare("SELECT id FROM users WHERE referral_code = ?").get(ref.toUpperCase().trim());
+      if (referrer && referrer.id !== id) referredBy = referrer.id;
+    }
+
     db.prepare(
-      "INSERT INTO users (id, name, email, password_hash) VALUES (?, ?, ?, ?)"
-    ).run(id, name.trim(), email.toLowerCase().trim(), password_hash);
+      "INSERT INTO users (id, name, email, password_hash, referral_code, referred_by) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(id, name.trim(), email.toLowerCase().trim(), password_hash, referralCode, referredBy);
+
+    // Record the referral and award 1 free guide credit to the referrer
+    if (referredBy) {
+      db.prepare("INSERT OR IGNORE INTO referrals (id, referrer_id, referred_id) VALUES (?, ?, ?)").run(uuid(), referredBy, id);
+      db.prepare("UPDATE users SET referral_credits = COALESCE(referral_credits, 0) + 1 WHERE id = ?").run(referredBy);
+    }
 
     const user = db.prepare("SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, created_at FROM users WHERE id = ?").get(id);
     const token = signToken({ id });
@@ -99,7 +115,7 @@ router.post("/login", async (req, res) => {
 // ── Get current user ──────────────────────────────────────────────────────────
 router.get("/me", requireAuth, (req, res) => {
   const user = db.prepare(
-    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, last_study_date, created_at FROM users WHERE id = ?"
+    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, referral_code, referral_credits, last_study_date, created_at FROM users WHERE id = ?"
   ).get(req.user.id);
   if (!user) return res.status(404).json({ error: "User not found." });
   res.json(user);

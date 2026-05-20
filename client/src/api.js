@@ -106,6 +106,10 @@ export const api = {
   public: {
     getGuide: (token) => request(`/public/guide/${token}`),
   },
+  referrals: {
+    get:    ()  => request("/referrals",        { headers: headers() }),
+    redeem: ()  => request("/referrals/redeem", { method: "POST", headers: headers() }),
+  },
   studyPlans: {
     list:   ()         => request("/study-plans",      { headers: headers() }),
     create: (body)     => request("/study-plans",      { method: "POST",  headers: headers(), body: JSON.stringify(body) }),

@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   User, Lock, Trash2, Save, LogOut, Crown, CreditCard,
-  Check, ExternalLink, Sparkles, Shield, Download,
+  Check, ExternalLink, Sparkles, Shield, Download, Gift, Copy, CheckCheck,
 } from "lucide-react";
 import { api } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -31,8 +31,15 @@ export default function Settings() {
   const [deleteLoading,   setDeleteLoading]   = useState(false);
   const [billingLoading,  setBillingLoading]  = useState(false);
   const [exportLoading,   setExportLoading]   = useState(false);
+  const [referralData,    setReferralData]    = useState(null);
+  const [redeemLoading,   setRedeemLoading]   = useState(false);
+  const [copied,          setCopied]          = useState(false);
 
   const isPro = user?.plan === "pro";
+
+  useEffect(() => {
+    api.referrals.get().then(setReferralData).catch(() => {});
+  }, []);
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -83,6 +90,28 @@ export default function Settings() {
     } finally {
       setBillingLoading(false);
     }
+  };
+
+  const handleCopyReferral = () => {
+    const code = referralData?.referral_code;
+    if (!code) return;
+    const link = `${window.location.origin}/signup?ref=${code}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const handleRedeemCredit = async () => {
+    setRedeemLoading(true);
+    try {
+      const res = await api.referrals.redeem();
+      setReferralData(prev => ({ ...prev, referral_credits: res.referral_credits }));
+      await refreshUser();
+      toast({ message: "Credit redeemed! You can save one more guide.", type: "success" });
+    } catch (err) {
+      toast({ message: err.message, type: "error" });
+    } finally { setRedeemLoading(false); }
   };
 
   const handleExport = async () => {
@@ -286,6 +315,65 @@ export default function Settings() {
                 </div>
               ))}
             </div>
+          </div>
+        </Section>
+
+        {/* ── Referrals ── */}
+        <Section delay={0.095}>
+          <div className="bg-white/3 border border-white/8 rounded-2xl p-6 mb-5">
+            <h2 className="text-white font-bold mb-2 flex items-center gap-2 text-sm">
+              <div className="w-7 h-7 rounded-lg bg-pink-500/15 flex items-center justify-center">
+                <Gift size={14} className="text-pink-400" />
+              </div>
+              Refer Friends
+            </h2>
+            <p className="text-gray-500 text-xs mb-4 leading-relaxed">
+              Share your link. Each friend who signs up gives you a free extra guide credit.
+            </p>
+
+            {referralData ? (
+              <>
+                {/* Share link */}
+                <div className="flex gap-2 mb-4">
+                  <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-gray-400 text-xs font-mono truncate">
+                    {`${window.location.origin}/signup?ref=${referralData.referral_code}`}
+                  </div>
+                  <button
+                    onClick={handleCopyReferral}
+                    className="flex items-center gap-1.5 px-4 py-2.5 bg-pink-600/20 border border-pink-500/25 hover:bg-pink-600/30 rounded-xl text-pink-400 font-semibold text-xs transition-all shrink-0">
+                    {copied ? <CheckCheck size={13} /> : <Copy size={13} />}
+                    {copied ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {[
+                    { label: "Total Referrals", value: referralData.stats?.total ?? 0 },
+                    { label: "Converted",        value: referralData.stats?.converted ?? 0 },
+                    { label: "Credits",          value: referralData.referral_credits ?? 0 },
+                  ].map(s => (
+                    <div key={s.label} className="bg-white/3 border border-white/6 rounded-xl p-3 text-center">
+                      <p className="text-white font-black text-lg leading-none">{s.value}</p>
+                      <p className="text-gray-600 text-xs mt-1">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Redeem credit */}
+                {!isPro && (referralData.referral_credits ?? 0) > 0 && (
+                  <button
+                    onClick={handleRedeemCredit}
+                    disabled={redeemLoading}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-pink-600/20 border border-pink-500/25 hover:bg-pink-600/30 disabled:opacity-50 rounded-xl text-pink-400 font-semibold text-sm transition-all">
+                    <Gift size={14} />
+                    {redeemLoading ? "Redeeming…" : `Redeem 1 credit for a free guide (${referralData.referral_credits} available)`}
+                  </button>
+                )}
+              </>
+            ) : (
+              <div className="text-gray-600 text-xs">Loading…</div>
+            )}
           </div>
         </Section>
 

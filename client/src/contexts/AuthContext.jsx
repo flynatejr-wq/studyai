@@ -29,8 +29,8 @@ export function AuthProvider({ children }) {
     return user;
   };
 
-  const signup = async (name, email, password) => {
-    const { token, user } = await api.auth.signup({ name, email, password });
+  const signup = async (name, email, password, ref = null) => {
+    const { token, user } = await api.auth.signup({ name, email, password, ...(ref ? { ref } : {}) });
     localStorage.setItem("token", token);
     setUser(user);
     analytics.identify(user.id, { plan: user.plan, role: user.role });

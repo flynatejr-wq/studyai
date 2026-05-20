@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { randomBytes } from "crypto";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -139,6 +140,26 @@ safeAlter("ALTER TABLE users ADD COLUMN email_verify_token TEXT");
 // Guide favorites (bookmarks)
 safeAlter("ALTER TABLE guides ADD COLUMN is_favorite INTEGER DEFAULT 0");
 
+// Referral system
+safeAlter("ALTER TABLE users ADD COLUMN referral_code TEXT");
+safeAlter("ALTER TABLE users ADD COLUMN referred_by TEXT");
+safeAlter("ALTER TABLE users ADD COLUMN referral_credits INTEGER DEFAULT 0");
+db.exec(`
+  CREATE TABLE IF NOT EXISTS referrals (
+    id TEXT PRIMARY KEY,
+    referrer_id TEXT NOT NULL,
+    referred_id TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    created_at TEXT DEFAULT (datetime('now')),
+    converted_at TEXT,
+    UNIQUE(referred_id),
+    FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (referred_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id);`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code);`);
+
 // Study plans / exam countdowns
 db.exec(`
   CREATE TABLE IF NOT EXISTS study_plans (
@@ -171,6 +192,15 @@ db.exec(`
     created_at TEXT DEFAULT (datetime('now'))
   );
 `);
+
+// Back-fill referral codes for existing users who don't have one yet
+{
+  const usersWithoutCode = db.prepare("SELECT id FROM users WHERE referral_code IS NULL").all();
+  const update = db.prepare("UPDATE users SET referral_code = ? WHERE id = ?");
+  for (const u of usersWithoutCode) {
+    update.run(randomBytes(4).toString("hex").toUpperCase(), u.id);
+  }
+}
 
 // ── Performance indexes ───────────────────────────────────────────────────────
 // Added after initial schema so existing DBs gain them automatically on restart.

@@ -2,6 +2,7 @@ import express from "express";
 import Stripe from "stripe";
 import db from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
+import { markReferralConverted } from "./referrals.js";
 
 const router = express.Router();
 
@@ -99,6 +100,8 @@ router.post("/webhook", (req, res) => {
           db.prepare("UPDATE users SET plan = 'pro', stripe_subscription_id = ? WHERE id = ?")
             .run(subId, userId);
           console.log(`[stripe] User ${userId} upgraded to Pro (sub: ${subId})`);
+          // Mark referral as converted (no-op if user wasn't referred)
+          markReferralConverted(userId);
         }
         break;
       }

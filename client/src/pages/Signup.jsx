@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Sparkles, ArrowRight, Check, Zap, Trophy, Brain } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -42,6 +42,9 @@ function LogoMark({ size = 36 }) {
 export default function Signup() {
   const { signup } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const refCode = searchParams.get("ref"); // referral code from share link
+
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
@@ -54,7 +57,7 @@ export default function Signup() {
     if (form.password.length < 8) return setError("Password must be at least 8 characters.");
     setLoading(true);
     try {
-      await signup(form.name, form.email, form.password);
+      await signup(form.name, form.email, form.password, refCode);
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
