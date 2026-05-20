@@ -4,6 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
+    <!--
+      ANTI-FLASH THEME SCRIPT
+      Runs synchronously before any paint so the correct light/dark class is
+      on <html> before CSS is applied — zero flash of wrong theme on load.
+      Must stay as an inline <script>, NOT deferred or async.
+    -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('sb_theme');
+          if (t !== 'light' && t !== 'dark') {
+            t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+          }
+          document.documentElement.classList.add(t);
+          document.documentElement.setAttribute('data-theme', t);
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.content = t === 'light' ? '#f0f4fe' : '#0a0a12';
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+
     <title>StudyBuddi &#8211; AI-Powered Study Guides</title>
     <meta name="description" content="Turn any lecture into a perfect study guide. Upload audio, snap a photo, or paste notes &#8211; get summaries, flashcards, quizzes, and an AI tutor instantly." />
 

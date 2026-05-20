@@ -3,8 +3,10 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, BarChart2, LogOut, Zap,
   Menu, X, Settings, ChevronRight, Crown, Flame, Sparkles, CalendarDays,
+  Sun, Moon,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { useTheme } from "../contexts/ThemeContext.jsx";
 import { api } from "../api.js";
 import PlanUsageCard from "./PlanUsageCard.jsx";
 
@@ -41,6 +43,7 @@ function LogoMark({ size = 32 }) {
 export default function Sidebar({ onLogout }) {
   const { user } = useAuth();
   const { pathname } = useLocation();
+  const { isDark, toggle: toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
 
   const level    = user?.level || 1;
@@ -87,9 +90,18 @@ export default function Sidebar({ onLogout }) {
           </span>
         </Link>
 
-        <div className="flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/20 rounded-xl px-2.5 py-1.5">
-          <Zap size={11} className="text-indigo-400" />
-          <span className="text-xs text-indigo-300 font-black">Lv.{level}</span>
+        {/* Theme toggle + level badge */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/8 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center">
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+          <div className="flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/20 rounded-xl px-2.5 py-1.5">
+            <Zap size={11} className="text-indigo-400" />
+            <span className="text-xs text-indigo-400 font-black">Lv.{level}</span>
+          </div>
         </div>
       </header>
 
@@ -116,10 +128,14 @@ export default function Sidebar({ onLogout }) {
               <LogoMark size={36} />
             </div>
             <div>
-              <span className="font-black text-base bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent tracking-tight block leading-none">
+              <span className={`font-black text-base bg-clip-text text-transparent tracking-tight block leading-none ${
+                isDark
+                  ? "bg-gradient-to-r from-white to-gray-300"
+                  : "bg-gradient-to-r from-slate-800 to-slate-600"
+              }`}>
                 StudyBuddi
               </span>
-              <span className="text-[10px] text-indigo-400 font-semibold">AI Study Assistant</span>
+              <span className={`text-[10px] font-semibold ${isDark ? "text-indigo-400" : "text-indigo-500"}`}>AI Study Assistant</span>
             </div>
           </Link>
           <button
@@ -141,23 +157,37 @@ export default function Sidebar({ onLogout }) {
                 onClick={close}
                 className={`flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-all group relative overflow-hidden
                   ${active
-                    ? "bg-indigo-600/15 text-indigo-300 border border-indigo-500/20"
-                    : "text-gray-500 hover:text-gray-200 hover:bg-white/4 border border-transparent"
+                    ? isDark
+                      ? "bg-indigo-600/15 text-indigo-300 border border-indigo-500/20"
+                      : "bg-indigo-50 text-indigo-700 border border-indigo-200/70"
+                    : isDark
+                      ? "text-gray-500 hover:text-gray-200 hover:bg-white/4 border border-transparent"
+                      : "text-slate-500 hover:text-slate-800 hover:bg-black/4 border border-transparent"
                   }`}>
                 {/* Active indicator bar */}
                 {active && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-indigo-500 rounded-full" />
+                  <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full ${isDark ? "bg-indigo-500" : "bg-indigo-600"}`} />
                 )}
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all shrink-0 ${
-                  active ? "bg-indigo-500/20" : "group-hover:bg-white/6"
+                  active
+                    ? isDark ? "bg-indigo-500/20" : "bg-indigo-100"
+                    : isDark ? "group-hover:bg-white/6" : "group-hover:bg-black/5"
                 }`}>
-                  <Icon size={16} className={active ? "text-indigo-400" : "text-gray-500 group-hover:text-gray-300"} />
+                  <Icon size={16} className={
+                    active
+                      ? isDark ? "text-indigo-400" : "text-indigo-600"
+                      : isDark ? "text-gray-500 group-hover:text-gray-300" : "text-slate-400 group-hover:text-slate-700"
+                  } />
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="block leading-none">{label}</span>
-                  <span className={`text-xs leading-none mt-0.5 block ${active ? "text-indigo-400/60" : "text-gray-700"}`}>{desc}</span>
+                  <span className={`text-xs leading-none mt-0.5 block ${
+                    active
+                      ? isDark ? "text-indigo-400/60" : "text-indigo-500"
+                      : isDark ? "text-gray-700" : "text-slate-400"
+                  }`}>{desc}</span>
                 </div>
-                {active && <ChevronRight size={13} className="text-indigo-500/60 shrink-0" />}
+                {active && <ChevronRight size={13} className={isDark ? "text-indigo-500/60" : "text-indigo-400"} />}
               </Link>
             );
           })}
@@ -220,13 +250,29 @@ export default function Sidebar({ onLogout }) {
             </button>
           )}
 
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl transition-all text-sm font-medium border border-transparent min-h-[44px]
+              ${isDark
+                ? "text-gray-500 hover:text-gray-200 hover:bg-white/4"
+                : "text-slate-500 hover:text-slate-700 hover:bg-black/4"
+              }`}>
+            {isDark
+              ? <Sun size={15} className="text-amber-400 shrink-0" />
+              : <Moon size={15} className="text-indigo-500 shrink-0" />
+            }
+            <span>{isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}</span>
+          </button>
+
           {/* User row */}
           <div className="flex items-center gap-3 px-1 pt-1">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-700 flex items-center justify-center text-xs font-black text-white shrink-0 shadow-md shadow-indigo-500/20">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-xs font-semibold truncate leading-none">{user?.name || "User"}</p>
+              <p className={`text-xs font-semibold truncate leading-none ${isDark ? "text-white" : "text-slate-800"}`}>{user?.name || "User"}</p>
               <p className="text-gray-600 text-xs truncate leading-none mt-1">{user?.email}</p>
             </div>
             <button

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, Sparkles, Brain, Trophy, ArrowRight,
-  FileText, Youtube, Image, Mic, File, X, CheckCircle,
+  FileText, Play, Image, Mic, File, X, CheckCircle,
 } from "lucide-react";
 import { analytics, Events } from "../lib/analytics.js";
 
@@ -71,7 +71,7 @@ function WelcomeStep() {
 function HowStep() {
   const sources = [
     { icon: FileText, label: "Paste notes",     desc: "Copy-paste lecture text",     color: "text-indigo-400", bg: "bg-indigo-500/10" },
-    { icon: Youtube,  label: "YouTube URL",     desc: "Auto-fetches transcript",     color: "text-red-400",    bg: "bg-red-500/10" },
+    { icon: Play,     label: "YouTube URL",     desc: "Auto-fetches transcript",     color: "text-red-400",    bg: "bg-red-500/10" },
     { icon: Image,    label: "Photo",           desc: "Whiteboard, slides, notes",   color: "text-emerald-400",bg: "bg-emerald-500/10" },
     { icon: Mic,      label: "Audio recording", desc: "Lecture, podcast, voice memo",color: "text-amber-400",  bg: "bg-amber-500/10" },
     { icon: File,     label: "Upload file",     desc: "PDF, DOCX, PPTX, TXT",        color: "text-violet-400", bg: "bg-violet-500/10" },

@@ -4,10 +4,12 @@ import { motion } from "framer-motion";
 import {
   User, Lock, Trash2, Save, LogOut, Crown, CreditCard,
   Check, ExternalLink, Sparkles, Shield, Download, Gift, Copy, CheckCheck,
+  Sun, Moon, Monitor,
 } from "lucide-react";
 import { api } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
+import { useTheme } from "../contexts/ThemeContext.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import PlanUsageCard from "../components/PlanUsageCard.jsx";
@@ -39,6 +41,7 @@ export default function Settings() {
   const [upgradeOpen,     setUpgradeOpen]     = useState(false);
   const [upgradeReason,   setUpgradeReason]   = useState("FREE_LIMIT_EXPORT");
 
+  const { theme, setLight, setDark, isDark } = useTheme();
   const isPro = user?.plan === "pro";
 
   useEffect(() => {
@@ -339,6 +342,74 @@ export default function Settings() {
                   <p className="text-gray-500 text-xs mt-1">{s.label}</p>
                 </div>
               ))}
+            </div>
+          </div>
+        </Section>
+
+        {/* ── Appearance ── */}
+        <Section delay={0.08}>
+          <div className="bg-white/3 border border-white/8 rounded-2xl p-6 mb-5">
+            <h2 className="font-bold mb-4 flex items-center gap-2 text-sm text-white">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                <Sun size={14} className="text-amber-400" />
+              </div>
+              Appearance
+            </h2>
+            <p className="text-gray-500 text-xs mb-4 leading-relaxed">
+              Choose how StudyBuddi looks. Your preference is saved and synced across sessions.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {/* Dark mode option */}
+              <button
+                onClick={setDark}
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${
+                  isDark
+                    ? "bg-indigo-600/15 border-indigo-500/40 shadow-sm shadow-indigo-500/10"
+                    : "bg-white/3 border-white/8 hover:bg-white/5 hover:border-white/15"
+                }`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                  isDark ? "bg-indigo-500/20" : "bg-white/6"
+                }`}>
+                  <Moon size={20} className={isDark ? "text-indigo-400" : "text-gray-500"} />
+                </div>
+                <div className="text-center">
+                  <p className={`text-xs font-bold leading-none ${isDark ? "text-indigo-300" : "text-gray-400"}`}>Dark</p>
+                  <p className={`text-[10px] mt-0.5 leading-none ${isDark ? "text-indigo-400/60" : "text-gray-600"}`}>
+                    {isDark ? "Active" : "Comfortable"}
+                  </p>
+                </div>
+                {isDark && (
+                  <div className="w-4 h-4 rounded-full bg-indigo-500 flex items-center justify-center">
+                    <Check size={10} className="text-white" />
+                  </div>
+                )}
+              </button>
+
+              {/* Light mode option */}
+              <button
+                onClick={setLight}
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${
+                  !isDark
+                    ? "bg-amber-500/10 border-amber-400/40 shadow-sm shadow-amber-500/10"
+                    : "bg-white/3 border-white/8 hover:bg-white/5 hover:border-white/15"
+                }`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                  !isDark ? "bg-amber-500/15" : "bg-white/6"
+                }`}>
+                  <Sun size={20} className={!isDark ? "text-amber-500" : "text-gray-500"} />
+                </div>
+                <div className="text-center">
+                  <p className={`text-xs font-bold leading-none ${!isDark ? "text-amber-600" : "text-gray-400"}`}>Light</p>
+                  <p className={`text-[10px] mt-0.5 leading-none ${!isDark ? "text-amber-500" : "text-gray-600"}`}>
+                    {!isDark ? "Active" : "Bright & airy"}
+                  </p>
+                </div>
+                {!isDark && (
+                  <div className="w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
+                    <Check size={10} className="text-white" />
+                  </div>
+                )}
+              </button>
             </div>
           </div>
         </Section>

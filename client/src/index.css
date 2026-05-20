@@ -5,8 +5,267 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   BASE RESET & FONT
+   THEME DESIGN TOKENS
+   All semantic colours are CSS custom properties. The dark defaults match
+   the original hardcoded palette; html.light overrides flip them to light.
 ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  color-scheme: dark;
+
+  /* Backgrounds */
+  --th-bg:       #080810;   /* page background          */
+  --th-panel:    #0c0c18;   /* sidebar / top-bar        */
+  --th-surface:  #0d0d1a;   /* modals / elevated cards  */
+  --th-raised:   #0f0f1a;   /* slightly raised surfaces */
+  --th-card:     rgba(255,255,255,0.03);
+  --th-card-md:  rgba(255,255,255,0.05);
+  --th-input:    rgba(255,255,255,0.05);
+
+  /* Borders */
+  --th-bd-xs:    rgba(255,255,255,0.04);
+  --th-bd-sm:    rgba(255,255,255,0.06);
+  --th-bd:       rgba(255,255,255,0.08);
+  --th-bd-md:    rgba(255,255,255,0.10);
+  --th-bd-lg:    rgba(255,255,255,0.14);
+
+  /* Text */
+  --th-tx-1:     #f1f5f9;   /* primary   */
+  --th-tx-2:     #94a3b8;   /* secondary */
+  --th-tx-3:     #64748b;   /* muted     */
+  --th-tx-4:     #475569;   /* dim       */
+}
+
+html.light {
+  color-scheme: light;
+
+  /* Backgrounds */
+  --th-bg:       #f0f4fe;
+  --th-panel:    #ffffff;
+  --th-surface:  #ffffff;
+  --th-raised:   #f8fafc;
+  --th-card:     rgba(255,255,255,0.85);
+  --th-card-md:  rgba(255,255,255,0.95);
+  --th-input:    #f1f5f9;
+
+  /* Borders */
+  --th-bd-xs:    rgba(0,0,0,0.04);
+  --th-bd-sm:    rgba(0,0,0,0.07);
+  --th-bd:       rgba(0,0,0,0.09);
+  --th-bd-md:    rgba(0,0,0,0.12);
+  --th-bd-lg:    rgba(0,0,0,0.16);
+
+  /* Text */
+  --th-tx-1:     #0f172a;
+  --th-tx-2:     #334155;
+  --th-tx-3:     #64748b;
+  --th-tx-4:     #94a3b8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIGHT MODE GLOBAL OVERRIDES
+   These target specific Tailwind utility classes used throughout the app so
+   most pages/components need zero edits to support both themes.
+   Rule: all overrides are scoped to html.light and use !important to win
+   over Tailwind's inline utility specificity.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Body & root ── */
+html.light body {
+  background-color: var(--th-bg);
+  color: var(--th-tx-1);
+}
+
+/* ── Dark page backgrounds ── */
+html.light .bg-\[\#080810\],
+html.light .bg-\[\#0a0a12\],
+html.light .bg-\[\#08080f\],
+html.light .bg-\[\#0a0a14\] {
+  background-color: var(--th-bg) !important;
+}
+
+/* ── Panel / sidebar / header backgrounds ── */
+html.light .bg-\[\#0c0c18\],
+html.light .bg-\[\#0d0d1a\],
+html.light .bg-\[\#0e0e1a\],
+html.light .bg-\[\#0f0f1a\],
+html.light .bg-\[\#111122\],
+html.light .bg-\[\#0b0b16\] {
+  background-color: var(--th-panel) !important;
+}
+
+/* ── Opacity-modified dark backgrounds ── */
+html.light .bg-\[\#0c0c18\]\/95 {
+  background-color: rgba(255,255,255,0.95) !important;
+}
+html.light .bg-\[\#0e0e1a\]\/80 {
+  background-color: rgba(255,255,255,0.90) !important;
+}
+
+/* ── Barely-visible white overlays ── */
+html.light .bg-white\/2 { background-color: rgba(0,0,0,0.02) !important; }
+
+/* ── Brand logo text: "from-white to-gray-300 bg-clip-text" is invisible on
+   a light background — swap to a dark slate gradient.
+   SplashScreen uses the same pattern + via-gray-100, but its container has a
+   hardcoded dark bg (inline style), so we exclude it with :not([class*="via"])
+   so the SplashScreen text gradient stays white on its always-dark backdrop.
+── */
+html.light .from-white.to-gray-300.bg-clip-text.text-transparent:not([class*="via"]) {
+  background-image: linear-gradient(to right, #1e293b, #475569) !important;
+}
+
+/* ── SplashScreen: always dark regardless of theme (hardcoded #080810 bg) ── */
+/* No override needed — splash uses inline style={{ background: "#080810" }} */
+
+/* ── slate-900 (used in ConfirmModal) ── */
+html.light .bg-slate-900 {
+  background-color: var(--th-surface) !important;
+}
+
+/* ── Transparent-white cards → opaque light cards ── */
+html.light .bg-white\/3  { background-color: rgba(255,255,255,0.88) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.06) !important; }
+html.light .bg-white\/4  { background-color: rgba(255,255,255,0.92) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.06) !important; }
+html.light .bg-white\/5  { background-color: #f1f5f9 !important; }
+html.light .bg-white\/6  { background-color: rgba(0,0,0,0.03) !important; }
+html.light .bg-white\/7  { background-color: rgba(0,0,0,0.04) !important; }
+html.light .bg-white\/8  { background-color: rgba(0,0,0,0.04) !important; }
+html.light .bg-white\/10 { background-color: rgba(0,0,0,0.05) !important; }
+html.light .bg-white\/12 { background-color: rgba(0,0,0,0.06) !important; }
+
+/* ── Hover white overlays (keep minimal on light bg) ── */
+html.light .hover\:bg-white\/4:hover  { background-color: rgba(0,0,0,0.04) !important; }
+html.light .hover\:bg-white\/6:hover  { background-color: rgba(0,0,0,0.05) !important; }
+html.light .hover\:bg-white\/8:hover  { background-color: rgba(0,0,0,0.06) !important; }
+html.light .hover\:bg-white\/10:hover { background-color: rgba(0,0,0,0.07) !important; }
+
+/* ── Borders ── */
+html.light .border-white\/4  { border-color: rgba(0,0,0,0.05) !important; }
+html.light .border-white\/5  { border-color: rgba(0,0,0,0.06) !important; }
+html.light .border-white\/6  { border-color: rgba(0,0,0,0.08) !important; }
+html.light .border-white\/7  { border-color: rgba(0,0,0,0.09) !important; }
+html.light .border-white\/8  { border-color: rgba(0,0,0,0.09) !important; }
+html.light .border-white\/10 { border-color: rgba(0,0,0,0.11) !important; }
+html.light .border-white\/12 { border-color: rgba(0,0,0,0.13) !important; }
+html.light .border-white\/15 { border-color: rgba(0,0,0,0.15) !important; }
+html.light .border-white\/20 { border-color: rgba(0,0,0,0.17) !important; }
+
+/* ── Dividers ── */
+html.light .divide-white\/6  > * + * { border-color: rgba(0,0,0,0.07) !important; }
+html.light .divide-white\/8  > * + * { border-color: rgba(0,0,0,0.09) !important; }
+html.light .divide-white\/10 > * + * { border-color: rgba(0,0,0,0.11) !important; }
+
+/* ── Text colours ── */
+/*
+   text-white → dark primary text (but gradient buttons/containers keep white).
+   The [class*="from-"][class*="to-"]:not(.bg-clip-text) rule re-applies white
+   to any element that is itself a gradient-filled container (buttons, avatar
+   chips, icon boxes) while leaving gradient-clipped TEXT elements alone.
+*/
+html.light .text-white { color: var(--th-tx-1) !important; }
+
+html.light [class*="from-"][class*="to-"]:not(.bg-clip-text),
+html.light button[class*="bg-indigo"],
+html.light button[class*="bg-violet"],
+html.light button[class*="bg-sky"],
+html.light button[class*="bg-red"],
+html.light button[class*="bg-green"],
+html.light button[class*="bg-pink"],
+html.light button[class*="bg-amber"],
+html.light button[class*="bg-orange"] {
+  color: white !important;
+}
+
+html.light .text-gray-100 { color: #1e293b !important; }
+html.light .text-gray-200 { color: #1e293b !important; }
+html.light .text-gray-300 { color: #334155 !important; }
+html.light .text-gray-400 { color: #475569 !important; }
+/* gray-500 (#6b7280) on white = 4.6:1 contrast — WCAG AA ✓, no override needed */
+/* gray-600 (#4b5563) on white = 7.0:1 contrast — WCAG AAA ✓, no override needed */
+
+/* ── Placeholder text ── */
+html.light .placeholder-gray-500::placeholder { color: #94a3b8 !important; }
+html.light .placeholder-gray-600::placeholder { color: #94a3b8 !important; }
+
+/* ── Form inputs & textareas ── */
+html.light input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+html.light textarea,
+html.light select {
+  background-color: #f1f5f9 !important;
+  border-color: rgba(0,0,0,0.13) !important;
+  color: #0f172a !important;
+}
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* ── Glassmorphism ── */
+html.light .glass {
+  background: rgba(255,255,255,0.72) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(0,0,0,0.09) !important;
+}
+html.light .glass-strong {
+  background: rgba(255,255,255,0.88) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(0,0,0,0.12) !important;
+}
+
+/* ── Skeleton loaders (light shimmer) ── */
+html.light .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0,0,0,0.04) 25%,
+    rgba(0,0,0,0.09) 50%,
+    rgba(0,0,0,0.04) 75%
+  ) !important;
+  background-size: 400px 100% !important;
+  animation: shimmer-light 1.4s ease-in-out infinite !important;
+}
+@keyframes shimmer-light {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+
+/* ── Progress / usage bar tracks — needs clear contrast on white bg ── */
+html.light .bg-white\/6 { background-color: rgba(0,0,0,0.08) !important; }
+
+/* ── Modal/sheet backdrops — keep dark regardless of theme ── */
+/* bg-black/60, bg-black/70, bg-black/75 are intentional dark overlays — don't override */
+
+/* ── Admin & data tables ── */
+html.light table { color: #0f172a; }
+html.light th { color: #334155 !important; }
+
+/* ── Toast notification backgrounds — boost tint visibility in light mode ── */
+html.light .bg-green-500\/10  { background-color: #f0fdf4 !important; }
+html.light .bg-red-500\/10    { background-color: #fef2f2 !important; }
+html.light .bg-amber-500\/8   { background-color: #fffbeb !important; }
+html.light .bg-amber-500\/10  { background-color: #fffbeb !important; }
+/* Note: bg-indigo-500/10 widely used in nav, don't override globally */
+
+/* ── Remove the redundant toast-specific text rule (text-white override handles it) ── */
+
+/* ── Rich text (AI content) ── */
+html.light .rich-text { color: #334155 !important; }
+html.light .rich-text p  { color: #334155 !important; }
+html.light .rich-text li { color: #334155 !important; }
+html.light .rich-text strong { color: #0f172a !important; }
+html.light .rich-text em { color: #4338ca !important; }
+
+/* ── Scrollbar ── */
+html.light ::-webkit-scrollbar-thumb        { background: rgba(99,102,241,0.25); }
+html.light ::-webkit-scrollbar-thumb:hover  { background: rgba(99,102,241,0.4); }
+html.light ::-webkit-scrollbar-track        { background: rgba(0,0,0,0.04); }
+
+/* ── Typing dots (chat) ── */
+html.light .typing-dot { background: #6366f1; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BASE RESET & FONT
+══════════════════════════════════════════════════════════════════════════ */
 *, *::before, *::after {
   box-sizing: border-box;
 }

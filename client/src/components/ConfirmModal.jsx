@@ -57,11 +57,12 @@ export default function ConfirmModal({
                   className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 text-sm font-medium transition-colors min-h-[44px]">
                   {cancelText}
                 </button>
+                {/* Colored action buttons — always white text (gradient exception in CSS handles this) */}
                 <button onClick={onConfirm}
-                  className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors min-h-[44px] ${
+                  className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors min-h-[44px] text-white ${
                     danger
-                      ? "bg-red-600 hover:bg-red-500 text-white"
-                      : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                      ? "bg-red-600 hover:bg-red-500"
+                      : "bg-indigo-600 hover:bg-indigo-500"
                   }`}>
                   {confirmText}
                 </button>

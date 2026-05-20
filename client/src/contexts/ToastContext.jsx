@@ -11,9 +11,9 @@ const ICONS = {
 };
 
 const COLORS = {
-  success: "border-green-500/30 bg-green-500/10",
-  error:   "border-red-500/30 bg-red-500/10",
-  info:    "border-indigo-500/30 bg-indigo-500/10",
+  success: "border-green-500/30 bg-green-500/10 text-slate-800 dark:text-white",
+  error:   "border-red-500/30 bg-red-500/10 text-slate-800 dark:text-white",
+  info:    "border-indigo-500/30 bg-indigo-500/10 text-slate-800 dark:text-white",
 };
 
 export function ToastProvider({ children }) {
@@ -41,10 +41,10 @@ export function ToastProvider({ children }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-sm shadow-xl text-sm text-white ${COLORS[type]}`}>
+              className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-sm shadow-xl text-sm ${COLORS[type]}`}>
               {ICONS[type]}
               <span className="flex-1 leading-snug">{message}</span>
-              <button onClick={() => dismiss(id)} className="text-gray-400 hover:text-white ml-1 shrink-0">
+              <button onClick={() => dismiss(id)} className="text-gray-400 hover:text-gray-700 dark:hover:text-white ml-1 shrink-0">
                 <X size={14} />
               </button>
             </motion.div>

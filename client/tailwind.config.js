@@ -1,5 +1,8 @@
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
+  // 'class' strategy: dark mode is gated on the `dark` class being present on
+  // <html>. The ThemeContext and anti-flash script manage that class.
+  darkMode: "class",
   theme: {
     extend: {
       screens: {

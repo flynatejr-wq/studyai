@@ -4,6 +4,7 @@ import { AnimatePresence } from "framer-motion";
 import { analytics } from "./lib/analytics.js";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
+import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import SplashScreen from "./components/SplashScreen.jsx";
 import UnverifiedBanner from "./components/UnverifiedBanner.jsx";
@@ -45,8 +46,9 @@ function LoadingScreen() {
         </div>
       </div>
       <div className="text-center">
+        {/* text-white is handled by the global light-mode override in index.css */}
         <p className="text-white font-bold text-sm">StudyBuddi</p>
-        <p className="text-gray-600 text-xs mt-1">Loading your workspace…</p>
+        <p className="text-gray-500 text-xs mt-1">Loading your workspace…</p>
       </div>
     </div>
   );
@@ -134,24 +136,32 @@ export default function App() {
   return (
     <BrowserRouter>
       <ErrorBoundary>
-        <ToastProvider>
-          <AuthProvider>
-            {/*
-             * AppRoutes ALWAYS renders — auth checks, data fetching, and route
-             * resolution all happen in the background while the splash plays.
-             * The splash sits on top via z-[9999] inside SplashScreen; the user
-             * never sees the underlying app until the exit animation completes.
-             */}
-            <AppRoutes />
+        {/*
+         * ThemeProvider must wrap everything so the `dark`/`light` class is
+         * applied to <html> before any child renders (it syncs with the
+         * anti-flash inline script already in index.html).
+         */}
+        <ThemeProvider>
+          <ToastProvider>
+            <AuthProvider>
+              {/*
+               * AppRoutes ALWAYS renders — auth checks, data fetching, and
+               * route resolution all happen in the background while the splash
+               * plays. The splash sits on top via z-[9999] inside SplashScreen;
+               * the user never sees the underlying app until the exit animation
+               * completes.
+               */}
+              <AppRoutes />
 
-            {/* Splash overlay */}
-            <AnimatePresence>
-              {showSplash && (
-                <SplashScreen key="sb-splash" onComplete={handleSplashComplete} />
-              )}
-            </AnimatePresence>
-          </AuthProvider>
-        </ToastProvider>
+              {/* Splash overlay */}
+              <AnimatePresence>
+                {showSplash && (
+                  <SplashScreen key="sb-splash" onComplete={handleSplashComplete} />
+                )}
+              </AnimatePresence>
+            </AuthProvider>
+          </ToastProvider>
+        </ThemeProvider>
       </ErrorBoundary>
     </BrowserRouter>
   );
