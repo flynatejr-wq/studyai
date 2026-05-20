@@ -1027,7 +1027,7 @@ export default function GuideView() {
                     <motion.li key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.04 }} className="flex items-start gap-3 text-gray-300 print:text-gray-800">
                       <span className="text-indigo-400 mt-0.5 shrink-0 print:text-indigo-600">•</span>
-                      <span className="leading-relaxed text-sm">{point}</span>
+                      <RichText html={point} className="rich-text-sm text-sm" />
                     </motion.li>
                   ))}
                 </ul>
@@ -1047,7 +1047,7 @@ export default function GuideView() {
                       {terms.map((item, i) => (
                         <div key={i} className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 print:border-indigo-200 print:bg-indigo-50">
                           <p className="font-semibold text-indigo-300 text-sm print:text-indigo-700">{item.term}</p>
-                          <p className="text-gray-400 text-sm mt-1 leading-relaxed print:text-gray-700">{item.definition}</p>
+                          <RichText html={item.definition} className="rich-text-sm text-sm mt-1 leading-relaxed" />
                         </div>
                       ))}
                     </motion.div>
@@ -1132,7 +1132,7 @@ export default function GuideView() {
                         </button>
                         {flipped[i] && (
                           <div>
-                            <p className="text-gray-300 text-sm mb-3 bg-white/5 rounded-lg px-3 py-2">{q.answer}</p>
+                            <div className="text-gray-300 text-sm mb-3 bg-white/5 rounded-lg px-3 py-2"><RichText html={q.answer} className="rich-text-sm" /></div>
                             {!quizAnswers[i] ? (
                               <div className="flex gap-2">
                                 <button onClick={() => setQuizAnswers(a => ({ ...a, [i]: "correct" }))}
@@ -1150,7 +1150,7 @@ export default function GuideView() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <p className="text-gray-400 text-sm flex-1">{q.answer}</p>
+                        <div className="text-gray-400 text-sm flex-1"><RichText html={q.answer} className="rich-text-sm" /></div>
                         <span>{quizAnswers[i] === "correct" ? "✅" : "❌"}</span>
                       </div>
                     )}
