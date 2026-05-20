@@ -91,7 +91,7 @@ export default function UpgradeModal({ open, onClose, reason }) {
 
               {/* Price */}
               <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3.5 text-center mb-4">
-                <p className="text-white font-black text-2xl">$9.99<span className="text-gray-400 font-normal text-sm">/month</span></p>
+                <p className="text-white font-black text-2xl">$4.99<span className="text-gray-400 font-normal text-sm">/month</span></p>
                 <p className="text-gray-500 text-xs mt-0.5">Cancel any time</p>
               </div>
 

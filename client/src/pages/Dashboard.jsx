@@ -190,7 +190,7 @@ export default function Dashboard() {
               <Crown size={16} className="text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white font-bold text-sm leading-none mb-0.5">Upgrade to Pro — $9.99/month</p>
+              <p className="text-white font-bold text-sm leading-none mb-0.5">Upgrade to Pro — $4.99/month</p>
               <p className="text-indigo-300/80 text-xs">Unlimited guides, unlimited AI quiz generations, priority support</p>
             </div>
             <span className="shrink-0 px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl text-white text-xs font-bold transition-all shadow-md shadow-indigo-500/30 whitespace-nowrap group-hover:shadow-indigo-500/50">
