@@ -630,7 +630,7 @@ function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPr
                 <span className="shrink-0 w-5 h-5 rounded-full bg-yellow-500/20 border border-yellow-500/30 flex items-center justify-center mt-0.5">
                   <span className="text-yellow-400 text-xs font-bold">{i + 1}</span>
                 </span>
-                <RichText html={pt} className="rich-text-sm text-sm text-gray-200" />
+                <span className="text-gray-200 text-sm leading-relaxed">{typeof pt === "string" ? pt.replace(/<[^>]+>/g, "") : pt}</span>
               </motion.li>
             ))}
           </ul>
@@ -1027,7 +1027,7 @@ export default function GuideView() {
                     <motion.li key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.04 }} className="flex items-start gap-3 text-gray-300 print:text-gray-800">
                       <span className="text-indigo-400 mt-0.5 shrink-0 print:text-indigo-600">•</span>
-                      <RichText html={point} className="rich-text-sm text-sm" />
+                      <span className="leading-relaxed text-sm">{typeof point === "string" ? point.replace(/<[^>]+>/g, "") : point}</span>
                     </motion.li>
                   ))}
                 </ul>
@@ -1046,8 +1046,8 @@ export default function GuideView() {
                       exit={{ opacity: 0, height: 0 }} className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                       {terms.map((item, i) => (
                         <div key={i} className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 print:border-indigo-200 print:bg-indigo-50">
-                          <p className="font-semibold text-indigo-300 text-sm print:text-indigo-700">{item.term}</p>
-                          <RichText html={item.definition} className="rich-text-sm text-sm mt-1 leading-relaxed" />
+                          <p className="font-semibold text-indigo-300 text-sm print:text-indigo-700">{typeof item.term === "string" ? item.term.replace(/<[^>]+>/g, "") : item.term}</p>
+                          <p className="text-gray-400 text-sm mt-1 leading-relaxed">{typeof item.definition === "string" ? item.definition.replace(/<[^>]+>/g, "") : item.definition}</p>
                         </div>
                       ))}
                     </motion.div>

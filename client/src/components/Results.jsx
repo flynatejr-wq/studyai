@@ -34,7 +34,7 @@ function SectionPreview({ section, index, dark }) {
                 {section.keyPoints.map((pt, i) => (
                   <li key={i} className={`flex items-start gap-2 text-sm ${dark ? "text-gray-300" : "text-gray-700"}`}>
                     <span className={`mt-1 shrink-0 ${dark ? "text-indigo-400" : "text-indigo-500"}`}>•</span>
-                    <RichText html={pt} className="rich-text-sm" />
+                    <span>{typeof pt === "string" ? pt.replace(/<[^>]+>/g, "") : pt}</span>
                   </li>
                 ))}
               </ul>
@@ -45,8 +45,8 @@ function SectionPreview({ section, index, dark }) {
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
               {section.terms.map((t, i) => (
                 <div key={i} className={`rounded-xl p-3 ${dark ? "bg-indigo-500/10 border border-indigo-500/20" : "bg-indigo-50 border border-indigo-100"}`}>
-                  <p className={`font-semibold text-sm ${dark ? "text-indigo-300" : "text-indigo-700"}`}>{t.term}</p>
-                  <RichText html={t.definition} className={`text-xs mt-1 leading-relaxed ${sub}`} />
+                  <p className={`font-semibold text-sm ${dark ? "text-indigo-300" : "text-indigo-700"}`}>{typeof t.term === "string" ? t.term.replace(/<[^>]+>/g, "") : t.term}</p>
+                  <p className={`text-xs mt-1 leading-relaxed ${sub}`}>{typeof t.definition === "string" ? t.definition.replace(/<[^>]+>/g, "") : t.definition}</p>
                 </div>
               ))}
             </div>
