@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Plus, BookOpen, ChevronRight, ArrowRight,
-  Trophy, Clock, Zap, Flame, Sparkles,
+  Trophy, Clock, Zap, Flame, Sparkles, Crown,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
@@ -89,6 +89,16 @@ export default function Dashboard() {
   };
 
   const firstName = user?.name?.split(" ")[0] || "there";
+  const isPro = user?.plan === "pro";
+
+  const handleUpgrade = async () => {
+    try {
+      const { url } = await api.stripe.checkout();
+      window.location.href = url;
+    } catch (err) {
+      toast({ message: err.message || "Could not start checkout. Please try again.", type: "error" });
+    }
+  };
   const stats = [
     { icon: BookOpen, value: user?.total_guides ?? 0, label: "Guides",     bg: "bg-indigo-500/15", text: "text-indigo-400" },
     { icon: Flame,    value: user?.streak ?? 0,       label: "Day Streak", bg: "bg-orange-500/15", text: "text-orange-400" },
@@ -169,6 +179,25 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
+
+        {/* ── Pro upgrade banner — only for free users ── */}
+        {!isPro && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+            className="mb-6 flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600/15 to-violet-600/15 border border-indigo-500/25 hover:border-indigo-500/45 transition-all cursor-pointer group"
+            onClick={handleUpgrade}>
+            <div className="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+              <Crown size={16} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white font-bold text-sm leading-none mb-0.5">Upgrade to Pro — $9.99/month</p>
+              <p className="text-indigo-300/80 text-xs">Unlimited guides, unlimited AI quiz generations, priority support</p>
+            </div>
+            <span className="shrink-0 px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl text-white text-xs font-bold transition-all shadow-md shadow-indigo-500/30 whitespace-nowrap group-hover:shadow-indigo-500/50">
+              Upgrade ✨
+            </span>
+          </motion.div>
+        )}
 
         {/* ── Recent Guides ── */}
         <section>
