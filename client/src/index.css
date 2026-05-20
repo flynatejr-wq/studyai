@@ -186,8 +186,8 @@ body {
 .rich-text p:last-child { margin-bottom: 0; }
 
 .rich-text strong {
-  color: #f3f4f6;
-  font-weight: 650;
+  color: inherit;
+  font-weight: 700;
 }
 
 .rich-text em {
