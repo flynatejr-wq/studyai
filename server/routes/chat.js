@@ -18,12 +18,37 @@ router.get("/:guideId", (req, res) => {
   res.json(messages);
 });
 
+const FREE_CHAT_DAILY_LIMIT = 15;
+
+function checkChatLimit(userId, res) {
+  const user = db.prepare("SELECT plan, role, is_whitelisted FROM users WHERE id = ?").get(userId);
+  if (!user) return false;
+  if (user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin") return false;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const count = db.prepare(
+    "SELECT COUNT(*) as c FROM chat_messages WHERE user_id = ? AND role = 'user' AND date(created_at) = ?"
+  ).get(userId, today)?.c || 0;
+
+  if (count >= FREE_CHAT_DAILY_LIMIT) {
+    res.status(403).json({
+      error: "FREE_LIMIT_CHAT",
+      message: `Free accounts are limited to ${FREE_CHAT_DAILY_LIMIT} AI tutor messages per day. Upgrade to Pro for unlimited conversations.`,
+    });
+    return true;
+  }
+  return false;
+}
+
 // Send a chat message
 router.post("/:guideId", async (req, res) => {
   const { message } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: "Message is required." });
   // H-2: Server-side length limit — client maxLength is trivially bypassed via raw POST
   if (message.trim().length > 2000) return res.status(400).json({ error: "Message is too long (max 2000 characters)." });
+
+  // Free-tier daily chat limit
+  if (checkChatLimit(req.user.id, res)) return;
 
   const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.guideId, req.user.id);
   if (!guide) return res.status(404).json({ error: "Guide not found." });

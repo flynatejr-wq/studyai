@@ -10,6 +10,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
+import UpgradeModal from "../components/UpgradeModal.jsx";
 
 const PAGE = 24;
 const TYPE_LABEL = { text: "📝 Notes", youtube: "🎥 YouTube", image: "🖼️ Photo", audio: "🎙️ Audio", file: "📄 File" };
@@ -50,6 +51,8 @@ export default function AllGuides() {
   const [newFolderIcon,  setNewFolderIcon]  = useState("📁");
   const [newFolderColor, setNewFolderColor] = useState("indigo");
   const [deleteFolderTarget, setDeleteFolderTarget] = useState(null);
+  const [upgradeOpen,   setUpgradeOpen]   = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState("");
   const [sort,           setSort]           = useState("newest"); // newest|oldest|alpha|score
 
   // ── Data fetching ─────────────────────────────────────────────────────────
@@ -124,7 +127,13 @@ export default function AllGuides() {
       setNewFolderName(""); setNewFolderIcon("📁"); setNewFolderColor("indigo"); setShowNewFolder(false);
       toast({ message: `Folder "${newFolderName}" created!`, type: "success" });
     } catch (err) {
-      toast({ message: err.message, type: "error" });
+      if ((err.message || "").includes("FREE_LIMIT_FOLDERS")) {
+        setUpgradeReason("FREE_LIMIT_FOLDERS");
+        setUpgradeOpen(true);
+        setShowNewFolder(false);
+      } else {
+        toast({ message: err.message, type: "error" });
+      }
     }
   };
 
@@ -410,6 +419,12 @@ export default function AllGuides() {
         confirmText="Delete Folder"
         onConfirm={confirmDeleteFolder}
         onCancel={() => setDeleteFolderTarget(null)}
+      />
+
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        reason={upgradeReason}
       />
     </div>
   );

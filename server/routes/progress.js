@@ -76,4 +76,40 @@ router.get("/", (req, res) => {
   });
 });
 
+// ── Usage limits endpoint ─────────────────────────────────────────────────────
+// Returns current usage vs plan limits so the frontend can show usage bars
+// and proactively surface upgrade prompts before the user hits a hard wall.
+router.get("/limits", (req, res) => {
+  const userId = req.user.id;
+  const user = db.prepare(
+    "SELECT plan, role, is_whitelisted, guides_created_ever, quiz_gen_count, quiz_gen_date FROM users WHERE id = ?"
+  ).get(userId);
+  if (!user) return res.status(404).json({ error: "User not found." });
+
+  const isPro = user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin";
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Daily chat messages sent today
+  const chatToday = db.prepare(
+    "SELECT COUNT(*) as c FROM chat_messages WHERE user_id = ? AND role = 'user' AND date(created_at) = ?"
+  ).get(userId, today)?.c || 0;
+
+  // Folder count
+  const folderCount = db.prepare("SELECT COUNT(*) as c FROM folders WHERE user_id = ?").get(userId)?.c || 0;
+
+  // Quiz gens today (reset daily)
+  const quizToday = user.quiz_gen_date === today ? (user.quiz_gen_count || 0) : 0;
+
+  res.json({
+    plan: user.plan || "free",
+    is_pro: isPro,
+    limits: {
+      guides:      { used: user.guides_created_ever || 0, max: 1,  unlimited: isPro },
+      quizzes:     { used: quizToday,                     max: 3,  unlimited: isPro },
+      chat:        { used: chatToday,                     max: 15, unlimited: isPro },
+      folders:     { used: folderCount,                   max: 3,  unlimited: isPro },
+    },
+  });
+});
+
 export default router;

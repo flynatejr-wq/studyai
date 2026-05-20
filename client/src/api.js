@@ -105,7 +105,8 @@ export const api = {
     clear:   (guideId)          => request(`/chat/${guideId}`, { method: "DELETE", headers: headers() }),
   },
   progress: {
-    get: () => request("/progress", { headers: headers() }),
+    get:    () => request("/progress",        { headers: headers() }),
+    limits: () => request("/progress/limits", { headers: headers() }),
   },
   public: {
     getGuide: (token) => request(`/public/guide/${token}`),

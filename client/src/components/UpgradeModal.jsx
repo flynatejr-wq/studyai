@@ -15,18 +15,28 @@ const PRO_FEATURES = [
 const REASONS = {
   FREE_LIMIT_GUIDES: {
     emoji: "📚",
-    title: "You've hit the free guide limit",
-    desc: "Free accounts include <strong class='text-white'>5 guides</strong>. Upgrade to Pro for unlimited guide creation — no restrictions, ever.",
+    title: "You've used your free guide",
+    desc: "Free accounts include <strong class='text-white'>1 study guide</strong>. Upgrade to Pro for unlimited guide creation — no restrictions, ever.",
   },
   FREE_LIMIT_QUIZZES: {
     emoji: "🎯",
-    title: "Quiz limit reached",
-    desc: "You've used your free quiz generations. Upgrade to Pro for <strong class='text-white'>unlimited quizzes</strong> every single day.",
+    title: "Daily quiz limit reached",
+    desc: "Free accounts get <strong class='text-white'>3 AI quiz generations per day</strong>. Upgrade to Pro for unlimited quizzes every day.",
+  },
+  FREE_LIMIT_CHAT: {
+    emoji: "🧠",
+    title: "Daily AI tutor limit reached",
+    desc: "Free accounts get <strong class='text-white'>15 AI tutor messages per day</strong>. Upgrade to Pro for unlimited conversations with your AI tutor.",
+  },
+  FREE_LIMIT_FOLDERS: {
+    emoji: "📁",
+    title: "Folder limit reached",
+    desc: "Free accounts can create up to <strong class='text-white'>3 folders</strong>. Upgrade to Pro to organise your guides with unlimited folders.",
   },
   default: {
     emoji: "✨",
     title: "Upgrade to Pro",
-    desc: "Unlock unlimited guides, quizzes, and full AI tutor access for just $4.99/month.",
+    desc: "Unlock unlimited guides, quizzes, AI tutor access, and more for just $4.99/month.",
   },
 };
 

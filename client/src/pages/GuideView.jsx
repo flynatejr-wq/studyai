@@ -971,9 +971,20 @@ export default function GuideView() {
     // Bug 8 fix: use crypto.randomUUID() instead of Date.now() to avoid key collisions
     setMessages(prev => [...prev, { id: crypto.randomUUID(), role: "user", content: msg }]);
     setChatLoading(true);
-    try { const reply = await api.chat.send(id, msg); setMessages(prev => [...prev, reply]); }
-    catch { setMessages(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", content: "Sorry, couldn't respond. Try again." }]); }
-    finally { setChatLoading(false); }
+    try {
+      const reply = await api.chat.send(id, msg);
+      setMessages(prev => [...prev, reply]);
+    } catch (err) {
+      const errMsg = err?.message || "";
+      if (errMsg.includes("FREE_LIMIT_CHAT")) {
+        setMessages(prev => prev.filter(m => m.content !== msg));
+        setChatInput(msg);
+        setUpgradeReason("FREE_LIMIT_CHAT");
+        setUpgradeOpen(true);
+      } else {
+        setMessages(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", content: "Sorry, couldn't respond. Try again." }]);
+      }
+    } finally { setChatLoading(false); }
   };
   const showXpToast = useCallback((xp) => {
     if (xpTimerRef.current) clearTimeout(xpTimerRef.current);

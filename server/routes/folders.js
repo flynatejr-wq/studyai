@@ -21,10 +21,24 @@ router.get("/", (req, res) => {
   res.json(folders);
 });
 
+const FREE_FOLDER_LIMIT = 3;
+
 // Create folder
 router.post("/", (req, res) => {
   const { name, color, icon } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: "Folder name is required." });
+
+  // Free-tier folder limit
+  const user = db.prepare("SELECT plan, role, is_whitelisted FROM users WHERE id = ?").get(req.user.id);
+  if (user && user.plan !== "pro" && user.plan !== "lifetime" && !user.is_whitelisted && user.role !== "admin") {
+    const folderCount = db.prepare("SELECT COUNT(*) as c FROM folders WHERE user_id = ?").get(req.user.id)?.c || 0;
+    if (folderCount >= FREE_FOLDER_LIMIT) {
+      return res.status(403).json({
+        error: "FREE_LIMIT_FOLDERS",
+        message: `Free accounts are limited to ${FREE_FOLDER_LIMIT} folders. Upgrade to Pro for unlimited organisation.`,
+      });
+    }
+  }
   if (name.trim().length > 80) return res.status(400).json({ error: "Folder name is too long (max 80 characters)." });
   const safeIcon = typeof icon === "string" ? icon.trim().slice(0, 10) : "📁";
   if (safeIcon && !safeIcon.length) return res.status(400).json({ error: "Invalid icon." });
