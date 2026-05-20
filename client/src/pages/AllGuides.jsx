@@ -12,6 +12,8 @@ import Sidebar from "../components/Sidebar.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 
 const PAGE = 24;
+const TYPE_LABEL = { text: "📝 Notes", youtube: "🎥 YouTube", image: "🖼️ Photo", audio: "🎙️ Audio", file: "📄 File" };
+const guideTypeLabel = (type) => TYPE_LABEL[type] || "📝 Notes";
 
 const FOLDER_COLORS = {
   indigo: "from-indigo-500 to-indigo-700",
@@ -315,7 +317,7 @@ export default function AllGuides() {
                       </button>
 
                       <div className="flex items-center gap-2 mb-3">
-                        <span className="text-xs text-indigo-400 font-bold uppercase tracking-wider bg-indigo-500/10 px-2 py-0.5 rounded-md">{guide.type}</span>
+                        <span className="text-xs text-indigo-400 font-bold uppercase tracking-wider bg-indigo-500/10 px-2 py-0.5 rounded-md">{guideTypeLabel(guide.type)}</span>
                       </div>
 
                       <h3 className="text-white font-semibold text-sm leading-snug mb-3 group-hover:text-indigo-300 transition-colors pr-6 line-clamp-2">

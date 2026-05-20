@@ -5,6 +5,9 @@ import {
   Plus, BookOpen, ChevronRight, ArrowRight,
   Trophy, Clock, Zap, Flame, Sparkles, Crown,
 } from "lucide-react";
+
+const TYPE_LABEL = { text: "📝 Notes", youtube: "🎥 YouTube", image: "🖼️ Photo", audio: "🎙️ Audio", file: "📄 File" };
+const guideTypeLabel = (type) => TYPE_LABEL[type] || "📝 Notes";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import { api } from "../api.js";
@@ -223,7 +226,7 @@ export default function Dashboard() {
                   <Link to={`/guide/${guide.id}`}
                     className="group bg-white/4 border border-white/8 hover:border-indigo-500/30 rounded-2xl p-4 transition-all hover:bg-white/6 hover:-translate-y-0.5 block">
                     <div className="flex items-start justify-between mb-3">
-                      <span className="text-xs text-indigo-400 font-bold uppercase tracking-wider bg-indigo-500/10 px-2 py-0.5 rounded-md">{guide.type}</span>
+                      <span className="text-xs text-indigo-400 font-bold uppercase tracking-wider bg-indigo-500/10 px-2 py-0.5 rounded-md">{guideTypeLabel(guide.type)}</span>
                       {guide.best_quiz_score > 0 && (
                         <span className="text-xs text-yellow-400 font-semibold flex items-center gap-1">
                           <Trophy size={10} /> {guide.best_quiz_score}

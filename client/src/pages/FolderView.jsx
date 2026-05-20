@@ -8,6 +8,9 @@ import { useToast } from "../contexts/ToastContext.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 
+const TYPE_LABEL = { text: "📝 Notes", youtube: "🎥 YouTube", image: "🖼️ Photo", audio: "🎙️ Audio", file: "📄 File" };
+const guideTypeLabel = (type) => TYPE_LABEL[type] || "📝 Notes";
+
 export default function FolderView() {
   const { id } = useParams();
   const { logout } = useAuth();
@@ -96,7 +99,7 @@ export default function FolderView() {
                     className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all p-1">
                     <Trash2 size={15} />
                   </button>
-                  <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider mb-2 block">{guide.type}</span>
+                  <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider mb-2 block">{guideTypeLabel(guide.type)}</span>
                   <h3 className="text-white font-semibold leading-tight mb-3 group-hover:text-indigo-300 transition-colors pr-6">{guide.title}</h3>
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>{new Date(guide.created_at).toLocaleDateString()}</span>

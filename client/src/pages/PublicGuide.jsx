@@ -52,7 +52,7 @@ export default function PublicGuide() {
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider">{guide.type} · shared study guide</span>
+          <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider">{{ text: "📝 Notes", youtube: "🎥 YouTube", image: "🖼️ Photo", audio: "🎙️ Audio", file: "📄 File" }[guide.type] || "📝 Notes"} · shared study guide</span>
           <h1 className="text-2xl md:text-3xl font-bold text-white mt-2 mb-1 leading-tight">{guide.title}</h1>
           <p className="text-gray-500 text-sm">{new Date(guide.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
         </motion.div>
