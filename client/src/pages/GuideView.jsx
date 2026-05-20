@@ -927,6 +927,11 @@ export default function GuideView() {
 
   useStudyTimer(id);
 
+  // loadChat must be defined before the useEffect that lists it as a dependency
+  const loadChat = useCallback(async () => {
+    try { const msgs = await api.chat.history(id); setMessages(Array.isArray(msgs) ? msgs : []); } catch (_) {}
+  }, [id]);
+
   useEffect(() => {
     loadGuide();
     api.guides.quizHistory(id).then(h => setQuizHistory(Array.isArray(h) ? h : [])).catch(() => {});
@@ -955,9 +960,6 @@ export default function GuideView() {
     try { const g = await api.guides.get(id); setGuide(g); }
     catch (err) { setLoadError(err.message || "Could not load this guide."); }
   }
-  const loadChat = useCallback(async () => {
-    try { const msgs = await api.chat.history(id); setMessages(Array.isArray(msgs) ? msgs : []); } catch (_) {}
-  }, [id]);
   const sendChat = async (e) => {
     e.preventDefault();
     if (!chatInput.trim() || chatLoading) return;
