@@ -1,0 +1,24 @@
+name: Deploy Server to Railway
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "server/**"
+      - "railway.toml"
+      - "nixpacks.toml"
+      - ".github/workflows/deploy-server.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        run: railway up --service studyai-backend --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
