@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { api } from "../api.js";
+import PlanUsageCard from "./PlanUsageCard.jsx";
 
 const navItems = [
   { to: "/dashboard",   icon: LayoutDashboard, label: "Dashboard",   desc: "Create & manage" },
@@ -200,8 +201,11 @@ export default function Sidebar({ onLogout }) {
             )}
           </div>
 
-          {/* Upgrade / Pro badge */}
-          {!isPro ? (
+          {/* Plan status + usage */}
+          <PlanUsageCard compact />
+
+          {/* Upgrade button — only shown for free users */}
+          {!isPro && (
             <button
               onClick={handleUpgrade}
               className="w-full flex items-center gap-2.5 px-3.5 py-3 rounded-xl bg-gradient-to-r from-indigo-600/15 to-violet-600/15 border border-indigo-500/25 hover:from-indigo-600/25 hover:to-violet-600/25 hover:border-indigo-500/45 transition-all group">
@@ -214,14 +218,6 @@ export default function Sidebar({ onLogout }) {
               </div>
               <Sparkles size={13} className="text-indigo-400 group-hover:text-indigo-300 transition-colors shrink-0" />
             </button>
-          ) : (
-            <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/20">
-              <Crown size={14} className="text-yellow-400 shrink-0" />
-              <div>
-                <p className="text-yellow-400 text-xs font-black leading-none">Pro Plan</p>
-                <p className="text-yellow-600 text-[10px] leading-none mt-0.5">Unlimited access</p>
-              </div>
-            </div>
           )}
 
           {/* User row */}

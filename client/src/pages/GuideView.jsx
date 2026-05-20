@@ -16,6 +16,7 @@ import ConfirmModal from "../components/ConfirmModal.jsx";
 import RichText from "../components/RichText.jsx";
 import ChatMessage from "../components/ChatMessage.jsx";
 import UpgradeModal from "../components/UpgradeModal.jsx";
+import { useLimits } from "../hooks/useLimits.js";
 
 const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
 
@@ -905,6 +906,7 @@ export default function GuideView() {
   const navigate = useNavigate();
   const { logout, refreshUser } = useAuth();
   const toast = useToast();
+  const { limits, isPro, refresh: refreshLimits } = useLimits();
   const [guide, setGuide] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [showChat, setShowChat] = useState(false);
@@ -974,6 +976,7 @@ export default function GuideView() {
     try {
       const reply = await api.chat.send(id, msg);
       setMessages(prev => [...prev, reply]);
+      refreshLimits(); // update the usage counter
     } catch (err) {
       const errMsg = err?.message || "";
       if (errMsg.includes("FREE_LIMIT_CHAT")) {
@@ -1309,7 +1312,12 @@ export default function GuideView() {
               style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "1rem" }}>
               <div>
                 <h3 className="font-bold text-white flex items-center gap-2"><MessageCircle size={15} className="text-indigo-400" /> AI Tutor</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Ask anything about this lecture</p>
+                {!isPro && limits?.chat && (
+                  <p className={`text-xs mt-0.5 tabular-nums ${limits.chat.used >= limits.chat.max ? "text-red-400" : limits.chat.used >= limits.chat.max * 0.7 ? "text-amber-400" : "text-gray-400"}`}>
+                    {limits.chat.max - limits.chat.used} of {limits.chat.max} messages remaining today
+                  </p>
+                )}
+                {isPro && <p className="text-xs text-gray-400 mt-0.5">Ask anything about this lecture</p>}
               </div>
               <div className="flex gap-2 items-center">
                 {messages.length > 0 && (

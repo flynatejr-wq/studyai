@@ -10,6 +10,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
+import PlanUsageCard from "../components/PlanUsageCard.jsx";
 
 const INPUT_CLS = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all text-sm";
 
@@ -193,7 +194,7 @@ export default function Settings() {
                 <p className="text-gray-400 text-xs">
                   {isPro
                     ? "Unlimited guides, quizzes, and full AI tutor access."
-                    : "5 guides included. Upgrade to unlock unlimited everything."}
+                    : "1 free guide included. Upgrade to unlock unlimited everything."}
                 </p>
               </div>
               <div className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-black ${isPro ? "bg-yellow-500/20 text-yellow-400" : "bg-indigo-500/20 text-indigo-400"}`}>
@@ -238,6 +239,14 @@ export default function Settings() {
               </div>
             )}
           </div>
+
+          {/* Usage breakdown — shown for free users */}
+          {!isPro && (
+            <div className="mb-5">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Current Usage</p>
+              <PlanUsageCard />
+            </div>
+          )}
         </Section>
 
         {/* ── Profile ── */}

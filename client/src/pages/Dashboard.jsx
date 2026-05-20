@@ -19,6 +19,7 @@ import Sidebar from "../components/Sidebar.jsx";
 import UpgradeModal from "../components/UpgradeModal.jsx";
 import OnboardingModal, { useOnboarding } from "../components/OnboardingModal.jsx";
 import DailyWidgets from "../components/DailyWidgets.jsx";
+import PlanUsageCard from "../components/PlanUsageCard.jsx";
 import { analytics, Events } from "../lib/analytics.js";
 
 // ── Skeleton Cards ─────────────────────────────────────────────────────────────
@@ -212,31 +213,10 @@ export default function Dashboard() {
         {/* ── Daily Widgets ── */}
         <DailyWidgets />
 
-        {/* ── Upgrade Banner ── */}
-        <AnimatePresence>
-          {!isPro && user && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="mb-5 flex items-center gap-3 sm:gap-4 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600/12 to-violet-600/12 border border-indigo-500/20 hover:border-indigo-500/40 transition-all cursor-pointer group"
-              onClick={handleUpgrade}
-              role="button"
-              tabIndex={0}
-              onKeyDown={e => e.key === "Enter" && handleUpgrade()}>
-              <div className="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                <Crown size={15} className="text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-bold text-sm leading-none mb-0.5">Upgrade to Pro — $4.99/month</p>
-                <p className="text-indigo-300/70 text-xs">Unlimited guides, quizzes, and AI tutor access</p>
-              </div>
-              <span className="shrink-0 px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 group-hover:from-indigo-500 group-hover:to-violet-500 rounded-xl text-white text-xs font-black transition-all shadow-md shadow-indigo-500/20 whitespace-nowrap">
-                Upgrade ✨
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* ── Plan & Usage ── */}
+        <div className="mb-5">
+          <PlanUsageCard />
+        </div>
 
         {/* ── Create Guide ── */}
         <motion.section
