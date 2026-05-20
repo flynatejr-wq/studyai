@@ -13,9 +13,14 @@ router.use(requireAuth);
 router.get("/", (req, res) => {
   const userId = req.user.id;
 
-  // Pro/lifetime/admin bypass
-  const plan = req.user.plan || "free";
-  const isProUser = ["pro", "lifetime"].includes(plan) || req.user.is_admin;
+  // IMPORTANT: req.user only contains {id, iat, exp} from the JWT.
+  // plan and role are NOT in the token — always query the DB for access checks.
+  const user = db.prepare(
+    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, total_study_time, plan, role, created_at FROM users WHERE id = ?"
+  ).get(userId);
+  if (!user) return res.status(404).json({ error: "User not found." });
+
+  const isProUser = ["pro", "lifetime"].includes(user.plan) || user.role === "admin";
   if (!isProUser) {
     return res.status(403).json({
       error: "FREE_LIMIT_EXPORT",
@@ -24,10 +29,6 @@ router.get("/", (req, res) => {
   }
 
   try {
-    const user = db.prepare(
-      "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, total_study_time, plan, created_at FROM users WHERE id = ?"
-    ).get(userId);
-    if (!user) return res.status(404).json({ error: "User not found." });
 
     const folders = db.prepare(
       "SELECT id, name, icon, color, created_at FROM folders WHERE user_id = ? ORDER BY created_at"

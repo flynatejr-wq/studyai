@@ -46,7 +46,7 @@ function UsageRow({ icon: Icon, label, used, max, unlimited, color = "indigo" })
 
 // ── Main card ─────────────────────────────────────────────────────────────────
 export default function PlanUsageCard({ compact = false }) {
-  const { limits, isPro, loading } = useLimits();
+  const { limits, isPro, loading, error } = useLimits();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const handleUpgrade = async () => {
@@ -60,7 +60,7 @@ export default function PlanUsageCard({ compact = false }) {
     }
   };
 
-  // Pro users: show a small confirmation badge
+  // ── Pro users: amber badge, no upgrade CTA ───────────────────────────────────
   if (isPro) {
     return (
       <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl bg-gradient-to-r from-amber-500/10 to-yellow-500/8 border border-amber-500/20">
@@ -74,26 +74,37 @@ export default function PlanUsageCard({ compact = false }) {
     );
   }
 
-  // Loading skeleton
-  if (loading || !limits) {
-    return (
-      <div className="rounded-2xl bg-white/3 border border-white/6 p-4 space-y-3 animate-pulse">
-        <div className="skeleton h-4 w-24 rounded" />
-        <div className="skeleton h-2 w-full rounded" />
-        <div className="skeleton h-2 w-full rounded" />
-      </div>
-    );
-  }
-
-  const guidesAtLimit = (limits.guides.used ?? 0) >= limits.guides.max;
-
+  // ── FREE USER — compact (Sidebar) ────────────────────────────────────────────
+  // The upgrade button lives in the Sidebar itself (below this card), so this
+  // compact variant just shows usage bars. If the fetch is still in flight or
+  // failed, show minimal skeleton rows rather than hiding the whole card.
   if (compact) {
-    // Compact version for Sidebar
+    if (loading) {
+      return (
+        <div className="bg-white/3 border border-white/6 rounded-xl p-3 space-y-2 animate-pulse">
+          <div className="skeleton h-3 w-20 rounded" />
+          <div className="skeleton h-2 w-full rounded" />
+          <div className="skeleton h-2 w-full rounded" />
+        </div>
+      );
+    }
+
+    if (!limits) {
+      // Fetch failed — show a static nudge so the sidebar isn't blank
+      return (
+        <div className="bg-white/3 border border-white/6 rounded-xl p-3">
+          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Free Plan</p>
+          <p className="text-[10px] text-gray-600">Usage data unavailable.</p>
+        </div>
+      );
+    }
+
+    const guidesAtLimit = (limits.guides.used ?? 0) >= limits.guides.max;
     return (
       <div className="bg-white/3 border border-white/6 rounded-xl p-3 space-y-2">
         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Free Plan · Usage</p>
-        <UsageRow icon={BookOpen}      label="Study Guides"    {...limits.guides}  />
-        <UsageRow icon={MessageSquare} label="AI Tutor today"  {...limits.chat}    />
+        <UsageRow icon={BookOpen}      label="Study Guides"   {...limits.guides} />
+        <UsageRow icon={MessageSquare} label="AI Tutor today" {...limits.chat}   />
         {guidesAtLimit && (
           <p className="text-[10px] text-amber-400 leading-relaxed">
             Upgrade for unlimited guides, AI tutor & more.
@@ -103,10 +114,15 @@ export default function PlanUsageCard({ compact = false }) {
     );
   }
 
-  // Full version for Dashboard
+  // ── FREE USER — full (Dashboard) ─────────────────────────────────────────────
+  // IMPORTANT: The upgrade button is rendered at the top of the card, BEFORE the
+  // usage bars. This means it is always visible for free users regardless of
+  // whether the limits fetch has completed or failed.
+  const guidesAtLimit = limits ? (limits.guides.used ?? 0) >= limits.guides.max : false;
+
   return (
     <div className="rounded-2xl bg-white/3 border border-white/8 overflow-hidden">
-      {/* Header */}
+      {/* Header — upgrade button is ALWAYS visible for free users */}
       <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3 border-b border-white/6">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-lg bg-white/6 flex items-center justify-center">
@@ -125,15 +141,31 @@ export default function PlanUsageCard({ compact = false }) {
         </button>
       </div>
 
-      {/* Usage bars */}
-      <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3.5">
-        <UsageRow icon={BookOpen}      label="Study Guides"         {...limits.guides}  />
-        <UsageRow icon={MessageSquare} label="AI Tutor (today)"     {...limits.chat}    />
-        <UsageRow icon={Zap}           label="Quizzes (today)"      {...limits.quizzes} />
-        <UsageRow icon={FolderOpen}    label="Folders"              {...limits.folders} />
-      </div>
+      {/* Usage bars — shown once data loads; skeleton rows while loading */}
+      {loading ? (
+        <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3.5 animate-pulse">
+          {[0,1,2,3].map(i => (
+            <div key={i} className="space-y-1.5">
+              <div className="skeleton h-3 w-20 rounded" />
+              <div className="skeleton h-1.5 w-full rounded-full" />
+            </div>
+          ))}
+        </div>
+      ) : limits ? (
+        <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3.5">
+          <UsageRow icon={BookOpen}      label="Study Guides"     {...limits.guides}  />
+          <UsageRow icon={MessageSquare} label="AI Tutor (today)" {...limits.chat}    />
+          <UsageRow icon={Zap}           label="Quizzes (today)"  {...limits.quizzes} />
+          <UsageRow icon={FolderOpen}    label="Folders"          {...limits.folders} />
+        </div>
+      ) : (
+        // Fetch failed — still show the upgrade button (above), just no bars
+        <p className="px-4 py-3 text-xs text-gray-600">
+          {error ? "Could not load usage data." : ""}
+        </p>
+      )}
 
-      {/* CTA if any limit hit */}
+      {/* Limit-hit CTA */}
       {guidesAtLimit && (
         <div className="px-4 pb-4">
           <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/8 border border-amber-500/20">
