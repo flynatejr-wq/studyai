@@ -132,6 +132,13 @@ safeAlter("ALTER TABLE users ADD COLUMN is_whitelisted INTEGER DEFAULT 0");
 safeAlter("ALTER TABLE users ADD COLUMN is_banned INTEGER DEFAULT 0");
 safeAlter("ALTER TABLE users ADD COLUMN admin_notes TEXT DEFAULT ''");
 
+// Email verification
+safeAlter("ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0");
+safeAlter("ALTER TABLE users ADD COLUMN email_verify_token TEXT");
+
+// Guide favorites (bookmarks)
+safeAlter("ALTER TABLE guides ADD COLUMN is_favorite INTEGER DEFAULT 0");
+
 // Audit log — permanent record of every admin action (emails stored so records
 // survive user deletion; no FK constraint intentionally).
 db.exec(`
@@ -163,6 +170,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_audit_created_at     ON audit_logs(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_users_email          ON users(email);
   CREATE INDEX IF NOT EXISTS idx_users_plan           ON users(plan);
+  CREATE INDEX IF NOT EXISTS idx_guides_favorite      ON guides(user_id, is_favorite);
 `);
 
 export default db;

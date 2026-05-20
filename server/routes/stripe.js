@@ -37,6 +37,7 @@ router.post("/checkout", requireAuth, async (req, res) => {
       payment_method_types: ["card"],
       line_items: [{ price: PRICE_ID, quantity: 1 }],
       mode: "subscription",
+      allow_promotion_codes: true,
       success_url: `${process.env.FRONTEND_URL || "http://localhost:5173"}/dashboard?upgraded=1`,
       cancel_url:  `${process.env.FRONTEND_URL || "http://localhost:5173"}/dashboard?cancelled=1`,
       metadata: { userId: user.id },

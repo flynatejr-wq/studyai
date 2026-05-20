@@ -20,6 +20,8 @@ import Terms from "./pages/Terms.jsx";
 import Privacy from "./pages/Privacy.jsx";
 import NotFound from "./pages/NotFound.jsx";
 import Admin from "./pages/Admin.jsx";
+import VerifyEmail from "./pages/VerifyEmail.jsx";
+import UnverifiedBanner from "./components/UnverifiedBanner.jsx";
 
 function LoadingScreen() {
   return (
@@ -68,6 +70,9 @@ function AdminRoute({ children }) {
 
 function AppRoutes() {
   return (
+    <>
+      {/* Show banner for logged-in users who haven't verified their email */}
+      <UnverifiedBanner />
     <Routes>
       <Route path="*" element={<PageTracker />} />
       {/* Public */}
@@ -76,6 +81,7 @@ function AppRoutes() {
       <Route path="/signup"          element={<GuestRoute><Signup /></GuestRoute>} />
       <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
       <Route path="/reset-password"  element={<ResetPassword />} />
+      <Route path="/verify-email"    element={<VerifyEmail />} />
       <Route path="/share/:token"    element={<PublicGuide />} />
       <Route path="/terms"           element={<Terms />} />
       <Route path="/privacy"         element={<Privacy />} />
@@ -92,6 +98,7 @@ function AppRoutes() {
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </>
   );
 }
 

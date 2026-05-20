@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen, Trash2, Search, Loader2, Trophy, Clock,
-  ArrowRight, Plus, FolderOpen, X, ChevronRight,
+  ArrowRight, Plus, FolderOpen, X, ChevronRight, Star,
 } from "lucide-react";
 import { api } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -88,6 +88,16 @@ export default function AllGuides() {
   }, [search]);
 
   // ── Guides actions ────────────────────────────────────────────────────────
+  const toggleFavorite = async (e, guide) => {
+    e.preventDefault(); e.stopPropagation();
+    try {
+      const { is_favorite } = await api.guides.toggleFavorite(guide.id);
+      setGuides(prev => prev.map(g => g.id === guide.id ? { ...g, is_favorite } : g));
+    } catch (err) {
+      toast({ message: err.message, type: "error" });
+    }
+  };
+
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     try {
@@ -134,9 +144,10 @@ export default function AllGuides() {
   // Compute sorted copy without mutating state
   const sortedGuides = (() => {
     const copy = [...guides];
-    if (sort === "oldest") copy.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    else if (sort === "alpha") copy.sort((a, b) => a.title.localeCompare(b.title));
-    else if (sort === "score") copy.sort((a, b) => (b.best_quiz_score || 0) - (a.best_quiz_score || 0));
+    if (sort === "oldest")    copy.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    else if (sort === "alpha")     copy.sort((a, b) => a.title.localeCompare(b.title));
+    else if (sort === "score")     copy.sort((a, b) => (b.best_quiz_score || 0) - (a.best_quiz_score || 0));
+    else if (sort === "favorites") copy.sort((a, b) => (b.is_favorite || 0) - (a.is_favorite || 0));
     else copy.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // newest
     return copy;
   })();
@@ -165,6 +176,7 @@ export default function AllGuides() {
               <option value="oldest">Oldest</option>
               <option value="alpha">A → Z</option>
               <option value="score">Best Score</option>
+              <option value="favorites">⭐ Favorites</option>
             </select>
             <div className="relative">
               <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -313,6 +325,13 @@ export default function AllGuides() {
                     <Link
                       to={`/guide/${guide.id}`}
                       className="group relative bg-white/4 border border-white/8 hover:border-indigo-500/30 rounded-2xl p-4 block transition-all hover:bg-white/6 hover:-translate-y-0.5">
+                      {/* Favorite star — always visible when favorited, hover-visible otherwise */}
+                      <button
+                        onClick={e => toggleFavorite(e, guide)}
+                        className={`absolute top-3 right-10 p-1.5 rounded-lg transition-all ${guide.is_favorite ? "text-yellow-400 opacity-100" : "opacity-0 group-hover:opacity-100 text-gray-600 hover:text-yellow-400 hover:bg-yellow-400/10"}`}
+                        title={guide.is_favorite ? "Remove from favorites" : "Add to favorites"}>
+                        <Star size={13} fill={guide.is_favorite ? "currentColor" : "none"} />
+                      </button>
                       <button
                         onClick={e => { e.preventDefault(); e.stopPropagation(); setDeleteTarget({ id: guide.id, title: guide.title }); }}
                         className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-all p-1.5 rounded-lg hover:bg-red-400/10">

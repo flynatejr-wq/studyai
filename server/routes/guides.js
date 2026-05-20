@@ -332,6 +332,15 @@ router.post("/:id/share", (req, res) => {
   res.json({ token });
 });
 
+// Toggle favorite
+router.patch("/:id/favorite", (req, res) => {
+  const guide = db.prepare("SELECT id, is_favorite FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+  if (!guide) return res.status(404).json({ error: "Guide not found." });
+  const newVal = guide.is_favorite ? 0 : 1;
+  db.prepare("UPDATE guides SET is_favorite = ? WHERE id = ?").run(newVal, guide.id);
+  res.json({ is_favorite: newVal });
+});
+
 // Revoke share link
 router.delete("/:id/share", (req, res) => {
   const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);

@@ -4,7 +4,7 @@ import { createHash } from "crypto";
 import { v4 as uuid } from "uuid";
 import db from "../db.js";
 import { signToken, requireAuth } from "../middleware/auth.js";
-import { sendPasswordReset, isEmailConfigured } from "../utils/email.js";
+import { sendPasswordReset, sendVerificationEmail, isEmailConfigured } from "../utils/email.js";
 
 // H-7: SHA-256 hash reset tokens before storing so a DB read can't be used to take over accounts
 function hashResetToken(token) {
@@ -39,8 +39,22 @@ router.post("/signup", async (req, res) => {
       "INSERT INTO users (id, name, email, password_hash) VALUES (?, ?, ?, ?)"
     ).run(id, name.trim(), email.toLowerCase().trim(), password_hash);
 
-    const user = db.prepare("SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, created_at FROM users WHERE id = ?").get(id);
+    const user = db.prepare("SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, created_at FROM users WHERE id = ?").get(id);
     const token = signToken({ id });
+
+    // Send verification email (best-effort — don't fail signup if SMTP not configured)
+    if (isEmailConfigured()) {
+      const verifyToken = uuid();
+      db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyToken, id);
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+      const verifyLink = `${frontendUrl}/verify-email?token=${verifyToken}`;
+      sendVerificationEmail(email.toLowerCase().trim(), verifyLink).catch(err =>
+        console.error("[signup] verification email failed:", err.message)
+      );
+    } else {
+      console.log(`[DEV] Email verification skipped — SMTP not configured for ${email}`);
+    }
+
     res.json({ token, user });
   } catch (err) {
     console.error(err);
@@ -85,7 +99,7 @@ router.post("/login", async (req, res) => {
 // ── Get current user ──────────────────────────────────────────────────────────
 router.get("/me", requireAuth, (req, res) => {
   const user = db.prepare(
-    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, last_study_date, created_at FROM users WHERE id = ?"
+    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, last_study_date, created_at FROM users WHERE id = ?"
   ).get(req.user.id);
   if (!user) return res.status(404).json({ error: "User not found." });
   res.json(user);
@@ -114,7 +128,7 @@ router.put("/profile", requireAuth, async (req, res) => {
     }
 
     const updated = db.prepare(
-      "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, last_study_date, created_at FROM users WHERE id = ?"
+      "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, last_study_date, created_at FROM users WHERE id = ?"
     ).get(req.user.id);
     res.json(updated);
   } catch (err) {
@@ -209,6 +223,39 @@ router.post("/reset-password", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong." });
+  }
+});
+
+// ── Verify email ─────────────────────────────────────────────────────────────
+router.get("/verify-email", (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ error: "Verification token is required." });
+
+  const user = db.prepare("SELECT id, email_verified FROM users WHERE email_verify_token = ?").get(token);
+  if (!user) return res.status(400).json({ error: "Invalid or already-used verification link." });
+  if (user.email_verified) return res.json({ success: true, already: true });
+
+  db.prepare("UPDATE users SET email_verified = 1, email_verify_token = NULL WHERE id = ?").run(user.id);
+  res.json({ success: true });
+});
+
+// ── Resend verification email ─────────────────────────────────────────────────
+router.post("/resend-verification", requireAuth, async (req, res) => {
+  const user = db.prepare("SELECT id, email, email_verified FROM users WHERE id = ?").get(req.user.id);
+  if (!user) return res.status(404).json({ error: "User not found." });
+  if (user.email_verified) return res.status(400).json({ error: "Your email is already verified." });
+  if (!isEmailConfigured()) return res.status(503).json({ error: "Email service is not configured." });
+
+  try {
+    const verifyToken = uuid();
+    db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyToken, user.id);
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const verifyLink = `${frontendUrl}/verify-email?token=${verifyToken}`;
+    await sendVerificationEmail(user.email, verifyLink);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[resend-verification]", err.message);
+    res.status(500).json({ error: "Could not send verification email. Please try again." });
   }
 });
 

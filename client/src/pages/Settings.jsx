@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   User, Lock, Trash2, Save, LogOut, Crown, CreditCard,
-  Check, ExternalLink, Sparkles, Shield,
+  Check, ExternalLink, Sparkles, Shield, Download,
 } from "lucide-react";
 import { api } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -30,6 +30,7 @@ export default function Settings() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading,   setDeleteLoading]   = useState(false);
   const [billingLoading,  setBillingLoading]  = useState(false);
+  const [exportLoading,   setExportLoading]   = useState(false);
 
   const isPro = user?.plan === "pro";
 
@@ -81,6 +82,28 @@ export default function Settings() {
       toast({ message: err.message || "Could not open checkout.", type: "error" });
     } finally {
       setBillingLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExportLoading(true);
+    try {
+      const res = await api.export.download();
+      if (!res.ok) throw new Error("Export failed. Please try again.");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `studybuddi-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ message: "Export downloaded!", type: "success" });
+    } catch (err) {
+      toast({ message: err.message, type: "error" });
+    } finally {
+      setExportLoading(false);
     }
   };
 
@@ -289,6 +312,28 @@ export default function Settings() {
               </button>
             </div>
           </form>
+        </Section>
+
+        {/* ── Data Export ── */}
+        <Section delay={0.12}>
+          <div className="bg-white/3 border border-white/8 rounded-2xl p-6 mb-5">
+            <h2 className="text-white font-bold mb-2 flex items-center gap-2 text-sm">
+              <div className="w-7 h-7 rounded-lg bg-green-500/15 flex items-center justify-center">
+                <Download size={14} className="text-green-400" />
+              </div>
+              Export Your Data
+            </h2>
+            <p className="text-gray-500 text-xs mb-4 leading-relaxed">
+              Download all your guides, quiz history, study sessions, and account data as a JSON file.
+            </p>
+            <button
+              onClick={handleExport}
+              disabled={exportLoading}
+              className="flex items-center gap-2 px-5 py-2.5 bg-green-600/20 border border-green-500/25 hover:bg-green-600/30 hover:border-green-500/40 disabled:opacity-50 rounded-xl text-green-400 font-semibold text-sm transition-all">
+              <Download size={14} />
+              {exportLoading ? "Preparing export…" : "Download My Data"}
+            </button>
+          </div>
         </Section>
 
         {/* ── Sign out ── */}

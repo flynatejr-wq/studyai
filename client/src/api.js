@@ -59,8 +59,10 @@ export const api = {
     updateProfile:  (body) => request("/auth/profile",        { method: "PUT",    headers: headers(), body: JSON.stringify(body) }),
     changeEmail:    (body) => request("/auth/email",          { method: "PUT",    headers: headers(), body: JSON.stringify(body) }),
     deleteAccount:  (body) => request("/auth/account",        { method: "DELETE", headers: headers(), body: JSON.stringify(body) }),
-    forgotPassword: (body) => request("/auth/forgot-password",{ method: "POST",   headers: headers(), body: JSON.stringify(body) }),
-    resetPassword:  (body) => request("/auth/reset-password", { method: "POST",   headers: headers(), body: JSON.stringify(body) }),
+    forgotPassword:  (body)  => request("/auth/forgot-password",  { method: "POST",   headers: headers(), body: JSON.stringify(body) }),
+    resetPassword:   (body)  => request("/auth/reset-password",   { method: "POST",   headers: headers(), body: JSON.stringify(body) }),
+    verifyEmail:     (token) => request(`/auth/verify-email?token=${encodeURIComponent(token)}`),
+    resendVerification: ()   => request("/auth/resend-verification", { method: "POST", headers: headers() }),
   },
   summarize: {
     text:    (transcript, difficulty = "standard", style = "detailed") => request("/summarize", { method: "POST", headers: headers(), body: JSON.stringify({ transcript, difficulty, style }) }),
@@ -91,6 +93,7 @@ export const api = {
     share:        (id)                 => request(`/guides/${id}/share`, { method: "POST",   headers: headers() }),
     revokeShare:          (id)              => request(`/guides/${id}/share`,             { method: "DELETE", headers: headers() }),
     updateSectionProgress:(id, progress)   => request(`/guides/${id}/section-progress`,  { method: "PATCH",  headers: headers(), body: JSON.stringify({ progress }) }),
+    toggleFavorite:       (id)             => request(`/guides/${id}/favorite`,           { method: "PATCH",  headers: headers() }),
   },
   chat: {
     history: (guideId)          => request(`/chat/${guideId}`, { headers: headers() }),
@@ -102,6 +105,13 @@ export const api = {
   },
   public: {
     getGuide: (token) => request(`/public/guide/${token}`),
+  },
+  export: {
+    download: () => {
+      // Returns raw JSON blob — handled with fetch directly so we can trigger a download
+      const token = getToken();
+      return fetch(`${BASE}/export`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    },
   },
   stripe: {
     checkout: () => request("/stripe/checkout", { method: "POST", headers: headers() }),
