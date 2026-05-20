@@ -33,6 +33,11 @@ const REASONS = {
     title: "Folder limit reached",
     desc: "Free accounts can create up to <strong class='text-white'>3 folders</strong>. Upgrade to Pro to organise your guides with unlimited folders.",
   },
+  FREE_LIMIT_EXPORT: {
+    emoji: "📤",
+    title: "Export is a Pro feature",
+    desc: "Downloading your data is available on <strong class='text-white'>Pro</strong>. Upgrade to export all your guides, quiz history, and study sessions.",
+  },
   default: {
     emoji: "✨",
     title: "Upgrade to Pro",

@@ -11,6 +11,7 @@ import { useToast } from "../contexts/ToastContext.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import PlanUsageCard from "../components/PlanUsageCard.jsx";
+import UpgradeModal from "../components/UpgradeModal.jsx";
 
 const INPUT_CLS = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all text-sm";
 
@@ -35,6 +36,8 @@ export default function Settings() {
   const [referralData,    setReferralData]    = useState(null);
   const [redeemLoading,   setRedeemLoading]   = useState(false);
   const [copied,          setCopied]          = useState(false);
+  const [upgradeOpen,     setUpgradeOpen]     = useState(false);
+  const [upgradeReason,   setUpgradeReason]   = useState("FREE_LIMIT_EXPORT");
 
   const isPro = user?.plan === "pro";
 
@@ -116,10 +119,23 @@ export default function Settings() {
   };
 
   const handleExport = async () => {
+    if (!isPro) {
+      setUpgradeReason("FREE_LIMIT_EXPORT");
+      setUpgradeOpen(true);
+      return;
+    }
     setExportLoading(true);
     try {
       const res = await api.export.download();
-      if (!res.ok) throw new Error("Export failed. Please try again.");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        if (body.error === "FREE_LIMIT_EXPORT") {
+          setUpgradeReason("FREE_LIMIT_EXPORT");
+          setUpgradeOpen(true);
+          return;
+        }
+        throw new Error("Export failed. Please try again.");
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -421,16 +437,26 @@ export default function Settings() {
                 <Download size={14} className="text-green-400" />
               </div>
               Export Your Data
+              {!isPro && (
+                <span className="ml-auto flex items-center gap-1 text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold">
+                  <Crown size={9} /> Pro only
+                </span>
+              )}
             </h2>
             <p className="text-gray-500 text-xs mb-4 leading-relaxed">
               Download all your guides, quiz history, study sessions, and account data as a JSON file.
+              {!isPro && <span className="text-amber-500/80"> Upgrade to Pro to unlock data exports.</span>}
             </p>
             <button
               onClick={handleExport}
               disabled={exportLoading}
-              className="flex items-center gap-2 px-5 py-2.5 bg-green-600/20 border border-green-500/25 hover:bg-green-600/30 hover:border-green-500/40 disabled:opacity-50 rounded-xl text-green-400 font-semibold text-sm transition-all">
-              <Download size={14} />
-              {exportLoading ? "Preparing export…" : "Download My Data"}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all disabled:opacity-50 ${
+                isPro
+                  ? "bg-green-600/20 border border-green-500/25 hover:bg-green-600/30 hover:border-green-500/40 text-green-400"
+                  : "bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400 cursor-pointer"
+              }`}>
+              {isPro ? <Download size={14} /> : <Crown size={14} />}
+              {exportLoading ? "Preparing export…" : isPro ? "Download My Data" : "Upgrade to Export Data"}
             </button>
           </div>
         </Section>
@@ -488,6 +514,12 @@ export default function Settings() {
         confirmText={deleteLoading ? "Deleting…" : "Yes, Delete Everything"}
         onConfirm={handleDeleteAccount}
         onCancel={() => { setShowDeleteModal(false); setDeletePassword(""); }}
+      />
+
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        reason={upgradeReason}
       />
     </div>
   );

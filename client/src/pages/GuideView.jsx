@@ -1094,9 +1094,14 @@ export default function GuideView() {
               <div className="flex-1" />
 
               <ShareButton guideId={id} initialToken={guide.share_token} />
-              <button onClick={() => window.print()} title="Print / Save as PDF"
+              <button
+                onClick={() => {
+                  if (!isPro) { setUpgradeReason("FREE_LIMIT_EXPORT"); setUpgradeOpen(true); return; }
+                  window.print();
+                }}
+                title={isPro ? "Print / Save as PDF" : "Pro feature — upgrade to print"}
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-lg text-gray-400 hover:text-white text-xs font-medium transition-all print:hidden">
-                <Printer size={13} /> Print
+                <Printer size={13} /> {isPro ? "Print" : <><Crown size={11} className="text-amber-400" /> Print</>}
               </button>
               <button onClick={() => setShowChat(!showChat)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all print:hidden ${showChat ? "bg-indigo-600 text-white" : "bg-white/5 border border-white/10 text-gray-300 hover:border-indigo-500/40"}`}>

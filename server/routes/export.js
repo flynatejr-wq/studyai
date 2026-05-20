@@ -9,8 +9,19 @@ router.use(requireAuth);
 // Produces a single JSON file containing guides, quiz history, study sessions,
 // folders, and a summary of account stats. No PII beyond what the user already
 // has access to in the UI.
+// Export is a Pro-only feature.
 router.get("/", (req, res) => {
   const userId = req.user.id;
+
+  // Pro/lifetime/admin bypass
+  const plan = req.user.plan || "free";
+  const isProUser = ["pro", "lifetime"].includes(plan) || req.user.is_admin;
+  if (!isProUser) {
+    return res.status(403).json({
+      error: "FREE_LIMIT_EXPORT",
+      message: "Export is a Pro feature. Upgrade to download your data.",
+    });
+  }
 
   try {
     const user = db.prepare(
