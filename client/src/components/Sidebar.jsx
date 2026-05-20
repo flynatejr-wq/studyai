@@ -1,7 +1,8 @@
 ﻿import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BookOpen, LayoutDashboard, BarChart2, LogOut, Zap, Menu, X, Settings, ChevronRight } from "lucide-react";
+import { BookOpen, LayoutDashboard, BarChart2, LogOut, Zap, Menu, X, Settings, ChevronRight, Crown } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { api } from "../api.js";
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -24,6 +25,16 @@ export default function Sidebar({ onLogout }) {
   const xpProgress = Math.min(((xp - xpCurrent) / (xpNextLvl - xpCurrent)) * 100, 100);
 
   const close = () => setOpen(false);
+  const isPro = user?.plan === "pro";
+
+  const handleUpgrade = async () => {
+    try {
+      const { url } = await api.stripe.checkout();
+      window.location.href = url;
+    } catch (err) {
+      alert(err.message || "Could not start checkout. Please try again.");
+    }
+  };
 
   const initials = user?.name
     ? user.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase()
@@ -124,6 +135,27 @@ export default function Sidebar({ onLogout }) {
               </p>
             )}
           </div>
+
+          {/* Upgrade banner — only for free users */}
+          {!isPro && (
+            <button onClick={handleUpgrade}
+              className="w-full flex items-center gap-2.5 px-3.5 py-3 rounded-xl bg-gradient-to-r from-indigo-600/20 to-violet-600/20 border border-indigo-500/30 hover:from-indigo-600/30 hover:to-violet-600/30 hover:border-indigo-500/50 transition-all group">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/30">
+                <Crown size={13} className="text-white" />
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <p className="text-white text-xs font-bold leading-none mb-0.5">Upgrade to Pro</p>
+                <p className="text-indigo-400 text-xs">Unlimited guides & quizzes</p>
+              </div>
+              <ChevronRight size={13} className="text-indigo-500 group-hover:text-indigo-300 transition-colors shrink-0" />
+            </button>
+          )}
+          {isPro && (
+            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+              <Crown size={13} className="text-yellow-400 shrink-0" />
+              <span className="text-yellow-400 text-xs font-bold">Pro Plan</span>
+            </div>
+          )}
 
           {/* User row */}
           <div className="flex items-center gap-3 px-1">
