@@ -1,31 +1,38 @@
-﻿import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { analytics } from "./lib/analytics.js";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import SplashScreen from "./components/SplashScreen.jsx";
-import Landing from "./pages/Landing.jsx";
-import Login from "./pages/Login.jsx";
-import Signup from "./pages/Signup.jsx";
-import ForgotPassword from "./pages/ForgotPassword.jsx";
-import ResetPassword from "./pages/ResetPassword.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
-import FolderView from "./pages/FolderView.jsx";
-import GuideView from "./pages/GuideView.jsx";
-import AllGuides from "./pages/AllGuides.jsx";
-import Progress from "./pages/Progress.jsx";
-import Settings from "./pages/Settings.jsx";
-import PublicGuide from "./pages/PublicGuide.jsx";
-import Terms from "./pages/Terms.jsx";
-import Privacy from "./pages/Privacy.jsx";
-import NotFound from "./pages/NotFound.jsx";
-import Admin from "./pages/Admin.jsx";
-import VerifyEmail from "./pages/VerifyEmail.jsx";
 import UnverifiedBanner from "./components/UnverifiedBanner.jsx";
-import StudyPlans from "./pages/StudyPlans.jsx";
 
+// ── Eagerly loaded (critical path — on screen within 1 render) ───────────────
+import Landing        from "./pages/Landing.jsx";
+import Login          from "./pages/Login.jsx";
+import Signup         from "./pages/Signup.jsx";
+
+// ── Lazy loaded (each gets its own JS chunk, fetched only when navigated to) ──
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
+const ResetPassword  = lazy(() => import("./pages/ResetPassword.jsx"));
+const Dashboard      = lazy(() => import("./pages/Dashboard.jsx"));
+const FolderView     = lazy(() => import("./pages/FolderView.jsx"));
+const GuideView      = lazy(() => import("./pages/GuideView.jsx"));
+const AllGuides      = lazy(() => import("./pages/AllGuides.jsx"));
+const Progress       = lazy(() => import("./pages/Progress.jsx"));
+const Settings       = lazy(() => import("./pages/Settings.jsx"));
+const PublicGuide    = lazy(() => import("./pages/PublicGuide.jsx"));
+const Terms          = lazy(() => import("./pages/Terms.jsx"));
+const Privacy        = lazy(() => import("./pages/Privacy.jsx"));
+const Refund         = lazy(() => import("./pages/Refund.jsx"));
+const Contact        = lazy(() => import("./pages/Contact.jsx"));
+const NotFound       = lazy(() => import("./pages/NotFound.jsx"));
+const Admin          = lazy(() => import("./pages/Admin.jsx"));
+const VerifyEmail    = lazy(() => import("./pages/VerifyEmail.jsx"));
+const StudyPlans     = lazy(() => import("./pages/StudyPlans.jsx"));
+
+// ── Shared loading fallback ───────────────────────────────────────────────────
 function LoadingScreen() {
   return (
     <div className="min-h-screen bg-[#080810] flex flex-col items-center justify-center gap-4">
@@ -76,32 +83,37 @@ function AppRoutes() {
     <>
       {/* Show banner for logged-in users who haven't verified their email */}
       <UnverifiedBanner />
-    <Routes>
-      <Route path="*" element={<PageTracker />} />
-      {/* Public */}
-      <Route path="/"                element={<GuestRoute><Landing /></GuestRoute>} />
-      <Route path="/login"           element={<GuestRoute><Login /></GuestRoute>} />
-      <Route path="/signup"          element={<GuestRoute><Signup /></GuestRoute>} />
-      <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
-      <Route path="/reset-password"  element={<ResetPassword />} />
-      <Route path="/verify-email"    element={<VerifyEmail />} />
-      <Route path="/share/:token"    element={<PublicGuide />} />
-      <Route path="/terms"           element={<Terms />} />
-      <Route path="/privacy"         element={<Privacy />} />
+      <Suspense fallback={<LoadingScreen />}>
+        <Routes>
+          <Route path="*" element={<PageTracker />} />
 
-      {/* Protected */}
-      <Route path="/dashboard"  element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/folder/:id" element={<ProtectedRoute><FolderView /></ProtectedRoute>} />
-      <Route path="/guide/:id"  element={<ProtectedRoute><GuideView /></ProtectedRoute>} />
-      <Route path="/guides"     element={<ProtectedRoute><AllGuides /></ProtectedRoute>} />
-      <Route path="/progress"   element={<ProtectedRoute><Progress /></ProtectedRoute>} />
-      <Route path="/settings"   element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      <Route path="/study-plans" element={<ProtectedRoute><StudyPlans /></ProtectedRoute>} />
-      <Route path="/admin"      element={<AdminRoute><Admin /></AdminRoute>} />
+          {/* Public */}
+          <Route path="/"                element={<GuestRoute><Landing /></GuestRoute>} />
+          <Route path="/login"           element={<GuestRoute><Login /></GuestRoute>} />
+          <Route path="/signup"          element={<GuestRoute><Signup /></GuestRoute>} />
+          <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
+          <Route path="/reset-password"  element={<ResetPassword />} />
+          <Route path="/verify-email"    element={<VerifyEmail />} />
+          <Route path="/share/:token"    element={<PublicGuide />} />
+          <Route path="/terms"           element={<Terms />} />
+          <Route path="/privacy"         element={<Privacy />} />
+          <Route path="/refund"          element={<Refund />} />
+          <Route path="/contact"         element={<Contact />} />
 
-      {/* 404 */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+          {/* Protected */}
+          <Route path="/dashboard"   element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/folder/:id"  element={<ProtectedRoute><FolderView /></ProtectedRoute>} />
+          <Route path="/guide/:id"   element={<ProtectedRoute><GuideView /></ProtectedRoute>} />
+          <Route path="/guides"      element={<ProtectedRoute><AllGuides /></ProtectedRoute>} />
+          <Route path="/progress"    element={<ProtectedRoute><Progress /></ProtectedRoute>} />
+          <Route path="/settings"    element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/study-plans" element={<ProtectedRoute><StudyPlans /></ProtectedRoute>} />
+          <Route path="/admin"       element={<AdminRoute><Admin /></AdminRoute>} />
+
+          {/* 404 */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </>
   );
 }
@@ -144,4 +156,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-

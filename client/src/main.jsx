@@ -5,7 +5,7 @@ import App from "./App.jsx";
 import "./index.css";
 import { initAnalytics } from "./lib/analytics.js";
 
-// ── Sentry (only initialises when VITE_SENTRY_DSN is set) ────────────────────
+// ── Sentry (error monitoring — only when VITE_SENTRY_DSN is set) ──────────────
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn:              import.meta.env.VITE_SENTRY_DSN,
@@ -20,7 +20,7 @@ if (import.meta.env.VITE_SENTRY_DSN) {
   });
 }
 
-// ── PostHog (only initialises when VITE_POSTHOG_KEY is set) ──────────────────
+// ── Mixpanel + LogRocket (fire-and-forget — never blocks render) ──────────────
 initAnalytics();
 
 ReactDOM.createRoot(document.getElementById("root")).render(

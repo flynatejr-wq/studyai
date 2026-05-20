@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Don't index app routes — they require auth and return blank pages for crawlers
+Disallow: /dashboard
+Disallow: /guide/
+Disallow: /folder/
+Disallow: /guides
+Disallow: /progress
+Disallow: /settings
+Disallow: /study-plans
+Disallow: /admin
+
+Sitemap: https://studybuddi.app/sitemap.xml

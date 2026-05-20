@@ -4,7 +4,7 @@ import { createHash, randomBytes } from "crypto";
 import { v4 as uuid } from "uuid";
 import db from "../db.js";
 import { signToken, requireAuth } from "../middleware/auth.js";
-import { sendPasswordReset, sendVerificationEmail, isEmailConfigured } from "../utils/email.js";
+import { sendPasswordReset, sendVerificationEmail, sendWelcomeEmail, isEmailConfigured } from "../utils/email.js";
 import {
   hashValue, getClientIp, isDisposableEmail, getEmailDomain, isValidFp,
   recordSignup, archiveDeletedAccount,
@@ -81,7 +81,7 @@ router.post("/signup", async (req, res) => {
     const user = db.prepare("SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, created_at FROM users WHERE id = ?").get(id);
     const token = signToken({ id });
 
-    // Send verification email (best-effort — don't fail signup if SMTP not configured)
+    // Send verification + welcome emails (best-effort — never fail signup)
     if (isEmailConfigured()) {
       const verifyToken = uuid();
       db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyToken, id);
@@ -90,8 +90,11 @@ router.post("/signup", async (req, res) => {
       sendVerificationEmail(email.toLowerCase().trim(), verifyLink).catch(err =>
         console.error("[signup] verification email failed:", err.message)
       );
+      sendWelcomeEmail(email.toLowerCase().trim(), name.trim()).catch(err =>
+        console.error("[signup] welcome email failed:", err.message)
+      );
     } else {
-      console.log(`[DEV] Email verification skipped — SMTP not configured for ${email}`);
+      console.log(`[DEV] Email skipped — RESEND_API_KEY not configured for ${email}`);
     }
 
     res.json({ token, user });
