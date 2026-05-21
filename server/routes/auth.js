@@ -112,7 +112,7 @@ router.post("/login", async (req, res) => {
 
   try {
     const user = db.prepare(
-      "SELECT id, name, email, password_hash, streak, last_study_date, total_guides, total_quizzes, guides_created_ever, xp, level, plan, role, is_whitelisted, is_banned, total_study_time, reset_token, reset_token_expires FROM users WHERE email = ?"
+      "SELECT id, name, email, password_hash, streak, last_study_date, total_guides, total_quizzes, guides_created_ever, xp, level, plan, role, is_whitelisted, is_banned, total_study_time FROM users WHERE email = ?"
     ).get(email.toLowerCase().trim());
     if (!user) return res.status(400).json({ error: "No account found with that email." });
 
@@ -130,7 +130,7 @@ router.post("/login", async (req, res) => {
       .run(newStreak, today, user.id);
 
     const token = signToken({ id: user.id });
-    const { password_hash, reset_token, reset_token_expires, quiz_gen_count, quiz_gen_date, stripe_customer_id, stripe_subscription_id, admin_notes, ...safeUser } = user;
+    const { password_hash, ...safeUser } = user;
     res.json({ token, user: { ...safeUser, streak: newStreak } });
   } catch (err) {
     console.error(err);

@@ -311,9 +311,21 @@ router.post("/image", requireAuth, upload.single("image"), async (req, res) => {
 });
 
 // ── POST /api/summarize/audio — upload audio ─────────────────────────────────
+const ALLOWED_AUDIO_TYPES = new Set([
+  "audio/mpeg", "audio/mp3", "audio/mp4", "audio/m4a",
+  "audio/wav", "audio/wave", "audio/x-wav",
+  "audio/webm", "audio/ogg", "audio/flac",
+  "audio/aac", "audio/x-m4a", "video/mp4", // some browsers send video/mp4 for .m4a
+]);
+const ALLOWED_AUDIO_EXTS = new Set(["mp3","mp4","m4a","wav","webm","ogg","flac","aac"]);
+
 router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
   if (checkFreeGuideLimit(req, res)) return;
   if (!req.file) return res.status(400).json({ error: "No audio provided." });
+  const ext = req.file.originalname.split(".").pop().toLowerCase();
+  if (!ALLOWED_AUDIO_TYPES.has(req.file.mimetype) && !ALLOWED_AUDIO_EXTS.has(ext)) {
+    return res.status(400).json({ error: "Unsupported audio format. Please upload an MP3, MP4, WAV, WebM, OGG, FLAC, or AAC file." });
+  }
   const difficulty = req.body?.difficulty;
   try {
     // Use Groq (free) if key is set, otherwise fall back to OpenAI

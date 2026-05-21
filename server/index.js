@@ -75,6 +75,25 @@ const authLimiter = rateLimit({
   message: { error: "Too many login attempts. Please wait 15 minutes and try again." },
 });
 
+// Tighter limiter for password-reset flows — prevents reset-email spam and
+// user-existence enumeration via timing. 5 requests per 15 min per IP.
+const passwordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: IS_TEST ? 100_000 : 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many password reset attempts. Please wait 15 minutes and try again." },
+});
+
+// One-shot admin bootstrap endpoint — extremely tight limit.
+const adminSetupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: IS_TEST ? 100_000 : 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many admin setup attempts." },
+});
+
 // H-5: Per-user AI rate limit — keyed on authenticated user ID so rotating IPs can't bypass it
 // keyGenerator decodes the JWT to extract the user ID; falls back to IP for unauthenticated requests
 const aiLimiter = rateLimit({
@@ -107,6 +126,8 @@ app.use(express.json({
   },
 }));
 
+app.use("/api/auth/forgot-password", passwordResetLimiter);
+app.use("/api/auth/reset-password",  passwordResetLimiter);
 app.use("/api/auth", authLimiter, authRoute);
 app.use("/api/summarize", aiLimiter, summarizeRoute);
 app.use("/api/folders", foldersRoute);
@@ -116,6 +137,7 @@ app.use("/api/progress", progressRoute);
 app.use("/api/public", publicRoute);
 // Stripe webhook must come before express.json() body parser — raw body needed for signature verification
 app.use("/api/stripe", stripeRoute);
+app.use("/api/admin/setup", adminSetupLimiter);
 app.use("/api/admin", adminRoute);
 app.use("/api/export", exportRoute);
 app.use("/api/study-plans", studyPlansRoute);
@@ -173,7 +195,8 @@ app.use((err, req, res, next) => {
     return res.status(400).json({ error: `Upload error: ${err.message}` });
   }
   console.error("Unhandled error:", err);
-  res.status(500).json({ error: err?.message || "Something went wrong." });
+  // Never send internal error details to the client — log them server-side only.
+  res.status(500).json({ error: "Something went wrong. Please try again." });
 });
 
 // Export the app for Supertest integration tests.

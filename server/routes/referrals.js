@@ -23,6 +23,17 @@ router.get("/", (req, res) => {
     LIMIT 50
   `).all(req.user.id);
 
+  // Mask email — referrers should see that someone signed up but not their full address
+  const maskedReferrals = referrals.map(r => {
+    let masked = null;
+    if (r.referred_email) {
+      const [local, domain] = r.referred_email.split("@");
+      masked = local.slice(0, 2) + "***@" + domain;
+    }
+    const { referred_email, ...rest } = r;
+    return { ...rest, referred_email: masked };
+  });
+
   const total      = referrals.length;
   const converted  = referrals.filter(r => r.status === "converted").length;
   const pending    = total - converted;
@@ -31,7 +42,7 @@ router.get("/", (req, res) => {
     referral_code:    user.referral_code,
     referral_credits: user.referral_credits ?? 0,
     stats: { total, converted, pending },
-    referrals,
+    referrals: maskedReferrals,
   });
 });
 

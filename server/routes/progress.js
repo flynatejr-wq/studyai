@@ -8,7 +8,9 @@ router.use(requireAuth);
 router.get("/", (req, res) => {
   const userId = req.user.id;
 
-  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+  const user = db.prepare(
+    "SELECT id, name, email, xp, level, streak, last_study_date, total_guides, total_quizzes, total_study_time, plan, created_at FROM users WHERE id = ?"
+  ).get(userId);
 
   // All guides with quiz history and study time
   const guides = db.prepare(

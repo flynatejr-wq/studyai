@@ -365,7 +365,11 @@ function AdaptiveQuizMode({ guideId, onXpEarned }) {
   const [finalScore, setFinalScore] = useState(0);
   const [error, setError]       = useState("");
   const firstPassRef            = useRef(0);
+  const roundBreakTimer         = useRef(null);
   const { refreshUser }         = useAuth();
+
+  // Clear pending round-break timer on unmount to prevent setState-after-unmount
+  useEffect(() => () => { if (roundBreakTimer.current) clearTimeout(roundBreakTimer.current); }, []);
 
   const generate = async () => {
     setPhase("loading"); setError("");
@@ -405,7 +409,7 @@ function AdaptiveQuizMode({ guideId, onXpEarned }) {
       } else {
         setQueue(nextQueue); setQueuePos(0); setSelected(null); setRevealed(false);
         setRound(r => r + 1); setPhase("roundbreak");
-        setTimeout(() => setPhase("question"), 2500);
+        roundBreakTimer.current = setTimeout(() => setPhase("question"), 2500);
       }
     }
   };
