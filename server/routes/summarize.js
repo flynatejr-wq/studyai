@@ -81,8 +81,8 @@ async function generateFromText(text, difficulty = "standard", style = "detailed
   const styleNote = STYLE_ADDENDUM[style]           || "";
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const message = await client.messages.create({
-    model: "claude-opus-4-5",
-    max_tokens: 6000,
+    model: "claude-haiku-4-5",
+    max_tokens: 4000,
     messages: [{ role: "user", content: `${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}\n\nLecture content:\n${text}` }],
   });
   const raw = message.content[0].text.trim();
@@ -135,7 +135,7 @@ async function generateFromText(text, difficulty = "standard", style = "detailed
   };
 }
 
-const MAX_TEXT_CHARS = 50000;
+const MAX_TEXT_CHARS = 20000;
 const FREE_GUIDE_LIMIT = 1;
 
 // ── Free-tier guard ───────────────────────────────────────────────────────────
