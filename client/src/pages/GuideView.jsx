@@ -1027,9 +1027,9 @@ export default function GuideView() {
 
   // Error / loading states
   if (loadError) return (
-    <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
+    <div className="flex min-h-dvh bg-[#0a0a12] w-full">
       <Sidebar onLogout={logout} />
-      <main className="flex-1 min-w-0 overflow-x-hidden md:ml-64 flex items-center justify-center p-8 main-pt-snug">
+      <main className="flex-1 min-w-0 md:ml-64 flex items-center justify-center p-8 main-pt-snug">
         <div className="text-center max-w-sm">
           <div className="text-5xl mb-4">📭</div>
           <h2 className="text-xl font-bold text-white mb-2">Guide not found</h2>
@@ -1043,7 +1043,7 @@ export default function GuideView() {
   );
 
   if (!guide || studyMode === null) return (
-    <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden items-center justify-center">
+    <div className="flex min-h-dvh bg-[#0a0a12] w-full items-center justify-center">
       <div className="text-indigo-400 animate-pulse text-lg">Loading guide...</div>
     </div>
   );
@@ -1062,11 +1062,11 @@ export default function GuideView() {
   ];
 
   return (
-    <div className="flex min-h-dvh bg-[#0a0a12] w-full overflow-x-hidden">
+    <div className="flex min-h-dvh bg-[#0a0a12] w-full">
       <Sidebar onLogout={logout} />
 
-      <main className={`flex-1 min-w-0 overflow-x-hidden md:ml-64 transition-[margin] main-pt-snug ${showChat ? "md:mr-96" : ""}`}>
-        <div className="p-4 md:p-8 max-w-3xl mx-auto w-full min-w-0 overflow-x-hidden">
+      <main className={`flex-1 min-w-0 md:ml-64 transition-[margin] main-pt-snug ${showChat ? "md:mr-96" : ""}`}>
+        <div className="p-4 md:p-8 max-w-3xl mx-auto w-full min-w-0">
           <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors text-sm">
             <ArrowLeft size={16} /> Back
           </button>

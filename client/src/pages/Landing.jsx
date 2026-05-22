@@ -263,7 +263,7 @@ export default function Landing() {
   const heroOpacity = useTransform(scrollY, [0, 300], [1, 0.4]);
 
   return (
-    <div className="min-h-screen bg-[#080810] text-white overflow-x-hidden">
+    <div className="min-h-screen bg-[#080810] text-white">
 
       {/* ── Animated background ── */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">

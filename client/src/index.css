@@ -292,7 +292,8 @@ body {
 
 #root {
   position: relative;
-  overflow-x: hidden;
+  /* No overflow-x:hidden here — nested overflow:hidden containers eat
+     wheel events in Chromium. Body's overflow-x:hidden is sufficient. */
   isolation: isolate;
 }
 

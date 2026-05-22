@@ -181,10 +181,10 @@ export default function Settings() {
   );
 
   return (
-    <div className="flex min-h-dvh bg-[#080810] w-full overflow-x-hidden">
+    <div className="flex min-h-dvh bg-[#080810] w-full">
       <Sidebar onLogout={logout} />
 
-      <main className="flex-1 min-w-0 overflow-x-hidden md:ml-64 p-4 md:p-8 main-pt max-w-2xl">
+      <main className="flex-1 min-w-0 md:ml-64 p-4 md:p-8 main-pt max-w-2xl">
 
         {/* Header */}
         <div className="mb-8">
