@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import multer from "multer";
 import mammoth from "mammoth";
-import { parseOffice } from "officeparser";
+import { parseOfficeAsync } from "officeparser";
 import { YoutubeTranscript } from "youtube-transcript";
 import { requireAuth } from "../middleware/auth.js";
 import db from "../db.js";
@@ -380,7 +380,7 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
 
     // ── PowerPoint (.pptx) ───────────────────────────────────────────────────
     else if (ext === "pptx" || mimetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
-      text = await parseOffice(buffer, { outputErrorToConsole: false });
+      text = await parseOfficeAsync(buffer, { outputErrorToConsole: false });
     }
 
     // ── Plain text, Markdown, CSV, RTF ───────────────────────────────────────
