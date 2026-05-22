@@ -11,4 +11,4 @@ Disallow: /settings
 Disallow: /study-plans
 Disallow: /admin
 
-Sitemap: https://client-opal-five-85.vercel.app/sitemap.xml
+Sitemap: https://studybuddi.vercel.app/sitemap.xml
