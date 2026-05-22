@@ -82,7 +82,7 @@ async function generateFromText(text, difficulty = "standard", style = "detailed
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const message = await client.messages.create({
     model: "claude-haiku-4-5",
-    max_tokens: 4000,
+    max_tokens: 8000,
     messages: [{ role: "user", content: `${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}\n\nLecture content:\n${text}` }],
   });
   const raw = message.content[0].text.trim();
@@ -97,8 +97,14 @@ async function generateFromText(text, difficulty = "standard", style = "detailed
   try {
     parsed = JSON.parse(raw.slice(start, end + 1));
   } catch (e) {
-    console.error("JSON parse failed:", raw.slice(start, end + 1).slice(0, 300));
-    throw new Error("AI response could not be parsed. Please try again.");
+    // If the response was truncated (stop_reason === "max_tokens"), the JSON will be
+    // incomplete. Log the stop reason to help diagnose, then surface a clear message.
+    const stopReason = message.stop_reason ?? "unknown";
+    console.error(`JSON parse failed (stop_reason=${stopReason}):`, raw.slice(start, start + 300));
+    if (stopReason === "max_tokens") {
+      throw new Error("The study guide was too long to generate in one go. Try the Brief format, or split your content into smaller sections.");
+    }
+    throw new Error("The AI returned an unexpected response. Please try again.");
   }
 
   // Strip HTML tags from fields that should be plain text (key points, term names,
@@ -270,7 +276,7 @@ router.post("/image", requireAuth, upload.single("image"), async (req, res) => {
     const mediaType = req.file.mimetype;
     const message = await client.messages.create({
       model: "claude-opus-4-5",
-      max_tokens: 6000,
+      max_tokens: 8000,
       messages: [{
         role: "user",
         content: [
@@ -426,7 +432,18 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
     res.json(fileResult);
   } catch (err) {
     console.error("[file route error]", err?.message || err);
-    res.status(500).json({ error: err?.message || "Something went wrong processing your file." });
+    // Only expose safe, user-facing messages — don't leak internal errors
+    const safeMessages = [
+      "Could not extract text from this PDF",
+      "The file appears to be empty",
+      "Unsupported file type",
+      "The study guide was too long",
+    ];
+    const msg = err?.message || "";
+    const userMsg = safeMessages.some(s => msg.includes(s))
+      ? msg
+      : "Something went wrong processing your file. Please try again.";
+    res.status(500).json({ error: userMsg });
   }
 });
 

@@ -560,11 +560,25 @@ function ShareButton({ guideId, initialToken }) {
     setLoading(true);
     try {
       const { token } = await api.guides.share(guideId);
-      await navigator.clipboard.writeText(`${window.location.origin}/share/${token}`);
-      setCopied(true); setShared(true);
-      toast({ message: "Share link copied to clipboard!", type: "success" });
-      setTimeout(() => setCopied(false), 2000);
-    } catch { toast({ message: "Could not generate share link.", type: "error" }); }
+      const url = `${window.location.origin}/share/${token}`;
+      setShared(true);
+
+      // Use the native Share sheet on mobile (iOS/Android) — no clipboard permission needed.
+      // Fall back to clipboard copy on desktop or when Web Share API is unavailable.
+      if (navigator.share) {
+        await navigator.share({ title: "StudyBuddi guide", url });
+        toast({ message: "Share link ready!", type: "success" });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        toast({ message: "Share link copied to clipboard!", type: "success" });
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      // navigator.share throws AbortError when the user dismisses the share sheet — that's fine
+      if (err?.name === "AbortError") return;
+      toast({ message: "Could not generate share link.", type: "error" });
+    }
     finally { setLoading(false); }
   };
   const revoke = async () => {

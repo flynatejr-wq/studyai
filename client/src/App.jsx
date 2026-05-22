@@ -16,24 +16,11 @@ import Signup         from "./pages/Signup.jsx";
 
 // ── Stale-chunk guard ─────────────────────────────────────────────────────────
 // After a new Vercel deployment, lazy chunk hashes change. Users who still have
-// the old index.js in their browser get a "Failed to fetch dynamically imported
-// module" error. We detect the failed import, mark it in sessionStorage (to
-// prevent an infinite reload loop), then hard-reload so the browser fetches the
-// fresh index.js and the matching new chunks.
+// the old index.html in their browser get a "Failed to fetch dynamically imported
+// module" error. We just re-throw so ErrorBoundary catches it and shows the
+// friendly "App updated — tap to reload" screen instead of a crash screen.
 function lazyWithRetry(importFn) {
-  return lazy(() =>
-    importFn().catch((err) => {
-      const reloadKey = "sb_chunk_reload";
-      if (!sessionStorage.getItem(reloadKey)) {
-        sessionStorage.setItem(reloadKey, "1");
-        window.location.reload();
-        // Return a never-resolving promise so React doesn't try to render
-        return new Promise(() => {});
-      }
-      // Already reloaded once — surface the real error so ErrorBoundary shows it
-      throw err;
-    })
-  );
+  return lazy(() => importFn());
 }
 
 // ── Lazy loaded (each gets its own JS chunk, fetched only when navigated to) ──

@@ -23,10 +23,6 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 // ── Mixpanel (fire-and-forget — never blocks render) ─────────────────────────
 initAnalytics();
 
-// Clear the stale-chunk reload guard so it resets for the next deployment.
-// We're here means the app loaded successfully after any potential reload.
-sessionStorage.removeItem("sb_chunk_reload");
-
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <App />

@@ -7,7 +7,7 @@ const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null, stack: null };
+    this.state = { hasError: false, isChunkError: false, error: null, stack: null };
   }
 
   static isChunkError(error) {
@@ -21,27 +21,21 @@ export default class ErrorBoundary extends Component {
   }
 
   static getDerivedStateFromError(error) {
-    // If it's a chunk error, suppress the crash screen — componentDidCatch handles the reload
     if (ErrorBoundary.isChunkError(error)) {
-      return { hasError: false, error: null, stack: null };
+      // Show the "App updated" screen, not the crash screen
+      return { hasError: true, isChunkError: true, error, stack: null };
     }
-    return { hasError: true, error };
+    return { hasError: true, isChunkError: false, error };
   }
 
   componentDidCatch(error, info) {
     const stack = info?.componentStack ?? null;
     this.setState({ stack });
-    console.error("ErrorBoundary caught:", error, info);
 
-    // Chunk load errors after a new deployment: reload once to fetch fresh chunks
-    if (ErrorBoundary.isChunkError(error)) {
-      const reloadKey = "sb_chunk_reload";
-      if (!sessionStorage.getItem(reloadKey)) {
-        sessionStorage.setItem(reloadKey, "1");
-        window.location.reload();
-        return;
-      }
-    }
+    // Don't log chunk errors to Sentry — they're expected after deployments
+    if (ErrorBoundary.isChunkError(error)) return;
+
+    console.error("ErrorBoundary caught:", error, info);
 
     // Report to Sentry if configured
     Sentry.captureException(error, { extra: { componentStack: stack } });
@@ -64,40 +58,60 @@ export default class ErrorBoundary extends Component {
   }
 
   render() {
-    if (this.state.hasError) {
+    if (!this.state.hasError) return this.props.children;
+
+    // ── Chunk load error (app was redeployed while user had the page open) ──────
+    if (this.state.isChunkError) {
       return (
         <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center p-6">
-          <div className="text-center max-w-lg w-full">
-            <div className="text-6xl mb-6">💥</div>
-            <h1 className="text-2xl font-bold text-white mb-2">Something went wrong</h1>
-            <p className="text-gray-400 mb-4 text-sm">
-              An unexpected error occurred. This has been reported automatically.
+          <div className="text-center max-w-sm w-full">
+            <div className="text-6xl mb-6">🚀</div>
+            <h1 className="text-2xl font-bold text-white mb-2">App updated!</h1>
+            <p className="text-gray-400 mb-6 text-sm leading-relaxed">
+              StudyBuddi just received an update. Tap the button below to load the latest version.
             </p>
-            {this.state.error?.message && (
-              <p className="text-red-400 text-xs font-mono bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-3 text-left break-all">
-                {this.state.error.message}
-              </p>
-            )}
-            {this.state.stack && (
-              <pre className="text-gray-400 text-xs font-mono bg-white/5 border border-white/10 rounded-xl px-4 py-3 mb-6 text-left break-all whitespace-pre-wrap max-h-48 overflow-auto">
-                {this.state.stack.trim()}
-              </pre>
-            )}
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => this.setState({ hasError: false, error: null, stack: null })}
-                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold text-sm transition-colors">
-                <RefreshCw size={15} /> Try Again
-              </button>
-              <a href="/dashboard"
-                className="flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-gray-300 font-medium text-sm transition-colors">
-                <Home size={15} /> Go Home
-              </a>
-            </div>
+            <button
+              onClick={() => { window.location.href = "/"; }}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl text-white font-semibold text-sm transition-all">
+              <RefreshCw size={15} /> Reload app
+            </button>
           </div>
         </div>
       );
     }
-    return this.props.children;
+
+    // ── Generic crash screen ──────────────────────────────────────────────────
+    return (
+      <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center p-6">
+        <div className="text-center max-w-lg w-full">
+          <div className="text-6xl mb-6">💥</div>
+          <h1 className="text-2xl font-bold text-white mb-2">Something went wrong</h1>
+          <p className="text-gray-400 mb-4 text-sm">
+            An unexpected error occurred. This has been reported automatically.
+          </p>
+          {this.state.error?.message && (
+            <p className="text-red-400 text-xs font-mono bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-3 text-left break-all">
+              {this.state.error.message}
+            </p>
+          )}
+          {this.state.stack && (
+            <pre className="text-gray-400 text-xs font-mono bg-white/5 border border-white/10 rounded-xl px-4 py-3 mb-6 text-left break-all whitespace-pre-wrap max-h-48 overflow-auto">
+              {this.state.stack.trim()}
+            </pre>
+          )}
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => this.setState({ hasError: false, isChunkError: false, error: null, stack: null })}
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold text-sm transition-colors">
+              <RefreshCw size={15} /> Try Again
+            </button>
+            <a href="/dashboard"
+              className="flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-gray-300 font-medium text-sm transition-colors">
+              <Home size={15} /> Go Home
+            </a>
+          </div>
+        </div>
+      </div>
+    );
   }
 }
