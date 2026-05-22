@@ -21,14 +21,9 @@ export default class ErrorBoundary extends Component {
   }
 
   static getDerivedStateFromError(error) {
-    // Chunk load errors are handled by a reload — don't render the crash screen
+    // If it's a chunk error, suppress the crash screen — componentDidCatch handles the reload
     if (ErrorBoundary.isChunkError(error)) {
-      const reloadKey = "sb_chunk_reload";
-      if (!sessionStorage.getItem(reloadKey)) {
-        sessionStorage.setItem(reloadKey, "1");
-        window.location.reload();
-        return { hasError: false, error: null, stack: null };
-      }
+      return { hasError: false, error: null, stack: null };
     }
     return { hasError: true, error };
   }
@@ -37,6 +32,16 @@ export default class ErrorBoundary extends Component {
     const stack = info?.componentStack ?? null;
     this.setState({ stack });
     console.error("ErrorBoundary caught:", error, info);
+
+    // Chunk load errors after a new deployment: reload once to fetch fresh chunks
+    if (ErrorBoundary.isChunkError(error)) {
+      const reloadKey = "sb_chunk_reload";
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, "1");
+        window.location.reload();
+        return;
+      }
+    }
 
     // Report to Sentry if configured
     Sentry.captureException(error, { extra: { componentStack: stack } });

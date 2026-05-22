@@ -69,11 +69,12 @@ router.post("/:guideId", async (req, res) => {
   const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.guideId, req.user.id);
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
-  // Fetch history BEFORE inserting the current message so LIMIT 10 = 10 prior turns,
-  // and scope to user_id so shared-guide future paths can't leak other users' messages.
+  // Fetch the 10 MOST RECENT prior messages (DESC + reverse = chronological order for API).
+  // Using ASC LIMIT 10 was a bug: it sent the oldest 10 messages to the AI, losing all
+  // recent context once a conversation exceeded 10 turns.
   const history = db.prepare(
-    "SELECT role, content FROM chat_messages WHERE guide_id = ? AND user_id = ? ORDER BY created_at ASC LIMIT 10"
-  ).all(guide.id, req.user.id);
+    "SELECT role, content FROM chat_messages WHERE guide_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT 10"
+  ).all(guide.id, req.user.id).reverse();
 
   // Save user message
   const userMsgId = uuid();
@@ -113,7 +114,8 @@ Rules:
       messages: [...history.map(m => ({ role: m.role, content: m.content })), { role: "user", content: message }],
     });
 
-    const aiContent = response.content[0].text;
+    const aiContent = response.content?.[0]?.text;
+    if (!aiContent) throw new Error("Empty response from AI.");
 
     // Save AI message
     const aiMsgId = uuid();

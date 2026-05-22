@@ -198,7 +198,20 @@ router.put("/email", requireAuth, async (req, res) => {
     const taken = db.prepare("SELECT id FROM users WHERE email = ?").get(normalised);
     if (taken) return res.status(400).json({ error: "An account with that email already exists." });
 
-    db.prepare("UPDATE users SET email = ? WHERE id = ?").run(normalised, req.user.id);
+    // Reset email_verified so the new address must be re-confirmed.
+    // Also generate a fresh verify token and send the email.
+    db.prepare("UPDATE users SET email = ?, email_verified = 0, email_verify_token = NULL WHERE id = ?").run(normalised, req.user.id);
+
+    if (isEmailConfigured()) {
+      const verifyToken = uuid();
+      db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyToken, req.user.id);
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+      const verifyLink = `${frontendUrl}/verify-email?token=${verifyToken}`;
+      sendVerificationEmail(normalised, verifyLink).catch(err =>
+        console.error("[email-change] verification email failed:", err.message)
+      );
+    }
+
     res.json({ success: true, email: normalised });
   } catch (err) {
     console.error(err);
