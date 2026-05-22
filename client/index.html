@@ -15,7 +15,7 @@
         try {
           var t = localStorage.getItem('sb_theme');
           if (t !== 'light' && t !== 'dark') {
-            t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            t = 'dark'; // StudyBuddi defaults to dark mode for all new visitors
           }
           document.documentElement.classList.add(t);
           document.documentElement.setAttribute('data-theme', t);

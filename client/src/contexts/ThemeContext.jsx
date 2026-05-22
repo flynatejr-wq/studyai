@@ -29,12 +29,12 @@ function readInitialTheme() {
     if (document.documentElement.classList.contains("light")) return "light";
     if (document.documentElement.classList.contains("dark"))  return "dark";
   }
-  // Fallback: localStorage → system preference → dark
+  // Fallback: localStorage → dark (StudyBuddi always defaults to dark)
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === "light" || stored === "dark") return stored;
   } catch (_) {}
-  return window?.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  return "dark";
 }
 
 function applyTheme(theme) {
@@ -68,21 +68,8 @@ export function ThemeProvider({ children }) {
     applyTheme(theme);
   }, [theme]);
 
-  // Listen for system-preference changes (when the user hasn't made an
-  // explicit choice yet, i.e. no stored value) so the UI stays in sync.
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: light)");
-    const handler = (e) => {
-      // Only follow system changes if the user hasn't pinned a preference
-      try {
-        if (!localStorage.getItem(STORAGE_KEY)) {
-          setTheme(e.matches ? "light" : "dark");
-        }
-      } catch (_) {}
-    };
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
+  // No system-preference listener — StudyBuddi always defaults to dark.
+  // Users who explicitly choose light mode have that saved to localStorage.
 
   const toggle  = () => setTheme(t => t === "dark" ? "light" : "dark");
   const setDark  = () => setTheme("dark");
