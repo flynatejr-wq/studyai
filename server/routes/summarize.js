@@ -322,30 +322,50 @@ const ALLOWED_AUDIO_EXTS = new Set(["mp3","mp4","m4a","wav","webm","ogg","flac",
 router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
   if (checkFreeGuideLimit(req, res)) return;
   if (!req.file) return res.status(400).json({ error: "No audio provided." });
+
   const ext = req.file.originalname.split(".").pop().toLowerCase();
   if (!ALLOWED_AUDIO_TYPES.has(req.file.mimetype) && !ALLOWED_AUDIO_EXTS.has(ext)) {
     return res.status(400).json({ error: "Unsupported audio format. Please upload an MP3, MP4, WAV, WebM, OGG, FLAC, or AAC file." });
   }
+
+  // Whisper API limit is 25 MB — reject early with a clear message
+  if (req.file.buffer.length > 25 * 1024 * 1024) {
+    return res.status(400).json({ error: "Audio file is too large. Please keep it under 25 MB." });
+  }
+
+  // Require at least one transcription key
+  const useGroq = !!process.env.GROQ_API_KEY;
+  if (!useGroq && !process.env.OPENAI_API_KEY) {
+    console.error("[audio] No transcription API key set (GROQ_API_KEY or OPENAI_API_KEY required)");
+    return res.status(503).json({ error: "Audio transcription is not configured. Please contact support." });
+  }
+
   const difficulty = req.body?.difficulty;
   try {
-    // Use Groq (free) if key is set, otherwise fall back to OpenAI
-    const useGroq = !!process.env.GROQ_API_KEY;
     const openai = useGroq
       ? new OpenAI({ apiKey: process.env.GROQ_API_KEY, baseURL: "https://api.groq.com/openai/v1" })
       : new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const whisperModel = useGroq ? "whisper-large-v3" : "whisper-1";
-    // Use toFile() from the openai package — compatible with Node 18+ (avoids the browser-only File constructor)
+
     const { toFile } = await import("openai");
     const audioFile = await toFile(req.file.buffer, req.file.originalname, { type: req.file.mimetype });
     const transcription = await openai.audio.transcriptions.create({ file: audioFile, model: whisperModel });
+
     if (!transcription.text?.trim())
       return res.status(400).json({ error: "Could not transcribe audio. Make sure it contains clear speech." });
+
     const audioResult = await generateFromText(transcription.text, difficulty, req.body?.style);
     recordFreeGeneration(req, req.user.id);
     res.json(audioResult);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Something went wrong processing your audio." });
+    console.error("[audio] transcription error:", err?.message || err);
+    // Surface quota/auth errors clearly instead of a generic 500
+    const msg = err?.message?.toLowerCase() || "";
+    if (msg.includes("quota") || msg.includes("rate limit") || msg.includes("429"))
+      return res.status(429).json({ error: "Transcription service is temporarily over capacity. Please try again in a moment." });
+    if (msg.includes("invalid") && msg.includes("key") || msg.includes("401") || msg.includes("403"))
+      return res.status(503).json({ error: "Audio transcription is misconfigured. Please contact support." });
+    res.status(500).json({ error: "Something went wrong processing your audio. Please try again." });
   }
 });
 
