@@ -1,20 +1,46 @@
-﻿import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BookOpen, ChevronDown, ChevronUp, UserPlus } from "lucide-react";
-import { api } from "../api.js";
+import { BookOpen, ChevronDown, ChevronUp, UserPlus, Bookmark, BookmarkCheck, Loader2 } from "lucide-react";
+import { api, getToken } from "../api.js";
 
 export default function PublicGuide() {
   const { token } = useParams();
+  const navigate = useNavigate();
   const [guide, setGuide] = useState(null);
   const [error, setError] = useState("");
   const [expandedTerms, setExpandedTerms] = useState(true);
+  const [saveState, setSaveState] = useState("idle"); // "idle" | "saving" | "saved" | "own" | "upgrade"
+  const [savedGuideId, setSavedGuideId] = useState(null);
+
+  const isLoggedIn = !!getToken();
 
   useEffect(() => {
     api.public.getGuide(token)
       .then(setGuide)
       .catch(err => setError(err.message));
   }, [token]);
+
+  async function handleSave() {
+    if (saveState === "saved" && savedGuideId) {
+      navigate(`/guide/${savedGuideId}`);
+      return;
+    }
+    setSaveState("saving");
+    try {
+      const result = await api.public.saveGuide(token);
+      setSavedGuideId(result.guide_id);
+      setSaveState("saved");
+    } catch (err) {
+      if (err.message === "FREE_LIMIT_GUIDES") {
+        setSaveState("upgrade");
+      } else if (err.message === "This is already your guide.") {
+        setSaveState("own");
+      } else {
+        setSaveState("idle");
+      }
+    }
+  }
 
   if (error) return (
     <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center p-6">
@@ -43,10 +69,16 @@ export default function PublicGuide() {
           <BookOpen className="text-indigo-400" size={22} />
           <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">StudyBuddi</span>
         </Link>
-        <Link to="/signup"
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white text-sm font-semibold transition-colors">
-          <UserPlus size={14} /> Get it free
-        </Link>
+        {isLoggedIn ? (
+          <Link to="/dashboard" className="text-sm text-gray-400 hover:text-white transition-colors">
+            My Dashboard →
+          </Link>
+        ) : (
+          <Link to="/signup"
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white text-sm font-semibold transition-colors">
+            <UserPlus size={14} /> Get it free
+          </Link>
+        )}
       </nav>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
@@ -93,18 +125,59 @@ export default function PublicGuide() {
           </motion.section>
         )}
 
-        {/* CTA */}
+        {/* Save to Library / CTA */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
           className="bg-gradient-to-br from-indigo-600/20 to-violet-600/10 border border-indigo-500/30 rounded-2xl p-6 text-center">
-          <p className="text-white font-bold text-lg mb-1">Want to quiz yourself on this?</p>
-          <p className="text-gray-400 text-sm mb-5">Create a free account to take flashcards, MCQ quizzes, and chat with an AI tutor about any study guide.</p>
-          <Link to="/signup"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl text-white font-bold transition-all shadow-lg shadow-indigo-500/20">
-            <UserPlus size={16} /> Start studying free →
-          </Link>
+
+          {isLoggedIn ? (
+            <>
+              <p className="text-white font-bold text-lg mb-1">Add this to your library</p>
+              <p className="text-gray-400 text-sm mb-5">Save a copy to your account to take quizzes, use flashcards, and chat with an AI tutor about it.</p>
+
+              {saveState === "upgrade" ? (
+                <div className="space-y-3">
+                  <p className="text-yellow-400 text-sm font-medium">⚡ You've hit the free guide limit.</p>
+                  <Link to="/dashboard"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl text-white font-bold transition-all shadow-lg shadow-indigo-500/20">
+                    Upgrade to Pro →
+                  </Link>
+                </div>
+              ) : saveState === "own" ? (
+                <Link to="/dashboard"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 rounded-xl text-gray-300 font-semibold transition-colors">
+                  This is your guide — view it in your dashboard →
+                </Link>
+              ) : (
+                <button
+                  onClick={handleSave}
+                  disabled={saveState === "saving"}
+                  className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-lg ${
+                    saveState === "saved"
+                      ? "bg-green-600 hover:bg-green-500 text-white shadow-green-500/20"
+                      : "bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-indigo-500/20"
+                  }`}>
+                  {saveState === "saving" ? (
+                    <><Loader2 size={16} className="animate-spin" /> Saving...</>
+                  ) : saveState === "saved" ? (
+                    <><BookmarkCheck size={16} /> Saved! View it in your library →</>
+                  ) : (
+                    <><Bookmark size={16} /> Save to My Library</>
+                  )}
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-white font-bold text-lg mb-1">Want to quiz yourself on this?</p>
+              <p className="text-gray-400 text-sm mb-5">Create a free account to take flashcards, MCQ quizzes, and chat with an AI tutor about any study guide.</p>
+              <Link to="/signup"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl text-white font-bold transition-all shadow-lg shadow-indigo-500/20">
+                <UserPlus size={16} /> Start studying free →
+              </Link>
+            </>
+          )}
         </motion.div>
       </main>
     </div>
   );
 }
-

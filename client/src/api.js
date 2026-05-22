@@ -109,7 +109,8 @@ export const api = {
     limits: () => request("/progress/limits", { headers: headers() }),
   },
   public: {
-    getGuide: (token) => request(`/public/guide/${token}`),
+    getGuide:  (token) => request(`/public/guide/${token}`),
+    saveGuide: (token) => request(`/public/guide/${token}/save`, { method: "POST", headers: headers() }),
   },
   referrals: {
     get:    ()  => request("/referrals",        { headers: headers() }),

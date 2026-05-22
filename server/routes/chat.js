@@ -18,8 +18,8 @@ router.get("/:guideId", (req, res) => {
   res.json(messages);
 });
 
-const FREE_CHAT_DAILY_LIMIT = 15;
-const PRO_CHAT_DAILY_LIMIT  = 150; // safety cap — stops runaway bots/abuse on Pro accounts
+const FREE_CHAT_DAILY_LIMIT = 3;
+const PRO_CHAT_DAILY_LIMIT  = 50; // safety cap — stops runaway bots/abuse on Pro accounts
 
 function checkChatLimit(userId, res) {
   const user = db.prepare("SELECT plan, role, is_whitelisted FROM users WHERE id = ?").get(userId);
