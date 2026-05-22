@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import multer from "multer";
 import mammoth from "mammoth";
-import { parseOfficeAsync } from "officeparser";
+import { parseOffice } from "officeparser";
 import { YoutubeTranscript } from "youtube-transcript";
 import { requireAuth } from "../middleware/auth.js";
 import db from "../db.js";
@@ -378,9 +378,14 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
       text = result.value;
     }
 
-    // ── PowerPoint (.pptx) ───────────────────────────────────────────────────
-    else if (ext === "pptx" || mimetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
-      text = await parseOfficeAsync(buffer, { outputErrorToConsole: false });
+    // ── PowerPoint (.pptx / .ppt) ────────────────────────────────────────────
+    else if (["pptx", "ppt"].includes(ext) ||
+             mimetype === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+             mimetype === "application/vnd.ms-powerpoint") {
+      // Must pass fileType hint when parsing from a Buffer — officeparser can't
+      // auto-detect file type without a file path (no magic bytes in PPTX/DOCX).
+      const ft = ext === "ppt" ? "ppt" : "pptx";
+      text = await parseOffice(buffer, { fileType: ft, outputErrorToConsole: false });
     }
 
     // ── Plain text, Markdown, CSV, RTF ───────────────────────────────────────
