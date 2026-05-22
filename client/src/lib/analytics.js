@@ -40,12 +40,15 @@ export async function initAnalytics() {
     try {
       const mixpanel = (await import("mixpanel-browser")).default;
       mixpanel.init(MIXPANEL_TOKEN, {
-        track_pageview:    false,  // manual via analytics.page()
-        persistence:       "localStorage",
-        autocapture:       false,  // precision over noise
-        ignore_dnt:        false,
-        batch_requests:    true,
-        // Don't fire in dev unless token explicitly set for dev environment
+        track_pageview:         false,  // manual via analytics.page()
+        persistence:            "localStorage",
+        autocapture:            false,  // precision over noise
+        ignore_dnt:             false,
+        batch_requests:         true,
+        // Prevent "rejected for invalid domain" cookie errors on Vercel subdomains —
+        // we use localStorage anyway so cookies are unnecessary entirely.
+        cross_subdomain_cookie: false,
+        cookie_domain:          "",
         loaded: (mpInstance) => {
           // After Mixpanel is ready, attach the LogRocket session URL
           // so every Mixpanel event links back to the exact session replay
