@@ -86,7 +86,7 @@ export default function UploadForm({ onSubmit, loading, dark }) {
   };
 
   const handleDrop = (e) => {
-    e.preventDefault(); setDragOver(false);
+    e.preventDefault(); e.stopPropagation(); setDragOver(false);
     handleFileSelect(e.dataTransfer.files[0]);
   };
 
@@ -200,8 +200,9 @@ export default function UploadForm({ onSubmit, loading, dark }) {
         {activeTab !== "text" && activeTab !== "youtube" && (
           <label
             onDrop={handleDrop}
-            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
+            onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
+            onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
+            onDragLeave={e => { e.stopPropagation(); setDragOver(false); }}
             className={`h-36 sm:h-48 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors ${dragOver ? "border-indigo-500 bg-indigo-500/10" : base.dropzone}`}>
             <input ref={fileInputRef} type="file" accept={acceptMap[activeTab]}
               className="sr-only"
