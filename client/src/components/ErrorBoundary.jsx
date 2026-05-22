@@ -10,7 +10,26 @@ export default class ErrorBoundary extends Component {
     this.state = { hasError: false, error: null, stack: null };
   }
 
+  static isChunkError(error) {
+    const msg = error?.message ?? "";
+    return (
+      msg.includes("Failed to fetch dynamically imported module") ||
+      msg.includes("error loading dynamically imported module") ||
+      msg.includes("Importing a module script failed") ||
+      (error?.name === "ChunkLoadError")
+    );
+  }
+
   static getDerivedStateFromError(error) {
+    // Chunk load errors are handled by a reload — don't render the crash screen
+    if (ErrorBoundary.isChunkError(error)) {
+      const reloadKey = "sb_chunk_reload";
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, "1");
+        window.location.reload();
+        return { hasError: false, error: null, stack: null };
+      }
+    }
     return { hasError: true, error };
   }
 

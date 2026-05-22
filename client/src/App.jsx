@@ -14,24 +14,46 @@ import Landing        from "./pages/Landing.jsx";
 import Login          from "./pages/Login.jsx";
 import Signup         from "./pages/Signup.jsx";
 
+// ── Stale-chunk guard ─────────────────────────────────────────────────────────
+// After a new Vercel deployment, lazy chunk hashes change. Users who still have
+// the old index.js in their browser get a "Failed to fetch dynamically imported
+// module" error. We detect the failed import, mark it in sessionStorage (to
+// prevent an infinite reload loop), then hard-reload so the browser fetches the
+// fresh index.js and the matching new chunks.
+function lazyWithRetry(importFn) {
+  return lazy(() =>
+    importFn().catch((err) => {
+      const reloadKey = "sb_chunk_reload";
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, "1");
+        window.location.reload();
+        // Return a never-resolving promise so React doesn't try to render
+        return new Promise(() => {});
+      }
+      // Already reloaded once — surface the real error so ErrorBoundary shows it
+      throw err;
+    })
+  );
+}
+
 // ── Lazy loaded (each gets its own JS chunk, fetched only when navigated to) ──
-const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
-const ResetPassword  = lazy(() => import("./pages/ResetPassword.jsx"));
-const Dashboard      = lazy(() => import("./pages/Dashboard.jsx"));
-const FolderView     = lazy(() => import("./pages/FolderView.jsx"));
-const GuideView      = lazy(() => import("./pages/GuideView.jsx"));
-const AllGuides      = lazy(() => import("./pages/AllGuides.jsx"));
-const Progress       = lazy(() => import("./pages/Progress.jsx"));
-const Settings       = lazy(() => import("./pages/Settings.jsx"));
-const PublicGuide    = lazy(() => import("./pages/PublicGuide.jsx"));
-const Terms          = lazy(() => import("./pages/Terms.jsx"));
-const Privacy        = lazy(() => import("./pages/Privacy.jsx"));
-const Refund         = lazy(() => import("./pages/Refund.jsx"));
-const Contact        = lazy(() => import("./pages/Contact.jsx"));
-const NotFound       = lazy(() => import("./pages/NotFound.jsx"));
-const Admin          = lazy(() => import("./pages/Admin.jsx"));
-const VerifyEmail    = lazy(() => import("./pages/VerifyEmail.jsx"));
-const StudyPlans     = lazy(() => import("./pages/StudyPlans.jsx"));
+const ForgotPassword = lazyWithRetry(() => import("./pages/ForgotPassword.jsx"));
+const ResetPassword  = lazyWithRetry(() => import("./pages/ResetPassword.jsx"));
+const Dashboard      = lazyWithRetry(() => import("./pages/Dashboard.jsx"));
+const FolderView     = lazyWithRetry(() => import("./pages/FolderView.jsx"));
+const GuideView      = lazyWithRetry(() => import("./pages/GuideView.jsx"));
+const AllGuides      = lazyWithRetry(() => import("./pages/AllGuides.jsx"));
+const Progress       = lazyWithRetry(() => import("./pages/Progress.jsx"));
+const Settings       = lazyWithRetry(() => import("./pages/Settings.jsx"));
+const PublicGuide    = lazyWithRetry(() => import("./pages/PublicGuide.jsx"));
+const Terms          = lazyWithRetry(() => import("./pages/Terms.jsx"));
+const Privacy        = lazyWithRetry(() => import("./pages/Privacy.jsx"));
+const Refund         = lazyWithRetry(() => import("./pages/Refund.jsx"));
+const Contact        = lazyWithRetry(() => import("./pages/Contact.jsx"));
+const NotFound       = lazyWithRetry(() => import("./pages/NotFound.jsx"));
+const Admin          = lazyWithRetry(() => import("./pages/Admin.jsx"));
+const VerifyEmail    = lazyWithRetry(() => import("./pages/VerifyEmail.jsx"));
+const StudyPlans     = lazyWithRetry(() => import("./pages/StudyPlans.jsx"));
 
 // ── Shared loading fallback ───────────────────────────────────────────────────
 function LoadingScreen() {
