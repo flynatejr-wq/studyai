@@ -1,91 +1,42 @@
-// ── Analytics wrapper (Mixpanel + LogRocket) ──────────────────────────────────
-// • Gracefully no-ops when tokens are not set so dev works without keys.
-// • LogRocket session URLs are piped into Mixpanel for cross-referencing
-//   (click any Mixpanel event → open the exact LogRocket replay).
+// ── Analytics wrapper (Mixpanel) ──────────────────────────────────────────────
+// Gracefully no-ops when the token is not set so dev works without keys.
 
-const MIXPANEL_TOKEN   = import.meta.env.VITE_MIXPANEL_TOKEN;
-const LOGROCKET_APP_ID = import.meta.env.VITE_LOGROCKET_APP_ID;
+const MIXPANEL_TOKEN = import.meta.env.VITE_MIXPANEL_TOKEN;
 
 let mp = null;  // mixpanel instance
-let lr = null;  // logrocket instance
 
 export async function initAnalytics() {
-  // ── LogRocket (session recordings) ─────────────────────────────────────────
-  if (LOGROCKET_APP_ID && import.meta.env.PROD) {
-    try {
-      const LogRocket = (await import("logrocket")).default;
-      LogRocket.init(LOGROCKET_APP_ID, {
-        // Don't record sensitive fields
-        dom: {
-          inputSanitizer: true,
-          textSanitizer:  false,
-        },
-        network: {
-          requestSanitizer: (req) => {
-            // Strip auth headers from recorded network requests
-            if (req.headers.Authorization) req.headers.Authorization = "[REDACTED]";
-            return req;
-          },
-          responseSanitizer: (res) => res,
-        },
-      });
-      lr = LogRocket;
-    } catch (e) {
-      console.warn("[analytics] LogRocket init failed:", e?.message);
-    }
-  }
+  if (!MIXPANEL_TOKEN) return;
 
-  // ── Mixpanel (product analytics) ───────────────────────────────────────────
-  if (MIXPANEL_TOKEN) {
-    try {
-      const mixpanel = (await import("mixpanel-browser")).default;
-      mixpanel.init(MIXPANEL_TOKEN, {
-        track_pageview:         false,  // manual via analytics.page()
-        persistence:            "localStorage",
-        autocapture:            false,  // precision over noise
-        ignore_dnt:             false,
-        batch_requests:         true,
-        // Prevent "rejected for invalid domain" cookie errors on Vercel subdomains —
-        // we use localStorage anyway so cookies are unnecessary entirely.
-        cross_subdomain_cookie: false,
-        cookie_domain:          "",
-        loaded: (mpInstance) => {
-          // After Mixpanel is ready, attach the LogRocket session URL
-          // so every Mixpanel event links back to the exact session replay
-          if (lr) {
-            lr.getSessionURL((sessionURL) => {
-              mpInstance.register({ logrocket_session: sessionURL });
-            });
-          }
-        },
-      });
-      mp = mixpanel;
-    } catch (e) {
-      console.warn("[analytics] Mixpanel init failed:", e?.message);
-    }
+  try {
+    const mixpanel = (await import("mixpanel-browser")).default;
+    mixpanel.init(MIXPANEL_TOKEN, {
+      track_pageview:         false,   // manual via analytics.page()
+      // "memory" = zero cookies, zero localStorage writes — eliminates all
+      // "rejected for invalid domain" cookie errors on Vercel subdomains.
+      // Trade-off: super-properties reset on page reload (acceptable for event tracking).
+      persistence:            "memory",
+      autocapture:            false,
+      ignore_dnt:             false,
+      batch_requests:         true,
+      cross_subdomain_cookie: false,
+    });
+    mp = mixpanel;
+  } catch (e) {
+    // Never let analytics break the app
   }
 }
 
 export const analytics = {
-  /**
-   * Identify a user — call after login/signup.
-   * Ties all future events to this user ID in Mixpanel and LogRocket.
-   */
+  /** Identify a user — call after login/signup */
   identify(userId, traits = {}) {
     mp?.identify(userId);
     if (traits && Object.keys(traits).length) {
       mp?.people.set({
-        $name:        traits.name,
-        $email:       traits.email,
-        plan:         traits.plan,
-        created_at:   traits.created_at,
-      });
-    }
-    // LogRocket identity (PII is stored only in LogRocket, not Mixpanel)
-    if (lr && userId) {
-      lr.identify(userId, {
-        name:  traits.name  || "",
-        email: traits.email || "",
+        $name:      traits.name,
+        $email:     traits.email,
+        plan:       traits.plan,
+        created_at: traits.created_at,
       });
     }
   },
@@ -103,7 +54,6 @@ export const analytics = {
   /** Reset identity on logout */
   reset() {
     mp?.reset();
-    // LogRocket sessions are immutable; just stop identifying future sessions
   },
 };
 

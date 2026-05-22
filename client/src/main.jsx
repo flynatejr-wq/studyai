@@ -20,7 +20,7 @@ if (import.meta.env.VITE_SENTRY_DSN) {
   });
 }
 
-// ── Mixpanel + LogRocket (fire-and-forget — never blocks render) ──────────────
+// ── Mixpanel (fire-and-forget — never blocks render) ─────────────────────────
 initAnalytics();
 
 // Clear the stale-chunk reload guard so it resets for the next deployment.
