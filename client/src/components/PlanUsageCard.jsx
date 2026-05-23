@@ -136,7 +136,7 @@ export default function PlanUsageCard({ compact = false }) {
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-black transition-all disabled:opacity-50 shadow-md shadow-indigo-500/20"
         >
           <Crown size={11} />
-          {checkoutLoading ? "Loading…" : "Upgrade · $4.99/mo"}
+          {checkoutLoading ? "Loading…" : "Upgrade · $7.99/mo"}
           {!checkoutLoading && <ArrowRight size={10} />}
         </button>
       </div>

@@ -139,7 +139,7 @@ const PLANS = [
   },
   {
     name: "Pro",
-    price: "$4.99",
+    price: "$7.99",
     period: "per month",
     desc: "For serious students",
     features: [

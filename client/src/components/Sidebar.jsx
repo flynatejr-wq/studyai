@@ -240,7 +240,7 @@ export default function Sidebar({ onLogout }) {
               </div>
               <div className="flex-1 text-left min-w-0">
                 <p className="text-white text-xs font-black leading-none mb-0.5">Upgrade to Pro</p>
-                <p className="text-indigo-400 text-[10px] leading-none">$4.99/mo · Unlimited everything</p>
+                <p className="text-indigo-400 text-[10px] leading-none">$7.99/mo · Unlimited everything</p>
               </div>
               <Sparkles size={13} className="text-indigo-400 group-hover:text-indigo-300 transition-colors shrink-0" />
             </button>

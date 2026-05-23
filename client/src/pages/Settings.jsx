@@ -250,7 +250,7 @@ export default function Settings() {
                   disabled={billingLoading}
                   className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-xl text-white font-bold text-sm transition-all hover:-translate-y-0.5 shadow-lg shadow-indigo-500/20">
                   <Crown size={15} />
-                  {billingLoading ? "Opening checkout…" : "Upgrade to Pro — $4.99/month"}
+                  {billingLoading ? "Opening checkout…" : "Upgrade to Pro — $7.99/month"}
                 </button>
                 <p className="text-center text-xs text-gray-600 flex items-center justify-center gap-1.5">
                   <Shield size={10} /> Secure payment via Stripe · Cancel anytime

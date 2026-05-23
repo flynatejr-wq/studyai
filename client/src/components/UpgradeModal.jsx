@@ -41,7 +41,7 @@ const REASONS = {
   default: {
     emoji: "✨",
     title: "Upgrade to Pro",
-    desc: "Unlock unlimited guides, quizzes, AI tutor access, and more for just $4.99/month.",
+    desc: "Unlock unlimited guides, quizzes, AI tutor access, and more for just $7.99/month.",
   },
 };
 
@@ -131,7 +131,7 @@ export default function UpgradeModal({ open, onClose, reason }) {
                   {/* Price */}
                   <div className="bg-gradient-to-r from-indigo-600/15 to-violet-600/10 border border-indigo-500/20 rounded-xl p-4 text-center mb-5">
                     <div className="flex items-end justify-center gap-1">
-                      <span className="text-3xl font-black text-white">$4.99</span>
+                      <span className="text-3xl font-black text-white">$7.99</span>
                       <span className="text-gray-400 text-sm mb-1">/month</span>
                     </div>
                     <p className="text-gray-500 text-xs mt-0.5">Cancel anytime · No commitments</p>
@@ -147,7 +147,7 @@ export default function UpgradeModal({ open, onClose, reason }) {
                     disabled={loading}
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 font-black text-white text-sm transition-all hover:-translate-y-0.5 shadow-xl shadow-indigo-500/25 mb-3">
                     <Crown size={16} />
-                    {loading ? "Opening checkout…" : "Upgrade to Pro — $4.99/mo"}
+                    {loading ? "Opening checkout…" : "Upgrade to Pro — $7.99/mo"}
                     {!loading && <ArrowRight size={15} />}
                   </button>
 
