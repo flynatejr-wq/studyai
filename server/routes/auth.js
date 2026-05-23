@@ -82,22 +82,19 @@ router.post("/signup", async (req, res) => {
     const token = signToken({ id });
 
     // Send verification + welcome emails (best-effort — never fail signup)
-    console.log(`[email-debug] isEmailConfigured=${isEmailConfigured()} RESEND_API_KEY_set=${!!process.env.RESEND_API_KEY} RESEND_FROM="${process.env.RESEND_FROM}"`);
     if (isEmailConfigured()) {
       const verifyToken = uuid();
       db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyToken, id);
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
       const verifyLink = `${frontendUrl}/verify-email?token=${verifyToken}`;
-      console.log(`[email-debug] Attempting sendVerificationEmail to ${email}`);
       sendVerificationEmail(email.toLowerCase().trim(), verifyLink).catch(err =>
-        console.error("[signup] verification email failed:", err.message, err.stack)
+        console.error("[signup] verification email failed:", err.message)
       );
-      console.log(`[email-debug] Attempting sendWelcomeEmail to ${email}`);
       sendWelcomeEmail(email.toLowerCase().trim(), name.trim()).catch(err =>
-        console.error("[signup] welcome email failed:", err.message, err.stack)
+        console.error("[signup] welcome email failed:", err.message)
       );
     } else {
-      console.log(`[DEV] Email skipped — RESEND_API_KEY not configured for ${email}`);
+      console.log("[DEV] Email skipped — RESEND_API_KEY not configured");
     }
 
     // If email is configured, require verification before granting access.
@@ -403,27 +400,6 @@ router.delete("/account", requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong." });
-  }
-});
-
-// ── TEMP: Email diagnostic endpoint — remove after debugging ──────────────────
-router.get("/email-test", async (req, res) => {
-  const { Resend } = await import("resend");
-  const key = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM;
-  const to   = req.query.to || "delivered@resend.dev"; // Resend's built-in test address
-  if (!key) return res.json({ ok: false, error: "RESEND_API_KEY is not set" });
-  try {
-    const client = new Resend(key);
-    const result = await client.emails.send({
-      from: from || "StudyBuddi <onboarding@resend.dev>",
-      to:   [to],
-      subject: "StudyBuddi email test",
-      html: "<p>This is a test email from StudyBuddi.</p>",
-    });
-    res.json({ ok: true, key_prefix: key.slice(0, 8), from, to, result });
-  } catch (err) {
-    res.json({ ok: false, key_prefix: key.slice(0, 8), from, to, error: err.message, stack: err.stack });
   }
 });
 

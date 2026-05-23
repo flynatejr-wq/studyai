@@ -126,8 +126,9 @@ app.use(express.json({
   },
 }));
 
-app.use("/api/auth/forgot-password", passwordResetLimiter);
-app.use("/api/auth/reset-password",  passwordResetLimiter);
+app.use("/api/auth/forgot-password",             passwordResetLimiter);
+app.use("/api/auth/reset-password",              passwordResetLimiter);
+app.use("/api/auth/resend-verification-public",  passwordResetLimiter); // prevent email spam abuse
 app.use("/api/auth", authLimiter, authRoute);
 app.use("/api/summarize", aiLimiter, summarizeRoute);
 app.use("/api/folders", foldersRoute);
