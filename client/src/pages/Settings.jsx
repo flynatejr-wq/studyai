@@ -17,6 +17,19 @@ import UpgradeModal from "../components/UpgradeModal.jsx";
 
 const INPUT_CLS = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all text-sm";
 
+// Defined outside Settings so React sees a stable component reference across renders.
+// If defined inside, every keystroke re-creates the component type → unmount/remount → focus lost.
+function Section({ children, delay = 0 }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.4 }}>
+      {children}
+    </motion.div>
+  );
+}
+
 export default function Settings() {
   const { user, refreshUser, logout } = useAuth();
   const toast = useToast();
@@ -170,15 +183,6 @@ export default function Settings() {
       setDeleteLoading(false);
     }
   };
-
-  const Section = ({ children, delay = 0 }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.4 }}>
-      {children}
-    </motion.div>
-  );
 
   return (
     <div className="flex min-h-dvh bg-[#080810] w-full">
