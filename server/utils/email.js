@@ -8,7 +8,7 @@
  * Required env var:
  *   RESEND_API_KEY   — from resend.com (starts with "re_")
  *   RESEND_FROM      — sender address on a verified Resend domain
- *                      e.g. "StudyBuddi <noreply@studybuddi.vercel.app>"
+ *                      e.g. "StudyBuddi <noreply@studybuddi.academy>"
  *                      Falls back to "StudyBuddi <onboarding@resend.dev>" for testing.
  *
  * Docs: https://resend.com/docs/send-with-nodejs
@@ -70,7 +70,7 @@ export async function sendWelcomeEmail(toEmail, name) {
         <li>Get a structured study guide instantly</li>
         <li>Quiz yourself or chat with your AI tutor</li>
       </ol>
-      <a href="${process.env.FRONTEND_URL || "https://studybuddi.vercel.app"}/dashboard" class="btn">Open StudyBuddi →</a>
+      <a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/dashboard" class="btn">Open StudyBuddi →</a>
       <p class="note">Your free account includes 1 study guide. Upgrade anytime for unlimited guides, quizzes, and advanced AI features.</p>
     `),
   });
@@ -115,7 +115,7 @@ export async function sendUpgradePromptEmail(toEmail, name) {
     html:    wrap(`
       <h2>Ready to study without limits?</h2>
       <p>Hey ${name || "there"} — you've used your free study guide. Upgrade to Pro for unlimited guides, quizzes, and your personal AI tutor.</p>
-      <a href="${process.env.FRONTEND_URL || "https://studybuddi.vercel.app"}/settings" class="btn">Upgrade to Pro →</a>
+      <a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/settings" class="btn">Upgrade to Pro →</a>
       <p class="note">Pro includes unlimited guides, advanced AI features, and priority support.</p>
     `),
   });

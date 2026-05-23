@@ -11,4 +11,4 @@ Disallow: /settings
 Disallow: /study-plans
 Disallow: /admin
 
-Sitemap: https://studybuddi.vercel.app/sitemap.xml
+Sitemap: https://studybuddi.academy/sitemap.xml

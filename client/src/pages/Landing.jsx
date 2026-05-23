@@ -661,7 +661,7 @@ export default function Landing() {
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-gray-600">
             <Link to="/terms" className="hover:text-gray-400 transition-colors">Terms of Service</Link>
             <Link to="/privacy" className="hover:text-gray-400 transition-colors">Privacy Policy</Link>
-            <a href="mailto:support@studybuddi.app" className="hover:text-gray-400 transition-colors">Support</a>
+            <a href="mailto:support@studybuddi.academy" className="hover:text-gray-400 transition-colors">Support</a>
           </div>
 
           <p className="text-gray-700 text-xs">© 2025 StudyBuddi. All rights reserved.</p>

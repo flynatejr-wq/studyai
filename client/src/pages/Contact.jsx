@@ -4,10 +4,10 @@ import { BookOpen, Mail, MessageSquare, Clock } from "lucide-react";
 const COMPANY = "StudyBuddi";
 
 const TOPICS = [
-  { label: "Billing & Refunds",     email: "support@studybuddi.app?subject=Billing%20Question" },
-  { label: "Technical Support",     email: "support@studybuddi.app?subject=Technical%20Support" },
-  { label: "Privacy & Data Requests", email: "support@studybuddi.app?subject=Privacy%20Request" },
-  { label: "Partnership & Press",   email: "hello@studybuddi.app?subject=Partnership%20Enquiry" },
+  { label: "Billing & Refunds",     email: "support@studybuddi.academy?subject=Billing%20Question" },
+  { label: "Technical Support",     email: "support@studybuddi.academy?subject=Technical%20Support" },
+  { label: "Privacy & Data Requests", email: "support@studybuddi.academy?subject=Privacy%20Request" },
+  { label: "Partnership & Press",   email: "hello@studybuddi.academy?subject=Partnership%20Enquiry" },
 ];
 
 export default function Contact() {
@@ -53,7 +53,7 @@ export default function Contact() {
               </div>
               <div className="flex items-center gap-2 text-gray-500 group-hover:text-indigo-400 transition-colors text-xs">
                 <Mail size={13} />
-                <span>support@studybuddi.app</span>
+                <span>support@studybuddi.academy</span>
               </div>
             </a>
           ))}

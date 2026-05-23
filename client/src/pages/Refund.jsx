@@ -32,7 +32,7 @@ export default function Refund() {
           ],
           [
             "3. How to Request a Refund",
-            "To request a refund, email support@studybuddi.app with your account email and the reason for your request. We aim to respond within 2 business days. Approved refunds are processed back to your original payment method within 5–10 business days.",
+            "To request a refund, email support@studybuddi.academy with your account email and the reason for your request. We aim to respond within 2 business days. Approved refunds are processed back to your original payment method within 5–10 business days.",
           ],
           [
             "4. Annual Subscriptions",
@@ -48,7 +48,7 @@ export default function Refund() {
           ],
           [
             "7. Contact",
-            "For refund requests or billing questions, email us at support@studybuddi.app. Please include your account email and a description of the issue.",
+            "For refund requests or billing questions, email us at support@studybuddi.academy. Please include your account email and a description of the issue.",
           ],
         ].map(([title, body]) => (
           <section key={title} className="mb-8">
