@@ -406,4 +406,25 @@ router.delete("/account", requireAuth, async (req, res) => {
   }
 });
 
+// ── TEMP: Email diagnostic endpoint — remove after debugging ──────────────────
+router.get("/email-test", async (req, res) => {
+  const { Resend } = await import("resend");
+  const key = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM;
+  const to   = req.query.to || "delivered@resend.dev"; // Resend's built-in test address
+  if (!key) return res.json({ ok: false, error: "RESEND_API_KEY is not set" });
+  try {
+    const client = new Resend(key);
+    const result = await client.emails.send({
+      from: from || "StudyBuddi <onboarding@resend.dev>",
+      to:   [to],
+      subject: "StudyBuddi email test",
+      html: "<p>This is a test email from StudyBuddi.</p>",
+    });
+    res.json({ ok: true, key_prefix: key.slice(0, 8), from, to, result });
+  } catch (err) {
+    res.json({ ok: false, key_prefix: key.slice(0, 8), from, to, error: err.message, stack: err.stack });
+  }
+});
+
 export default router;
