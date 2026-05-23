@@ -82,16 +82,19 @@ router.post("/signup", async (req, res) => {
     const token = signToken({ id });
 
     // Send verification + welcome emails (best-effort — never fail signup)
+    console.log(`[email-debug] isEmailConfigured=${isEmailConfigured()} RESEND_API_KEY_set=${!!process.env.RESEND_API_KEY} RESEND_FROM="${process.env.RESEND_FROM}"`);
     if (isEmailConfigured()) {
       const verifyToken = uuid();
       db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyToken, id);
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
       const verifyLink = `${frontendUrl}/verify-email?token=${verifyToken}`;
+      console.log(`[email-debug] Attempting sendVerificationEmail to ${email}`);
       sendVerificationEmail(email.toLowerCase().trim(), verifyLink).catch(err =>
-        console.error("[signup] verification email failed:", err.message)
+        console.error("[signup] verification email failed:", err.message, err.stack)
       );
+      console.log(`[email-debug] Attempting sendWelcomeEmail to ${email}`);
       sendWelcomeEmail(email.toLowerCase().trim(), name.trim()).catch(err =>
-        console.error("[signup] welcome email failed:", err.message)
+        console.error("[signup] welcome email failed:", err.message, err.stack)
       );
     } else {
       console.log(`[DEV] Email skipped — RESEND_API_KEY not configured for ${email}`);

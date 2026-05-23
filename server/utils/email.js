@@ -78,7 +78,8 @@ export async function sendWelcomeEmail(toEmail, name) {
 
 // ── Email verification ────────────────────────────────────────────────────────
 export async function sendVerificationEmail(toEmail, verifyLink) {
-  await resend.emails.send({
+  console.log(`[resend] sendVerificationEmail → to=${toEmail} from=${FROM} key_prefix=${process.env.RESEND_API_KEY?.slice(0,8)}`);
+  const result = await resend.emails.send({
     from:    FROM,
     to:      [toEmail],
     subject: "Verify your StudyBuddi email address",
@@ -89,6 +90,7 @@ export async function sendVerificationEmail(toEmail, verifyLink) {
       <p class="note">If you didn't create a StudyBuddi account, you can safely ignore this email.</p>
     `),
   });
+  console.log(`[resend] sendVerificationEmail result:`, JSON.stringify(result));
 }
 
 // ── Password reset ────────────────────────────────────────────────────────────
