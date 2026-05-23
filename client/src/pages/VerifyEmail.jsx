@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CheckCircle, XCircle, Loader2, Brain } from "lucide-react";
 import { api } from "../api.js";
+import { useAuth } from "../contexts/AuthContext.jsx";
 import ThemeToggle from "../components/ThemeToggle.jsx";
 
 export default function VerifyEmail() {
   const [params] = useSearchParams();
   const token = params.get("token");
+  const { loginWithToken } = useAuth();
+  const navigate = useNavigate();
 
   const [status, setStatus] = useState("loading"); // loading | success | already | error
   const [error,  setError]  = useState("");
@@ -15,8 +18,16 @@ export default function VerifyEmail() {
   useEffect(() => {
     if (!token) { setStatus("error"); setError("No verification token found."); return; }
     api.auth.verifyEmail(token)
-      .then(data => setStatus(data.already ? "already" : "success"))
-      .catch(err  => { setStatus("error"); setError(err.message); });
+      .then(data => {
+        // Auto-login the user — server returns a token after verification
+        if (data.token && data.user) {
+          loginWithToken(data.token, data.user);
+          // Brief delay so the success animation plays, then redirect
+          setTimeout(() => navigate("/dashboard"), 1800);
+        }
+        setStatus(data.already ? "already" : "success");
+      })
+      .catch(err => { setStatus("error"); setError(err.message); });
   }, [token]);
 
   return (
@@ -52,13 +63,11 @@ export default function VerifyEmail() {
             </motion.div>
             <h1 className="text-white font-black text-xl mb-2">Email verified!</h1>
             <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-              Your email address has been confirmed. You now have full access to StudyBuddi.
+              You're all set. Taking you to your dashboard…
             </p>
-            <Link
-              to="/dashboard"
-              className="inline-flex items-center justify-center w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl text-white font-bold text-sm transition-all hover:-translate-y-0.5">
-              Go to Dashboard →
-            </Link>
+            <div className="flex items-center justify-center gap-2 text-indigo-400 text-sm">
+              <Loader2 size={16} className="animate-spin" /> Redirecting…
+            </div>
           </>
         )}
 

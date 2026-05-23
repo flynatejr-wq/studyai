@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Sparkles, FileText, Brain, Trophy, ArrowRight, Check } from "lucide-react";
+import { Eye, EyeOff, Sparkles, FileText, Brain, Trophy, ArrowRight, Check, RefreshCw } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { api } from "../api.js";
 import ThemeToggle from "../components/ThemeToggle.jsx";
 
 const FEATURES = [
@@ -39,18 +40,31 @@ export default function Login() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
+  const [resent, setResent] = useState(false);
 
   const handle = async (e) => {
     e.preventDefault();
-    setError(""); setLoading(true);
+    setError(""); setUnverifiedEmail(""); setLoading(true);
     try {
       await login(form.email, form.password);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.message);
+      if (err.code === "EMAIL_NOT_VERIFIED" || err.message?.includes("verify your email")) {
+        setUnverifiedEmail(form.email);
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const resend = async () => {
+    setResent(false);
+    await api.auth.resendVerificationPublic(unverifiedEmail);
+    setResent(true);
+    setTimeout(() => setResent(false), 4000);
   };
 
   return (
@@ -149,6 +163,19 @@ export default function Login() {
             {error && (
               <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl px-4 py-3 mb-5 text-sm flex items-start gap-2">
                 <span className="shrink-0 mt-0.5">⚠️</span> {error}
+              </div>
+            )}
+            {unverifiedEmail && (
+              <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl px-4 py-3 mb-5">
+                <p className="text-amber-300 text-sm font-semibold mb-1">📧 Please verify your email</p>
+                <p className="text-amber-400/80 text-xs leading-relaxed mb-3">
+                  We sent a link to <span className="font-semibold">{unverifiedEmail}</span>. Click it to activate your account.
+                </p>
+                <button onClick={resend}
+                  className="flex items-center gap-1.5 text-xs text-amber-300 hover:text-amber-200 transition-colors font-medium">
+                  <RefreshCw size={12} className={resent ? "text-green-400" : ""} />
+                  {resent ? "Sent! Check your inbox" : "Resend verification email"}
+                </button>
               </div>
             )}
             <form onSubmit={handle} className="space-y-4">

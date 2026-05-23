@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Sparkles, ArrowRight, Check, Zap, Trophy, Brain } from "lucide-react";
+import { Eye, EyeOff, Sparkles, ArrowRight, Check, Zap, Trophy, Brain, Mail, RefreshCw } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { api } from "../api.js";
 import ThemeToggle from "../components/ThemeToggle.jsx";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,12 +45,14 @@ export default function Signup() {
   const { signup } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const refCode = searchParams.get("ref"); // referral code from share link
+  const refCode = searchParams.get("ref");
 
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState(""); // set after signup if verification needed
+  const [resent, setResent] = useState(false);
 
   const handle = async (e) => {
     e.preventDefault();
@@ -58,14 +61,64 @@ export default function Signup() {
     if (form.password.length < 8) return setError("Password must be at least 8 characters.");
     setLoading(true);
     try {
-      await signup(form.name, form.email, form.password, refCode);
-      navigate("/dashboard");
+      const result = await signup(form.name, form.email, form.password, refCode);
+      if (result?.requiresVerification) {
+        setPendingEmail(form.email);
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  const resend = async () => {
+    setResent(false);
+    await api.auth.resendVerificationPublic(pendingEmail);
+    setResent(true);
+    setTimeout(() => setResent(false), 4000);
+  };
+
+  // ── "Check your email" screen ─────────────────────────────────────────────
+  if (pendingEmail) {
+    return (
+      <div className="min-h-screen bg-[#080810] flex items-center justify-center px-4 py-10 relative overflow-hidden">
+        <div className="fixed top-4 right-4 z-20"><ThemeToggle size="md" variant="pill" /></div>
+        <div className="fixed inset-0 pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/10 rounded-full blur-[140px]" />
+        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+          className="w-full max-w-md relative z-10 text-center">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-indigo-500/30">
+            <Mail size={36} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-black text-white mb-2">Check your inbox</h1>
+          <p className="text-gray-400 text-sm leading-relaxed mb-1">
+            We sent a verification link to
+          </p>
+          <p className="text-indigo-300 font-semibold text-sm mb-6">{pendingEmail}</p>
+          <p className="text-gray-500 text-xs mb-8 leading-relaxed max-w-xs mx-auto">
+            Click the link in the email to verify your account and get started. Check your spam folder if you don't see it.
+          </p>
+          <button
+            onClick={resend}
+            className="flex items-center gap-2 mx-auto px-5 py-2.5 bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-xl text-gray-300 hover:text-white text-sm font-medium transition-all">
+            <RefreshCw size={14} className={resent ? "text-green-400" : ""} />
+            {resent ? "Sent! Check your inbox" : "Resend verification email"}
+          </button>
+          <p className="text-gray-600 text-xs mt-8">
+            Wrong email?{" "}
+            <button onClick={() => setPendingEmail("")} className="text-indigo-400 hover:text-indigo-300 transition-colors">
+              Go back
+            </button>
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
 
   const pwStrength = form.password.length === 0 ? 0
     : form.password.length < 8 ? 1

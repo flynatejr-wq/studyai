@@ -97,7 +97,14 @@ router.post("/signup", async (req, res) => {
       console.log(`[DEV] Email skipped — RESEND_API_KEY not configured for ${email}`);
     }
 
-    res.json({ token, user });
+    // If email is configured, require verification before granting access.
+    // Return requiresVerification flag instead of a token.
+    // In dev (no email config), skip verification and log the user straight in.
+    if (isEmailConfigured()) {
+      res.json({ requiresVerification: true, email: email.toLowerCase().trim() });
+    } else {
+      res.json({ token, user });
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong." });
@@ -118,6 +125,15 @@ router.post("/login", async (req, res) => {
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(400).json({ error: "Incorrect password." });
+
+    // Block login until email is verified (only when email service is configured)
+    if (isEmailConfigured() && !user.email_verified) {
+      return res.status(403).json({
+        error: "Please verify your email before logging in. Check your inbox for a verification link.",
+        code: "EMAIL_NOT_VERIFIED",
+        email: user.email,
+      });
+    }
 
     // Update streak
     const today = new Date().toISOString().split("T")[0];
@@ -286,11 +302,40 @@ router.get("/verify-email", (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).json({ error: "Verification token is required." });
 
-  const user = db.prepare("SELECT id, email_verified FROM users WHERE email_verify_token = ?").get(token);
-  if (!user) return res.status(400).json({ error: "Invalid or already-used verification link." });
-  if (user.email_verified) return res.json({ success: true, already: true });
+  const found = db.prepare("SELECT id, email_verified FROM users WHERE email_verify_token = ?").get(token);
+  if (!found) return res.status(400).json({ error: "Invalid or already-used verification link." });
 
-  db.prepare("UPDATE users SET email_verified = 1, email_verify_token = NULL WHERE id = ?").run(user.id);
+  if (found.email_verified) {
+    // Already verified — still return a token so they get logged in automatically
+    const user = db.prepare(
+      "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, referral_code, created_at FROM users WHERE id = ?"
+    ).get(found.id);
+    return res.json({ success: true, already: true, token: signToken({ id: found.id }), user });
+  }
+
+  db.prepare("UPDATE users SET email_verified = 1, email_verify_token = NULL WHERE id = ?").run(found.id);
+  const user = db.prepare(
+    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, referral_code, created_at FROM users WHERE id = ?"
+  ).get(found.id);
+  const authToken = signToken({ id: found.id });
+  res.json({ success: true, token: authToken, user });
+});
+
+// ── Resend verification (public — for "check your email" screen, no auth) ────
+// Always returns success to avoid leaking whether an email exists.
+router.post("/resend-verification-public", async (req, res) => {
+  const { email } = req.body;
+  if (!email || !isEmailConfigured()) return res.json({ success: true });
+  try {
+    const user = db.prepare("SELECT id, email, email_verified FROM users WHERE email = ?").get(email.toLowerCase().trim());
+    if (!user || user.email_verified) return res.json({ success: true });
+    const verifyToken = uuid();
+    db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyToken, user.id);
+    const verifyLink = `${process.env.FRONTEND_URL || "http://localhost:5173"}/verify-email?token=${verifyToken}`;
+    await sendVerificationEmail(user.email, verifyLink);
+  } catch (err) {
+    console.error("[resend-verification-public]", err.message);
+  }
   res.json({ success: true });
 });
 

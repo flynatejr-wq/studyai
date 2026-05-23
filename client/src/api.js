@@ -66,7 +66,8 @@ export const api = {
     forgotPassword:  (body)  => request("/auth/forgot-password",  { method: "POST",   headers: headers(), body: JSON.stringify(body) }),
     resetPassword:   (body)  => request("/auth/reset-password",   { method: "POST",   headers: headers(), body: JSON.stringify(body) }),
     verifyEmail:     (token) => request(`/auth/verify-email?token=${encodeURIComponent(token)}`),
-    resendVerification: ()   => request("/auth/resend-verification", { method: "POST", headers: headers() }),
+    resendVerification:       ()      => request("/auth/resend-verification",        { method: "POST", headers: headers() }),
+    resendVerificationPublic: (email) => request("/auth/resend-verification-public", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) }),
   },
   summarize: {
     text:    (transcript, difficulty = "standard", style = "detailed") => request("/summarize", { method: "POST", headers: headers(), body: JSON.stringify({ transcript, difficulty, style }) }),
