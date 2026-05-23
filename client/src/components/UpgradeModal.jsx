@@ -1,7 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Zap, BookOpen, Brain, Sparkles, Check, Crown, Shield, ArrowRight } from "lucide-react";
+import { X, Zap, BookOpen, Brain, Sparkles, Check, Crown, Shield, ArrowRight, GraduationCap } from "lucide-react";
 import { useState } from "react";
 import { api } from "../api.js";
+import { useAuth } from "../contexts/AuthContext.jsx";
+
+const SSU_DOMAIN = "savannahstate.edu";
 
 const PRO_FEATURES = [
   { emoji: "📚", text: "Unlimited AI study guides — no daily limits" },
@@ -48,6 +51,10 @@ const REASONS = {
 export default function UpgradeModal({ open, onClose, reason }) {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
+  const { user } = useAuth();
+
+  // Detect Savannah State students — server will verify + apply discount at checkout
+  const isSSU = !!user?.email?.toLowerCase().endsWith(`@${SSU_DOMAIN}`);
 
   const info = REASONS[reason] || REASONS.default;
 
@@ -128,10 +135,28 @@ export default function UpgradeModal({ open, onClose, reason }) {
                     ))}
                   </div>
 
+                  {/* SSU student discount banner */}
+                  {isSSU && (
+                    <div className="flex items-center gap-2.5 bg-green-500/10 border border-green-500/25 rounded-xl px-4 py-3 mb-4">
+                      <GraduationCap size={16} className="text-green-400 shrink-0" />
+                      <div>
+                        <p className="text-green-300 text-xs font-bold">Savannah State student discount applied 🎉</p>
+                        <p className="text-green-400/70 text-xs mt-0.5">Your verified .edu email qualifies you for $3 off every month.</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Price */}
                   <div className="bg-gradient-to-r from-indigo-600/15 to-violet-600/10 border border-indigo-500/20 rounded-xl p-4 text-center mb-5">
                     <div className="flex items-end justify-center gap-1">
-                      <span className="text-3xl font-black text-white">$7.99</span>
+                      {isSSU ? (
+                        <>
+                          <span className="text-lg text-gray-500 line-through mr-1">$7.99</span>
+                          <span className="text-3xl font-black text-white">$4.99</span>
+                        </>
+                      ) : (
+                        <span className="text-3xl font-black text-white">$7.99</span>
+                      )}
                       <span className="text-gray-400 text-sm mb-1">/month</span>
                     </div>
                     <p className="text-gray-500 text-xs mt-0.5">Cancel anytime · No commitments</p>
@@ -147,7 +172,7 @@ export default function UpgradeModal({ open, onClose, reason }) {
                     disabled={loading}
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 font-black text-white text-sm transition-all hover:-translate-y-0.5 shadow-xl shadow-indigo-500/25 mb-3">
                     <Crown size={16} />
-                    {loading ? "Opening checkout…" : "Upgrade to Pro — $7.99/mo"}
+                    {loading ? "Opening checkout…" : isSSU ? "Upgrade to Pro — $4.99/mo" : "Upgrade to Pro — $7.99/mo"}
                     {!loading && <ArrowRight size={15} />}
                   </button>
 

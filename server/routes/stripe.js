@@ -8,7 +8,9 @@ const router = express.Router();
 
 // Stripe is optional — gracefully disabled if STRIPE_SECRET_KEY is not set
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
-const PRICE_ID = process.env.STRIPE_PRICE_ID || null; // monthly Pro price ID from Stripe dashboard
+const PRICE_ID      = process.env.STRIPE_PRICE_ID      || null; // monthly Pro price ID from Stripe dashboard
+const SSU_COUPON_ID = process.env.STRIPE_SSU_COUPON_ID || null; // $3 off coupon for @savannahstate.edu students
+const SSU_DOMAIN    = "savannahstate.edu";
 
 // ── POST /api/stripe/checkout — create a Checkout Session ────────────────────
 router.post("/checkout", requireAuth, async (req, res) => {
@@ -19,6 +21,11 @@ router.post("/checkout", requireAuth, async (req, res) => {
   const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.user.id);
   if (!user) return res.status(404).json({ error: "User not found." });
   if (user.plan === "pro") return res.status(400).json({ error: "You already have a Pro plan." });
+
+  // Savannah State student discount — requires verified @savannahstate.edu email
+  const isSSU = SSU_COUPON_ID &&
+    user.email_verified === 1 &&
+    user.email.toLowerCase().endsWith(`@${SSU_DOMAIN}`);
 
   try {
     // Reuse existing Stripe customer or create one
@@ -33,18 +40,25 @@ router.post("/checkout", requireAuth, async (req, res) => {
       db.prepare("UPDATE users SET stripe_customer_id = ? WHERE id = ?").run(customerId, user.id);
     }
 
+    // If SSU coupon applies, use discounts[] (can't combine with allow_promotion_codes)
+    const discountOptions = isSSU
+      ? { discounts: [{ coupon: SSU_COUPON_ID }] }
+      : { allow_promotion_codes: true };
+
+    if (isSSU) console.log(`[stripe] Applying SSU coupon for ${user.email}`);
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ["card"],
       line_items: [{ price: PRICE_ID, quantity: 1 }],
       mode: "subscription",
-      allow_promotion_codes: true,
+      ...discountOptions,
       success_url: `${process.env.FRONTEND_URL || "http://localhost:5173"}/dashboard?upgraded=1`,
       cancel_url:  `${process.env.FRONTEND_URL || "http://localhost:5173"}/dashboard?cancelled=1`,
       metadata: { userId: user.id },
     });
 
-    res.json({ url: session.url });
+    res.json({ url: session.url, isSsuStudent: isSSU });
   } catch (err) {
     console.error("[stripe/checkout]", err.message);
     res.status(500).json({ error: "Could not create checkout session. Please try again." });
