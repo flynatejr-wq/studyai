@@ -403,19 +403,26 @@ router.delete("/account", requireAuth, async (req, res) => {
   }
 });
 
-// ── TEMP: Brevo test endpoint — remove after debugging ───────────────────────
+// ── TEMP: Brevo API test endpoint — remove after debugging ────────────────────
 router.get("/email-test", async (req, res) => {
-  const configured = isEmailConfigured();
-  if (!configured) return res.json({ ok: false, error: "BREVO_SMTP_KEY or BREVO_SMTP_USER not set", BREVO_SMTP_USER: !!process.env.BREVO_SMTP_USER, BREVO_SMTP_KEY: !!process.env.BREVO_SMTP_KEY });
+  const apiKey = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.BREVO_SMTP_USER;
+  if (!apiKey) return res.json({ ok: false, error: "BREVO_API_KEY not set" });
+  if (!senderEmail) return res.json({ ok: false, error: "BREVO_SENDER_EMAIL not set" });
   try {
-    const nodemailer = await import("nodemailer");
-    const transport = nodemailer.default.createTransport({
-      host: "smtp-relay.brevo.com", port: 587, secure: false,
-      auth: { user: process.env.BREVO_SMTP_USER, pass: process.env.BREVO_SMTP_KEY },
+    const to = req.query.to || senderEmail;
+    const result = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "api-key": apiKey },
+      body: JSON.stringify({
+        sender: { name: "StudyBuddi", email: senderEmail },
+        to: [{ email: to }],
+        subject: "StudyBuddi email test",
+        htmlContent: "<p>Test email from StudyBuddi.</p>",
+      }),
     });
-    const to = req.query.to || process.env.BREVO_SMTP_USER;
-    const result = await transport.sendMail({ from: process.env.RESEND_FROM, to, subject: "StudyBuddi test", html: "<p>Test email from StudyBuddi</p>" });
-    res.json({ ok: true, result });
+    const data = await result.json();
+    res.json({ ok: result.ok, status: result.status, data });
   } catch (err) {
     res.json({ ok: false, error: err.message });
   }

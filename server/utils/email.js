@@ -1,36 +1,26 @@
 /**
- * email.js — Transactional email via Brevo SMTP (nodemailer)
+ * email.js — Transactional email via Brevo HTTP API
+ *
+ * Uses Brevo's REST API (port 443) instead of SMTP so Railway's
+ * outbound port restrictions don't block delivery.
  *
  * Required env vars:
- *   BREVO_SMTP_KEY   — Brevo SMTP API key (Settings → SMTP & API → SMTP)
- *   RESEND_FROM      — sender address (reused env var name, same format)
- *                      e.g. "StudyBuddi <noreply@studybuddi.academy>"
- *
- * Brevo SMTP settings (hardcoded — they never change):
- *   host: smtp-relay.brevo.com
- *   port: 587
- *   user: your Brevo account email
- *   pass: BREVO_SMTP_KEY
+ *   BREVO_API_KEY   — Brevo API key (Settings → SMTP & API → API Keys)
+ *   BREVO_SENDER_EMAIL — verified sender email in Brevo (e.g. you@gmail.com)
+ *   BREVO_SENDER_NAME  — sender display name (e.g. StudyBuddi) [optional]
  */
 
-import nodemailer from "nodemailer";
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
-function makeTransport() {
-  const key  = process.env.BREVO_SMTP_KEY;
-  const user = process.env.BREVO_SMTP_USER; // your Brevo login email
-  if (!key || !user) return null;
-  return nodemailer.createTransport({
-    host: "smtp-relay.brevo.com",
-    port: 587,
-    secure: false,
-    auth: { user, pass: key },
-  });
+function getSender() {
+  return {
+    name:  process.env.BREVO_SENDER_NAME  || "StudyBuddi",
+    email: process.env.BREVO_SENDER_EMAIL || process.env.BREVO_SMTP_USER || "",
+  };
 }
 
-const FROM = process.env.RESEND_FROM || "StudyBuddi <noreply@studybuddi.academy>";
-
 export function isEmailConfigured() {
-  return !!(process.env.BREVO_SMTP_KEY && process.env.BREVO_SMTP_USER);
+  return !!(process.env.BREVO_API_KEY && (process.env.BREVO_SENDER_EMAIL || process.env.BREVO_SMTP_USER));
 }
 
 // ── Shared email chrome ───────────────────────────────────────────────────────
@@ -65,9 +55,30 @@ function wrap(body) {
 }
 
 async function send({ to, subject, html }) {
-  const transport = makeTransport();
-  if (!transport) throw new Error("Email not configured — set BREVO_SMTP_KEY and BREVO_SMTP_USER");
-  await transport.sendMail({ from: FROM, to, subject, html });
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) throw new Error("BREVO_API_KEY is not set");
+
+  const sender = getSender();
+  if (!sender.email) throw new Error("BREVO_SENDER_EMAIL is not set");
+
+  const res = await fetch(BREVO_API_URL, {
+    method:  "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "api-key":      apiKey,
+    },
+    body: JSON.stringify({
+      sender,
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Brevo API error ${res.status}`);
+  }
 }
 
 // ── Welcome email ─────────────────────────────────────────────────────────────
