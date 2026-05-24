@@ -252,6 +252,10 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_abuse_flags_target          ON abuse_flags(target_type, target_value);
 `);
 
+// Google OAuth
+safeAlter("ALTER TABLE users ADD COLUMN google_id TEXT");
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL;`);
+
 // ── Performance indexes ───────────────────────────────────────────────────────
 // Added after initial schema so existing DBs gain them automatically on restart.
 db.exec(`

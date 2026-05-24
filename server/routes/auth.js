@@ -403,4 +403,98 @@ router.delete("/account", requireAuth, async (req, res) => {
   }
 });
 
+// ── Google OAuth ──────────────────────────────────────────────────────────────
+const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const BACKEND_URL          = process.env.BACKEND_URL || "https://studyai-backend-production-2f6b.up.railway.app";
+
+// Step 1 — redirect browser to Google's consent screen
+router.get("/google", (req, res) => {
+  if (!GOOGLE_CLIENT_ID) return res.status(503).json({ error: "Google login is not configured." });
+  const params = new URLSearchParams({
+    client_id:     GOOGLE_CLIENT_ID,
+    redirect_uri:  `${BACKEND_URL}/api/auth/google/callback`,
+    response_type: "code",
+    scope:         "email profile",
+    access_type:   "offline",
+    prompt:        "select_account",
+  });
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+});
+
+// Step 2 — Google redirects here with a code
+router.get("/google/callback", async (req, res) => {
+  const { code, error } = req.query;
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+  if (error || !code) {
+    return res.redirect(`${frontendUrl}/login?error=google_cancelled`);
+  }
+
+  try {
+    // Exchange code for access token
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method:  "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id:     GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri:  `${BACKEND_URL}/api/auth/google/callback`,
+        grant_type:    "authorization_code",
+      }),
+    });
+    const tokens = await tokenRes.json();
+    if (!tokens.access_token) throw new Error("No access token returned from Google");
+
+    // Fetch user profile from Google
+    const profileRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    });
+    const profile = await profileRes.json();
+    const { id: googleId, email, name } = profile;
+    if (!email) throw new Error("Google did not return an email address");
+
+    const normEmail = email.toLowerCase().trim();
+
+    // Find or create user
+    let user = db.prepare("SELECT * FROM users WHERE google_id = ?").get(googleId);
+
+    if (!user) {
+      user = db.prepare("SELECT * FROM users WHERE email = ?").get(normEmail);
+      if (user) {
+        // Link Google to an existing password account
+        db.prepare("UPDATE users SET google_id = ?, email_verified = 1 WHERE id = ?").run(googleId, user.id);
+        user = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id);
+      } else {
+        // Brand-new Google account — create it
+        const newId = uuid();
+        const referralCode = randomBytes(4).toString("hex").toUpperCase();
+        // Google accounts have no password; store an unusable random hash
+        const fakeHash = await bcrypt.hash(randomBytes(32).toString("hex"), 10);
+        db.prepare(
+          "INSERT INTO users (id, name, email, password_hash, google_id, email_verified, referral_code) VALUES (?, ?, ?, ?, ?, 1, ?)"
+        ).run(newId, name, normEmail, fakeHash, googleId, referralCode);
+        user = db.prepare("SELECT * FROM users WHERE id = ?").get(newId);
+        // Send welcome email (best-effort)
+        if (isEmailConfigured()) {
+          sendWelcomeEmail(normEmail, name).catch(err =>
+            console.error("[google/signup] welcome email failed:", err.message)
+          );
+        }
+      }
+    }
+
+    if (user.is_banned) {
+      return res.redirect(`${frontendUrl}/login?error=banned`);
+    }
+
+    const token = signToken({ id: user.id });
+    res.redirect(`${frontendUrl}/auth/google/callback?token=${token}`);
+  } catch (err) {
+    console.error("[google/callback]", err.message);
+    res.redirect(`${frontendUrl}/login?error=google_failed`);
+  }
+});
+
 export default router;
