@@ -1,27 +1,36 @@
 /**
- * email.js — Transactional email via Resend
+ * email.js — Transactional email via Brevo SMTP (nodemailer)
  *
- * All functions are fire-and-forget safe: they throw on failure so callers
- * can decide whether to propagate or swallow the error. The auth routes
- * wrap calls in try/catch so email failures never block signup/login.
- *
- * Required env var:
- *   RESEND_API_KEY   — from resend.com (starts with "re_")
- *   RESEND_FROM      — sender address on a verified Resend domain
+ * Required env vars:
+ *   BREVO_SMTP_KEY   — Brevo SMTP API key (Settings → SMTP & API → SMTP)
+ *   RESEND_FROM      — sender address (reused env var name, same format)
  *                      e.g. "StudyBuddi <noreply@studybuddi.academy>"
- *                      Falls back to "StudyBuddi <onboarding@resend.dev>" for testing.
  *
- * Docs: https://resend.com/docs/send-with-nodejs
+ * Brevo SMTP settings (hardcoded — they never change):
+ *   host: smtp-relay.brevo.com
+ *   port: 587
+ *   user: your Brevo account email
+ *   pass: BREVO_SMTP_KEY
  */
 
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function makeTransport() {
+  const key  = process.env.BREVO_SMTP_KEY;
+  const user = process.env.BREVO_SMTP_USER; // your Brevo login email
+  if (!key || !user) return null;
+  return nodemailer.createTransport({
+    host: "smtp-relay.brevo.com",
+    port: 587,
+    secure: false,
+    auth: { user, pass: key },
+  });
+}
 
-const FROM = process.env.RESEND_FROM || "StudyBuddi <onboarding@resend.dev>";
+const FROM = process.env.RESEND_FROM || "StudyBuddi <noreply@studybuddi.academy>";
 
 export function isEmailConfigured() {
-  return !!process.env.RESEND_API_KEY;
+  return !!(process.env.BREVO_SMTP_KEY && process.env.BREVO_SMTP_USER);
 }
 
 // ── Shared email chrome ───────────────────────────────────────────────────────
@@ -55,13 +64,18 @@ function wrap(body) {
 </html>`;
 }
 
+async function send({ to, subject, html }) {
+  const transport = makeTransport();
+  if (!transport) throw new Error("Email not configured — set BREVO_SMTP_KEY and BREVO_SMTP_USER");
+  await transport.sendMail({ from: FROM, to, subject, html });
+}
+
 // ── Welcome email ─────────────────────────────────────────────────────────────
 export async function sendWelcomeEmail(toEmail, name) {
-  await resend.emails.send({
-    from:    FROM,
-    to:      [toEmail],
+  await send({
+    to: toEmail,
     subject: "Welcome to StudyBuddi 🎉",
-    html:    wrap(`
+    html: wrap(`
       <h2>Welcome aboard, ${name || "there"}!</h2>
       <p>You've just unlocked the fastest way to turn any lecture, note, or document into a complete study system — summaries, flashcards, quizzes, and an AI tutor, all in seconds.</p>
       <p><strong style="color:#e2e8f0;">Here's how to get started:</strong></p>
@@ -78,11 +92,10 @@ export async function sendWelcomeEmail(toEmail, name) {
 
 // ── Email verification ────────────────────────────────────────────────────────
 export async function sendVerificationEmail(toEmail, verifyLink) {
-  await resend.emails.send({
-    from:    FROM,
-    to:      [toEmail],
+  await send({
+    to: toEmail,
     subject: "Verify your StudyBuddi email address",
-    html:    wrap(`
+    html: wrap(`
       <h2>Verify your email</h2>
       <p>Thanks for signing up! Click the button below to verify your email address and unlock all features. This link expires in <strong style="color:#e2e8f0;">24 hours</strong>.</p>
       <a href="${verifyLink}" class="btn">Verify Email →</a>
@@ -93,11 +106,10 @@ export async function sendVerificationEmail(toEmail, verifyLink) {
 
 // ── Password reset ────────────────────────────────────────────────────────────
 export async function sendPasswordReset(toEmail, resetLink) {
-  await resend.emails.send({
-    from:    FROM,
-    to:      [toEmail],
+  await send({
+    to: toEmail,
     subject: "Reset your StudyBuddi password",
-    html:    wrap(`
+    html: wrap(`
       <h2>Reset your password</h2>
       <p>We received a request to reset your password. Click the button below to choose a new one. This link expires in <strong style="color:#e2e8f0;">1 hour</strong>.</p>
       <a href="${resetLink}" class="btn">Reset Password →</a>
@@ -106,13 +118,12 @@ export async function sendPasswordReset(toEmail, resetLink) {
   });
 }
 
-// ── Upgrade prompt (sent when free limit hit, optional) ──────────────────────
+// ── Upgrade prompt ────────────────────────────────────────────────────────────
 export async function sendUpgradePromptEmail(toEmail, name) {
-  await resend.emails.send({
-    from:    FROM,
-    to:      [toEmail],
+  await send({
+    to: toEmail,
     subject: "You've hit your free limit on StudyBuddi",
-    html:    wrap(`
+    html: wrap(`
       <h2>Ready to study without limits?</h2>
       <p>Hey ${name || "there"} — you've used your free study guide. Upgrade to Pro for unlimited guides, quizzes, and your personal AI tutor.</p>
       <a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/settings" class="btn">Upgrade to Pro →</a>
