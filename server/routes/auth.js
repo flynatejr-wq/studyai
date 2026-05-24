@@ -97,15 +97,13 @@ router.post("/signup", async (req, res) => {
       console.log("[DEV] Email skipped — RESEND_API_KEY not configured");
     }
 
-    // Email verification gate — temporarily disabled, log straight in
-    res.json({ token, user });
-
-    // Re-enable when ready:
-    // if (isEmailConfigured()) {
-    //   res.json({ requiresVerification: true, email: email.toLowerCase().trim() });
-    // } else {
-    //   res.json({ token, user });
-    // }
+    // New accounts must verify email before accessing the app.
+    // Old accounts are back-filled to email_verified=1 at startup so they skip this.
+    if (isEmailConfigured()) {
+      res.json({ requiresVerification: true, email: email.toLowerCase().trim() });
+    } else {
+      res.json({ token, user });
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong." });
@@ -127,14 +125,15 @@ router.post("/login", async (req, res) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(400).json({ error: "Incorrect password." });
 
-    // Email verification gate — temporarily disabled
-    // if (isEmailConfigured() && !user.email_verified) {
-    //   return res.status(403).json({
-    //     error: "Please verify your email before logging in. Check your inbox for a verification link.",
-    //     code: "EMAIL_NOT_VERIFIED",
-    //     email: user.email,
-    //   });
-    // }
+    // Block login until email is verified (only when email service is configured).
+    // Old accounts are back-filled to email_verified=1 at startup so they pass through.
+    if (isEmailConfigured() && !user.email_verified) {
+      return res.status(403).json({
+        error: "Please verify your email before logging in. Check your inbox for a verification link.",
+        code: "EMAIL_NOT_VERIFIED",
+        email: user.email,
+      });
+    }
 
     // Update streak
     const today = new Date().toISOString().split("T")[0];
