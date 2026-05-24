@@ -22,9 +22,8 @@ router.post("/checkout", requireAuth, async (req, res) => {
   if (!user) return res.status(404).json({ error: "User not found." });
   if (user.plan === "pro") return res.status(400).json({ error: "You already have a Pro plan." });
 
-  // Savannah State student discount — requires verified @savannahstate.edu email
+  // Savannah State student discount — applies to any @savannahstate.edu email
   const isSSU = SSU_COUPON_ID &&
-    user.email_verified === 1 &&
     user.email.toLowerCase().endsWith(`@${SSU_DOMAIN}`);
 
   try {

@@ -50,6 +50,7 @@ export default function Sidebar({ onLogout }) {
   const level    = user?.level || 1;
   const xp       = user?.xp    || 0;
   const streak   = user?.streak || 0;
+  const isSSU    = !!user?.email?.toLowerCase().endsWith("@savannahstate.edu");
   const xpForLevel = n => (n - 1) * (n - 1) * 100;
   const xpCurrent  = xpForLevel(level);
   const xpNextLvl  = xpForLevel(level + 1);
@@ -240,7 +241,7 @@ export default function Sidebar({ onLogout }) {
               </div>
               <div className="flex-1 text-left min-w-0">
                 <p className="text-white text-xs font-black leading-none mb-0.5">Upgrade to Pro</p>
-                <p className="text-indigo-400 text-[10px] leading-none">$7.99/mo · Unlimited everything</p>
+                <p className="text-indigo-400 text-[10px] leading-none">{isSSU ? "$4.99/mo" : "$7.99/mo"} · Unlimited everything</p>
               </div>
               <Sparkles size={13} className="text-indigo-400 group-hover:text-indigo-300 transition-colors shrink-0" />
             </button>

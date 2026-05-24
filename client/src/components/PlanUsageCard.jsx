@@ -2,6 +2,9 @@ import { Crown, Zap, MessageSquare, BookOpen, FolderOpen, ArrowRight, Sparkles }
 import { useLimits } from "../hooks/useLimits.js";
 import { api } from "../api.js";
 import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext.jsx";
+
+const SSU_DOMAIN = "savannahstate.edu";
 
 // ── Single usage row ──────────────────────────────────────────────────────────
 function UsageRow({ icon: Icon, label, used, max, unlimited, color = "indigo" }) {
@@ -47,6 +50,8 @@ function UsageRow({ icon: Icon, label, used, max, unlimited, color = "indigo" })
 // ── Main card ─────────────────────────────────────────────────────────────────
 export default function PlanUsageCard({ compact = false }) {
   const { limits, isPro, loading, error } = useLimits();
+  const { user } = useAuth();
+  const isSSU = !!user?.email?.toLowerCase().endsWith(`@${SSU_DOMAIN}`);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const handleUpgrade = async () => {
@@ -136,7 +141,7 @@ export default function PlanUsageCard({ compact = false }) {
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-black transition-all disabled:opacity-50 shadow-md shadow-indigo-500/20"
         >
           <Crown size={11} />
-          {checkoutLoading ? "Loading…" : "Upgrade · $7.99/mo"}
+          {checkoutLoading ? "Loading…" : isSSU ? "Upgrade · $4.99/mo" : "Upgrade · $7.99/mo"}
           {!checkoutLoading && <ArrowRight size={10} />}
         </button>
       </div>
