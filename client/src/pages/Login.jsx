@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Sparkles, FileText, Brain, Trophy, ArrowRight, Check, RefreshCw } from "lucide-react";
+import { Eye, EyeOff, Sparkles, FileText, Brain, Trophy, ArrowRight, Check, RefreshCw, Mail } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { api } from "../api.js";
 import ThemeToggle from "../components/ThemeToggle.jsx";
@@ -73,6 +73,45 @@ export default function Login() {
     setResent(true);
     setTimeout(() => setResent(false), 4000);
   };
+
+  // ── "Check your email" screen (unverified login attempt) ─────────────────────
+  if (unverifiedEmail) {
+    return (
+      <div className="min-h-screen bg-[#080810] flex items-center justify-center px-4 py-10 relative overflow-hidden">
+        <div className="fixed top-4 right-4 z-20"><ThemeToggle size="md" variant="pill" /></div>
+        <div className="fixed inset-0 pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/10 rounded-full blur-[140px]" />
+        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+          className="w-full max-w-md relative z-10 text-center">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-indigo-500/30">
+            <Mail size={36} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-black text-white mb-2">Check your inbox</h1>
+          <p className="text-gray-400 text-sm leading-relaxed mb-1">
+            We sent a verification link to
+          </p>
+          <p className="text-indigo-300 font-semibold text-sm mb-6">{unverifiedEmail}</p>
+          <p className="text-gray-500 text-xs mb-8 leading-relaxed max-w-xs mx-auto">
+            Click the link in the email to verify your account and log in. Check your spam folder if you don't see it.
+          </p>
+          <button
+            onClick={resend}
+            className="flex items-center gap-2 mx-auto px-5 py-2.5 bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-xl text-gray-300 hover:text-white text-sm font-medium transition-all">
+            <RefreshCw size={14} className={resent ? "text-green-400" : ""} />
+            {resent ? "Sent! Check your inbox" : "Resend verification email"}
+          </button>
+          <p className="text-gray-600 text-xs mt-8">
+            Wrong account?{" "}
+            <button onClick={() => setUnverifiedEmail("")} className="text-indigo-400 hover:text-indigo-300 transition-colors">
+              Go back
+            </button>
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#080810] flex">
@@ -170,19 +209,6 @@ export default function Login() {
             {error && (
               <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl px-4 py-3 mb-5 text-sm flex items-start gap-2">
                 <span className="shrink-0 mt-0.5">⚠️</span> {error}
-              </div>
-            )}
-            {unverifiedEmail && (
-              <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl px-4 py-3 mb-5">
-                <p className="text-amber-300 text-sm font-semibold mb-1">📧 Please verify your email</p>
-                <p className="text-amber-400/80 text-xs leading-relaxed mb-3">
-                  We sent a link to <span className="font-semibold">{unverifiedEmail}</span>. Click it to activate your account.
-                </p>
-                <button onClick={resend}
-                  className="flex items-center gap-1.5 text-xs text-amber-300 hover:text-amber-200 transition-colors font-medium">
-                  <RefreshCw size={12} className={resent ? "text-green-400" : ""} />
-                  {resent ? "Sent! Check your inbox" : "Resend verification email"}
-                </button>
               </div>
             )}
             {/* Google sign-in */}

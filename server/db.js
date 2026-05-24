@@ -202,6 +202,21 @@ db.exec(`
   }
 }
 
+// Back-fill email_verified for legacy accounts that predate the verification system.
+// Any account created more than 1 hour ago that is still unverified is considered
+// a legacy account — mark it verified so existing users aren't locked out.
+// New signups (< 1 hour old) are left alone so the verification flow still applies.
+{
+  const result = db.prepare(
+    `UPDATE users SET email_verified = 1, email_verify_token = NULL
+     WHERE email_verified = 0
+       AND datetime(created_at) < datetime('now', '-1 hour')`
+  ).run();
+  if (result.changes > 0) {
+    console.log(`[db] back-filled email_verified=1 for ${result.changes} legacy account(s)`);
+  }
+}
+
 // ── Anti-abuse tables ─────────────────────────────────────────────────────────
 // These tables survive account deletion intentionally — they hold anonymised
 // metadata (hashes only, never raw PII) used to detect free-tier farming.
