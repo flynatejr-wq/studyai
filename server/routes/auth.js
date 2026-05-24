@@ -403,6 +403,24 @@ router.delete("/account", requireAuth, async (req, res) => {
   }
 });
 
+// ── TEMP: Brevo test endpoint — remove after debugging ───────────────────────
+router.get("/email-test", async (req, res) => {
+  const configured = isEmailConfigured();
+  if (!configured) return res.json({ ok: false, error: "BREVO_SMTP_KEY or BREVO_SMTP_USER not set", BREVO_SMTP_USER: !!process.env.BREVO_SMTP_USER, BREVO_SMTP_KEY: !!process.env.BREVO_SMTP_KEY });
+  try {
+    const nodemailer = await import("nodemailer");
+    const transport = nodemailer.default.createTransport({
+      host: "smtp-relay.brevo.com", port: 587, secure: false,
+      auth: { user: process.env.BREVO_SMTP_USER, pass: process.env.BREVO_SMTP_KEY },
+    });
+    const to = req.query.to || process.env.BREVO_SMTP_USER;
+    const result = await transport.sendMail({ from: process.env.RESEND_FROM, to, subject: "StudyBuddi test", html: "<p>Test email from StudyBuddi</p>" });
+    res.json({ ok: true, result });
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+});
+
 // ── Google OAuth ──────────────────────────────────────────────────────────────
 const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
