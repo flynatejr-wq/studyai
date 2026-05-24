@@ -10,7 +10,7 @@ const router = express.Router();
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const PRICE_ID      = process.env.STRIPE_PRICE_ID      || null; // monthly Pro price ID from Stripe dashboard
 const SSU_COUPON_ID = process.env.STRIPE_SSU_COUPON_ID || null; // $3 off coupon for @savannahstate.edu students
-const SSU_DOMAIN    = "savannahstate.edu";
+const SSU_DOMAIN    = "savannahstate.edu"; // matches both @savannahstate.edu and @student.savannahstate.edu
 
 // ── POST /api/stripe/checkout — create a Checkout Session ────────────────────
 router.post("/checkout", requireAuth, async (req, res) => {
@@ -24,7 +24,7 @@ router.post("/checkout", requireAuth, async (req, res) => {
 
   // Savannah State student discount — applies to any @savannahstate.edu email
   const isSSU = SSU_COUPON_ID &&
-    user.email.toLowerCase().endsWith(`@${SSU_DOMAIN}`);
+    user.email.toLowerCase().endsWith(SSU_DOMAIN);
 
   try {
     // Reuse existing Stripe customer or create one

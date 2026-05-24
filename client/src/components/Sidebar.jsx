@@ -50,7 +50,7 @@ export default function Sidebar({ onLogout }) {
   const level    = user?.level || 1;
   const xp       = user?.xp    || 0;
   const streak   = user?.streak || 0;
-  const isSSU    = !!user?.email?.toLowerCase().endsWith("@savannahstate.edu");
+  const isSSU    = !!user?.email?.toLowerCase().endsWith("savannahstate.edu");
   const xpForLevel = n => (n - 1) * (n - 1) * 100;
   const xpCurrent  = xpForLevel(level);
   const xpNextLvl  = xpForLevel(level + 1);

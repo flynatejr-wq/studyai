@@ -54,7 +54,7 @@ export default function UpgradeModal({ open, onClose, reason }) {
   const { user } = useAuth();
 
   // Detect Savannah State students — server will verify + apply discount at checkout
-  const isSSU = !!user?.email?.toLowerCase().endsWith(`@${SSU_DOMAIN}`);
+  const isSSU = !!user?.email?.toLowerCase().endsWith(SSU_DOMAIN);
 
   const info = REASONS[reason] || REASONS.default;
 

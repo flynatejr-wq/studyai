@@ -51,7 +51,7 @@ function UsageRow({ icon: Icon, label, used, max, unlimited, color = "indigo" })
 export default function PlanUsageCard({ compact = false }) {
   const { limits, isPro, loading, error } = useLimits();
   const { user } = useAuth();
-  const isSSU = !!user?.email?.toLowerCase().endsWith(`@${SSU_DOMAIN}`);
+  const isSSU = !!user?.email?.toLowerCase().endsWith(SSU_DOMAIN);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const handleUpgrade = async () => {

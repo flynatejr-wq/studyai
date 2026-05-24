@@ -34,7 +34,7 @@ export default function Settings() {
   const { user, refreshUser, logout } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const isSSU = !!user?.email?.toLowerCase().endsWith("@savannahstate.edu");
+  const isSSU = !!user?.email?.toLowerCase().endsWith("savannahstate.edu");
 
   const [name,            setName]            = useState(user?.name || "");
   const [currentPassword, setCurrentPassword] = useState("");
