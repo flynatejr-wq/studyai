@@ -403,31 +403,6 @@ router.delete("/account", requireAuth, async (req, res) => {
   }
 });
 
-// ── TEMP: Brevo API test endpoint — remove after debugging ────────────────────
-router.get("/email-test", async (req, res) => {
-  const apiKey = process.env.BREVO_API_KEY;
-  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.BREVO_SMTP_USER;
-  if (!apiKey) return res.json({ ok: false, error: "BREVO_API_KEY not set" });
-  if (!senderEmail) return res.json({ ok: false, error: "BREVO_SENDER_EMAIL not set" });
-  try {
-    const to = req.query.to || senderEmail;
-    const result = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "api-key": apiKey },
-      body: JSON.stringify({
-        sender: { name: "StudyBuddi", email: senderEmail },
-        to: [{ email: to }],
-        subject: "StudyBuddi email test",
-        htmlContent: "<p>Test email from StudyBuddi.</p>",
-      }),
-    });
-    const data = await result.json();
-    res.json({ ok: result.ok, status: result.status, data });
-  } catch (err) {
-    res.json({ ok: false, error: err.message });
-  }
-});
-
 // ── Google OAuth ──────────────────────────────────────────────────────────────
 const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
