@@ -395,7 +395,56 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
       const data = await pdfParse(buffer);
       text = data.text;
       console.log(`[pdf] extracted ${text.length} chars`);
-      if (!text?.trim()) throw new Error("Could not extract text from this PDF. It may be a scanned image — try uploading a photo instead.");
+
+      // If no text was extracted (scanned/image PDF), fall back to Claude's
+      // native PDF vision — it can read scanned documents directly.
+      if (!text?.trim()) {
+        console.log("[pdf] no text layer found — falling back to Claude PDF vision");
+        const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+        const diffNote  = DIFFICULTY_ADDENDUM[difficulty] || "";
+        const styleNote = STYLE_ADDENDUM[style] || "";
+        const base64Pdf = buffer.toString("base64");
+        const message = await client.messages.create({
+          model: "claude-opus-4-5",
+          max_tokens: 8000,
+          messages: [{
+            role: "user",
+            content: [
+              {
+                type: "document",
+                source: { type: "base64", media_type: "application/pdf", data: base64Pdf },
+              },
+              {
+                type: "text",
+                text: `Extract all text and content from this PDF document. Then create a study guide.\n\n${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}`,
+              },
+            ],
+          }],
+        });
+        const raw = message.content[0].text.trim();
+        const start = raw.indexOf("{");
+        const end = raw.lastIndexOf("}");
+        if (start === -1 || end === -1) throw new Error("AI returned an unexpected response. Please try again.");
+        const parsed = JSON.parse(raw.slice(start, end + 1));
+        const stripHtml = (s) => typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : s;
+        const rawSections = Array.isArray(parsed.sections) ? parsed.sections : [];
+        const sections = rawSections.map(s => ({
+          ...s,
+          keyPoints: Array.isArray(s.keyPoints) ? s.keyPoints.map(stripHtml) : [],
+          terms: Array.isArray(s.terms) ? s.terms.map(t => ({ term: stripHtml(t.term), definition: stripHtml(t.definition) })) : [],
+          quiz: Array.isArray(s.quiz) ? s.quiz.map(q => ({ question: stripHtml(q.question), answer: stripHtml(q.answer) })) : [],
+          content: Array.isArray(s.content) ? s.content : [],
+        }));
+        const summary = sections.map(s => s.overview).filter(Boolean);
+        recordFreeGeneration(req, req.user.id);
+        return res.json({
+          title: parsed.title || "Untitled Guide",
+          sections,
+          summary: summary.length ? summary : ["See sections for full details."],
+          keyTerms: sections.flatMap(s => s.terms),
+          quizQuestions: sections.flatMap(s => s.quiz),
+        });
+      }
     }
 
     // ── Word (.docx) ─────────────────────────────────────────────────────────
