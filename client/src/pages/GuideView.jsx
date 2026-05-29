@@ -986,8 +986,10 @@ export default function GuideView() {
     e.preventDefault();
     if (!chatInput.trim() || chatLoading) return;
     const msg = chatInput; setChatInput("");
-    // Bug 8 fix: use crypto.randomUUID() instead of Date.now() to avoid key collisions
-    setMessages(prev => [...prev, { id: crypto.randomUUID(), role: "user", content: msg }]);
+    // BUG-5: Store the temp ID so we can roll back by ID, not by content
+    // (content match would remove duplicate messages with the same text)
+    const tempId = crypto.randomUUID();
+    setMessages(prev => [...prev, { id: tempId, role: "user", content: msg }]);
     setChatLoading(true);
     try {
       const reply = await api.chat.send(id, msg);
@@ -996,7 +998,7 @@ export default function GuideView() {
     } catch (err) {
       const errMsg = err?.message || "";
       if (errMsg.includes("FREE_LIMIT_CHAT")) {
-        setMessages(prev => prev.filter(m => m.content !== msg));
+        setMessages(prev => prev.filter(m => m.id !== tempId));
         setChatInput(msg);
         setUpgradeReason("FREE_LIMIT_CHAT");
         setUpgradeOpen(true);

@@ -1,6 +1,7 @@
 import express from "express";
 import db from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
+import { FREE_CHAT_DAILY_LIMIT } from "./chat.js";
 
 const router = express.Router();
 router.use(requireAuth);
@@ -108,7 +109,7 @@ router.get("/limits", (req, res) => {
     limits: {
       guides:      { used: user.guides_created_ever || 0, max: 1,  unlimited: isPro },
       quizzes:     { used: quizToday,                     max: 3,  unlimited: isPro },
-      chat:        { used: chatToday,                     max: 15, unlimited: isPro },
+      chat:        { used: chatToday,                     max: FREE_CHAT_DAILY_LIMIT, unlimited: isPro },
       folders:     { used: folderCount,                   max: 3,  unlimited: isPro },
     },
   });

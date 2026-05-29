@@ -80,10 +80,13 @@ async function generateFromText(text, difficulty = "standard", style = "detailed
   const diffNote  = DIFFICULTY_ADDENDUM[difficulty] || "";
   const styleNote = STYLE_ADDENDUM[style]           || "";
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  // MEDIUM-3: Use system parameter for the prompt so user-supplied content can't override
+  // the instructions (prompt injection defence) and to separate concerns clearly.
   const message = await client.messages.create({
     model: "claude-haiku-4-5",
     max_tokens: 8000,
-    messages: [{ role: "user", content: `${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}\n\nLecture content:\n${text}` }],
+    system: `${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}`,
+    messages: [{ role: "user", content: `Lecture content:\n${text}` }],
   });
   const raw = message.content[0].text.trim();
   // Find the outermost JSON object
@@ -330,7 +333,9 @@ router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No audio provided." });
 
   const ext = req.file.originalname.split(".").pop().toLowerCase();
-  if (!ALLOWED_AUDIO_TYPES.has(req.file.mimetype) && !ALLOWED_AUDIO_EXTS.has(ext)) {
+  // HIGH-4: Reject if EITHER mime type OR extension is not in the allowlist (prevents
+  // bypassing the check by spoofing one of them)
+  if (!ALLOWED_AUDIO_TYPES.has(req.file.mimetype) || !ALLOWED_AUDIO_EXTS.has(ext)) {
     return res.status(400).json({ error: "Unsupported audio format. Please upload an MP3, MP4, WAV, WebM, OGG, FLAC, or AAC file." });
   }
 
@@ -384,7 +389,9 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
   const style      = req.body?.style;
   const { mimetype, originalname, buffer } = req.file;
   const ext = originalname.split(".").pop().toLowerCase();
-  console.log(`[file upload] name=${originalname} ext=${ext} mime=${mimetype} size=${buffer.length}`);
+  // MEDIUM-5: Sanitize filename before logging to prevent log injection
+  const safeName = originalname.replace(/[\x00-\x1F\x7F]/g, "_").slice(0, 200);
+  console.log(`[file upload] name=${safeName} ext=${ext} mime=${mimetype} size=${buffer.length}`);
 
   try {
     let text = "";

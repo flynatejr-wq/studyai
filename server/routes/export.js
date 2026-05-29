@@ -34,8 +34,10 @@ router.get("/", (req, res) => {
       "SELECT id, name, icon, color, created_at FROM folders WHERE user_id = ? ORDER BY created_at"
     ).all(userId);
 
+    // LOW-4: Exclude share_token — it's a security-sensitive value that would let anyone
+    // who receives the export JSON view the guide publicly without the owner's intent.
     const guides = db.prepare(
-      "SELECT id, folder_id, title, type, summary, key_terms, quiz_questions, sections, best_quiz_score, quiz_attempts, is_favorite, share_token, created_at, last_studied_at FROM guides WHERE user_id = ? ORDER BY created_at"
+      "SELECT id, folder_id, title, type, summary, key_terms, quiz_questions, sections, best_quiz_score, quiz_attempts, is_favorite, created_at, last_studied_at FROM guides WHERE user_id = ? ORDER BY created_at"
     ).all(userId);
 
     const quizHistory = db.prepare(

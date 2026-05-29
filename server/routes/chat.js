@@ -18,7 +18,8 @@ router.get("/:guideId", (req, res) => {
   res.json(messages);
 });
 
-const FREE_CHAT_DAILY_LIMIT = 3;
+// BUG-2: Was 3 — must match the max: value reported in progress.js /limits endpoint
+export const FREE_CHAT_DAILY_LIMIT = 15;
 const PRO_CHAT_DAILY_LIMIT  = 50; // safety cap — stops runaway bots/abuse on Pro accounts
 
 function checkChatLimit(userId, res) {

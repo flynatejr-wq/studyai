@@ -275,7 +275,8 @@ router.post("/:id/quiz", (req, res) => {
   db.transaction(() => {
     db.prepare("INSERT INTO quiz_attempts (id, guide_id, user_id, score, total) VALUES (?, ?, ?, ?, ?)")
       .run(uuid(), guide.id, req.user.id, scoreNum, totalNum);
-    if (scoreNum > guide.best_quiz_score) {
+    // BUG-12: Use >= so a tied score still updates best_quiz_score (records the latest attempt)
+    if (scoreNum >= guide.best_quiz_score) {
       db.prepare("UPDATE guides SET best_quiz_score = ?, quiz_attempts = quiz_attempts + 1 WHERE id = ?")
         .run(scoreNum, guide.id);
     } else {
@@ -355,9 +356,10 @@ router.post("/:id/generate-quiz", async (req, res) => {
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
   // Free-tier limit: 3 quiz generations per day
-  const user = db.prepare("SELECT plan, quiz_gen_count, quiz_gen_date FROM users WHERE id = ?").get(req.user.id);
+  // BUG-1: Include lifetime, whitelisted, and admin as unrestricted (not just "pro")
+  const user = db.prepare("SELECT plan, role, is_whitelisted, quiz_gen_count, quiz_gen_date FROM users WHERE id = ?").get(req.user.id);
   const today = new Date().toISOString().slice(0, 10);
-  const isFreeTier = user && user.plan !== "pro";
+  const isFreeTier = user && user.plan !== "pro" && user.plan !== "lifetime" && !user.is_whitelisted && user.role !== "admin";
   if (isFreeTier) {
     const genCount = user.quiz_gen_date === today ? (user.quiz_gen_count || 0) : 0;
     if (genCount >= 3) {
@@ -411,13 +413,16 @@ router.post("/:id/generate-quiz", async (req, res) => {
       }
     }
 
-    // Bug 18: Only increment the daily quota after a successful AI response
+    // BUG-7: Increment quota atomically with a conditional UPDATE to prevent race conditions
+    // (two concurrent requests could both read genCount=2 and both pass the limit check)
     if (isFreeTier) {
-      if (user.quiz_gen_date !== today) {
-        db.prepare("UPDATE users SET quiz_gen_count = 1, quiz_gen_date = ? WHERE id = ?").run(today, req.user.id);
-      } else {
-        db.prepare("UPDATE users SET quiz_gen_count = quiz_gen_count + 1 WHERE id = ?").run(req.user.id);
-      }
+      // Reset counter if date changed, otherwise increment — all in one atomic statement
+      db.prepare(`
+        UPDATE users
+        SET quiz_gen_count = CASE WHEN quiz_gen_date = ? THEN quiz_gen_count + 1 ELSE 1 END,
+            quiz_gen_date = ?
+        WHERE id = ?
+      `).run(today, today, req.user.id);
     }
 
     res.json({ questions, mode });

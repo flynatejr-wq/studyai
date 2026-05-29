@@ -22,9 +22,10 @@ router.post("/checkout", requireAuth, async (req, res) => {
   if (!user) return res.status(404).json({ error: "User not found." });
   if (user.plan === "pro") return res.status(400).json({ error: "You already have a Pro plan." });
 
-  // Savannah State student discount — applies to any @savannahstate.edu email
+  // CRITICAL-2: Check exact domain, not suffix, to prevent fakesavannahstate.edu bypass
+  const emailDomain = user.email.toLowerCase().split("@")[1] || "";
   const isSSU = SSU_COUPON_ID &&
-    user.email.toLowerCase().endsWith(SSU_DOMAIN);
+    (emailDomain === SSU_DOMAIN || emailDomain.endsWith(`.${SSU_DOMAIN}`));
 
   try {
     // Reuse existing Stripe customer or create one
@@ -94,9 +95,12 @@ router.post("/webhook", (req, res) => {
 
   let event;
   try {
-    // req.rawBody is set by the verify() callback in express.json() — it's the raw Buffer
-    const payload = req.rawBody || req.body;
-    event = stripe.webhooks.constructEvent(payload, sig, webhookSecret);
+    // LOW-6: req.rawBody must be present — if it's missing the signature check will fail anyway,
+    // but throw early with a clear message rather than silently falling back to the parsed body.
+    if (!req.rawBody) {
+      throw new Error("Raw body not available — ensure express.json verify() is configured");
+    }
+    event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
   } catch (err) {
     console.error("[webhook] signature verification failed:", err.message);
     return res.status(400).json({ error: "Webhook signature verification failed." });

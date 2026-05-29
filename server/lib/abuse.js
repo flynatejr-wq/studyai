@@ -52,11 +52,13 @@ export function hashValue(str) {
   return createHash("sha256").update(String(str).toLowerCase().trim()).digest("hex");
 }
 
-/** Extract the best-available client IP from a request */
+/** Extract the best-available client IP from a request.
+ *  MEDIUM-2: Prefer req.ip which is already resolved by Express using trust proxy settings,
+ *  rather than reading X-Forwarded-For directly (which can be spoofed if not behind a trusted proxy).
+ */
 export function getClientIp(req) {
   return (
-    req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
-    req.headers["x-real-ip"]?.trim() ||
+    req.ip ||
     req.socket?.remoteAddress ||
     "unknown"
   );

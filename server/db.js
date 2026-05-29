@@ -12,6 +12,8 @@ console.log(`[db] opening database at ${DB_PATH}`);
 const db = new Database(DB_PATH);
 
 db.pragma("journal_mode = WAL");
+// BUG-15: Enable FK enforcement so cascading deletes/updates work correctly
+db.pragma("foreign_keys = ON");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (

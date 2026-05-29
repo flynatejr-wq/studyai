@@ -42,7 +42,9 @@ export default function AllGuides() {
   const [loading,     setLoading]     = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const searchTimer = useRef(null);
+  const searchTimer   = useRef(null);
+  // BUG-18: Sequence counter guards against stale responses from out-of-order search requests
+  const fetchSeqRef   = useRef(0);
 
   // ── Folders state ─────────────────────────────────────────────────────────
   const [folders,        setFolders]        = useState([]);
@@ -57,18 +59,24 @@ export default function AllGuides() {
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   const fetchGuides = useCallback(async (newOffset, query, append = false) => {
+    // BUG-18: Capture sequence at call time; discard response if a newer request has since fired
+    const seq = ++fetchSeqRef.current;
     append ? setLoadingMore(true) : setLoading(true);
     try {
       const res      = await api.guides.listPaged(newOffset, query);
+      if (seq !== fetchSeqRef.current) return; // stale response — discard
       const incoming = Array.isArray(res.guides) ? res.guides : [];
       setGuides(g => append ? [...g, ...incoming] : incoming);
       setTotal(res.total   ?? 0);
       setHasMore(res.hasMore ?? false);
       setOffset(newOffset + PAGE);
     } catch (err) {
+      if (seq !== fetchSeqRef.current) return;
       toast({ message: err.message, type: "error" });
     } finally {
-      append ? setLoadingMore(false) : setLoading(false);
+      if (seq === fetchSeqRef.current) {
+        append ? setLoadingMore(false) : setLoading(false);
+      }
     }
   }, []);
 
@@ -360,7 +368,7 @@ export default function AllGuides() {
                           <div className="h-1 bg-white/8 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
-                              style={{ width: `${Math.round((guide.best_quiz_score / (guide.quiz_questions?.length || 5)) * 100)}%` }}
+                              style={{ width: `${Math.round((guide.best_quiz_score / (guide.quiz_questions?.length || guide.best_quiz_score || 1)) * 100)}%` }}
                             />
                           </div>
                         </div>
@@ -374,7 +382,7 @@ export default function AllGuides() {
                         <div className="flex items-center gap-2">
                           {guide.best_quiz_score > 0 && (
                             <span className="flex items-center gap-1 text-yellow-500">
-                              <Trophy size={10} /> {guide.best_quiz_score}/{guide.quiz_questions?.length || 5}
+                              <Trophy size={10} /> {guide.best_quiz_score}/{guide.quiz_questions?.length || guide.best_quiz_score || 1}
                             </span>
                           )}
                           <ArrowRight size={12} className="text-gray-700 group-hover:text-indigo-400 transition-colors" />

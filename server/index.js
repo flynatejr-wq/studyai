@@ -47,8 +47,19 @@ app.use(helmet({
 // there is no CSRF risk. `origin: true` echoes the caller's Origin header back, which
 // is compatible with credentials:true and works for every deployment environment
 // (localhost, Vercel, Railway previews) without needing FRONTEND_URL to be configured.
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "http://localhost:5173",
+  "http://localhost:3000",
+].filter(Boolean);
+
 const corsOptions = {
-  origin: true,
+  origin: (origin, cb) => {
+    // Allow requests with no origin (mobile apps, curl, Postman, same-origin server calls)
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error("Not allowed by CORS"));
+  },
   credentials: true,
 };
 
@@ -128,7 +139,9 @@ app.use(express.json({
 
 app.use("/api/auth/forgot-password",             passwordResetLimiter);
 app.use("/api/auth/reset-password",              passwordResetLimiter);
-app.use("/api/auth/resend-verification-public",  passwordResetLimiter); // prevent email spam abuse
+app.use("/api/auth/resend-verification-public",  passwordResetLimiter);
+app.use("/api/auth/resend-verification",         passwordResetLimiter); // authenticated resend — same tight limit
+app.delete("/api/auth/account",                  passwordResetLimiter); // brute-force guard on password check
 app.use("/api/auth", authLimiter, authRoute);
 app.use("/api/summarize", aiLimiter, summarizeRoute);
 app.use("/api/folders", foldersRoute);

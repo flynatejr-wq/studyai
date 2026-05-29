@@ -15,6 +15,11 @@ function hashResetToken(token) {
   return createHash("sha256").update(token).digest("hex");
 }
 
+// HIGH-2: Hash verify tokens before storage (same pattern as reset tokens)
+function hashVerifyToken(token) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
 const router = express.Router();
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -84,7 +89,8 @@ router.post("/signup", async (req, res) => {
     // Send verification + welcome emails (best-effort — never fail signup)
     if (isEmailConfigured()) {
       const verifyToken = uuid();
-      db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyToken, id);
+      const verifyTokenHash = hashVerifyToken(verifyToken);
+      db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyTokenHash, id);
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
       const verifyLink = `${frontendUrl}/verify-email?token=${verifyToken}`;
       sendVerificationEmail(email.toLowerCase().trim(), verifyLink).catch(err =>
@@ -94,7 +100,7 @@ router.post("/signup", async (req, res) => {
         console.error("[signup] welcome email failed:", err.message)
       );
     } else {
-      console.log("[DEV] Email skipped — RESEND_API_KEY not configured");
+      console.log("[DEV] Email skipped — BREVO_API_KEY not configured");
     }
 
     // New accounts must verify email before accessing the app.
@@ -120,10 +126,11 @@ router.post("/login", async (req, res) => {
     const user = db.prepare(
       "SELECT id, name, email, password_hash, streak, last_study_date, total_guides, total_quizzes, guides_created_ever, xp, level, plan, role, is_whitelisted, is_banned, total_study_time, email_verified FROM users WHERE email = ?"
     ).get(email.toLowerCase().trim());
-    if (!user) return res.status(400).json({ error: "No account found with that email." });
+    // Use a generic message for both cases to prevent email enumeration (LOW-1)
+    if (!user) return res.status(400).json({ error: "Invalid email or password." });
 
     const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(400).json({ error: "Incorrect password." });
+    if (!valid) return res.status(400).json({ error: "Invalid email or password." });
 
     // Block login until email is verified (only when email service is configured).
     // Old accounts are back-filled to email_verified=1 at startup so they pass through.
@@ -214,18 +221,22 @@ router.put("/email", requireAuth, async (req, res) => {
     const taken = db.prepare("SELECT id FROM users WHERE email = ?").get(normalised);
     if (taken) return res.status(400).json({ error: "An account with that email already exists." });
 
-    // Reset email_verified so the new address must be re-confirmed.
-    // Also generate a fresh verify token and send the email.
-    db.prepare("UPDATE users SET email = ?, email_verified = 0, email_verify_token = NULL WHERE id = ?").run(normalised, req.user.id);
-
+    // BUG-3: Atomic update — set new email, clear verification, and store hashed token in one statement.
+    // Generate the verify token first so we can hash it before the DB write.
+    let verifyLink = null;
     if (isEmailConfigured()) {
       const verifyToken = uuid();
-      db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyToken, req.user.id);
+      const verifyTokenHash = hashVerifyToken(verifyToken);
+      db.prepare("UPDATE users SET email = ?, email_verified = 0, email_verify_token = ? WHERE id = ?")
+        .run(normalised, verifyTokenHash, req.user.id);
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-      const verifyLink = `${frontendUrl}/verify-email?token=${verifyToken}`;
+      verifyLink = `${frontendUrl}/verify-email?token=${verifyToken}`;
       sendVerificationEmail(normalised, verifyLink).catch(err =>
         console.error("[email-change] verification email failed:", err.message)
       );
+    } else {
+      db.prepare("UPDATE users SET email = ?, email_verified = 0, email_verify_token = NULL WHERE id = ?")
+        .run(normalised, req.user.id);
     }
 
     res.json({ success: true, email: normalised });
@@ -302,7 +313,9 @@ router.get("/verify-email", (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).json({ error: "Verification token is required." });
 
-  const found = db.prepare("SELECT id, email_verified FROM users WHERE email_verify_token = ?").get(token);
+  // HIGH-2: Compare against stored hash, never plaintext
+  const tokenHash = hashVerifyToken(token);
+  const found = db.prepare("SELECT id, email_verified FROM users WHERE email_verify_token = ?").get(tokenHash);
   if (!found) return res.status(400).json({ error: "Invalid or already-used verification link." });
 
   if (found.email_verified) {
@@ -330,7 +343,8 @@ router.post("/resend-verification-public", async (req, res) => {
     const user = db.prepare("SELECT id, email, email_verified FROM users WHERE email = ?").get(email.toLowerCase().trim());
     if (!user || user.email_verified) return res.json({ success: true });
     const verifyToken = uuid();
-    db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyToken, user.id);
+    const verifyTokenHash = hashVerifyToken(verifyToken);
+    db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyTokenHash, user.id);
     const verifyLink = `${process.env.FRONTEND_URL || "http://localhost:5173"}/verify-email?token=${verifyToken}`;
     await sendVerificationEmail(user.email, verifyLink);
   } catch (err) {
@@ -348,7 +362,8 @@ router.post("/resend-verification", requireAuth, async (req, res) => {
 
   try {
     const verifyToken = uuid();
-    db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyToken, user.id);
+    const verifyTokenHash = hashVerifyToken(verifyToken);
+    db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyTokenHash, user.id);
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
     const verifyLink = `${frontendUrl}/verify-email?token=${verifyToken}`;
     await sendVerificationEmail(user.email, verifyLink);
@@ -452,8 +467,10 @@ router.get("/google/callback", async (req, res) => {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
     const profile = await profileRes.json();
-    const { id: googleId, email, name } = profile;
+    const { id: googleId, email, name: rawName } = profile;
     if (!email) throw new Error("Google did not return an email address");
+    // LOW-5: Cap name to DB/validation limit
+    const name = (rawName || "User").slice(0, 80);;
 
     const normEmail = email.toLowerCase().trim();
 

@@ -29,7 +29,8 @@ router.post("/", (req, res) => {
   if (!exam_date)     return res.status(400).json({ error: "Exam date is required." });
   if (!/^\d{4}-\d{2}-\d{2}$/.test(exam_date))
     return res.status(400).json({ error: "Exam date must be in YYYY-MM-DD format." });
-  if (new Date(exam_date) < new Date(new Date().toDateString()))
+  // BUG-14: Compare date strings directly to avoid timezone-induced off-by-one errors
+  if (exam_date < new Date().toISOString().slice(0, 10))
     return res.status(400).json({ error: "Exam date must be in the future." });
   if (title.trim().length > 120)
     return res.status(400).json({ error: "Title is too long." });

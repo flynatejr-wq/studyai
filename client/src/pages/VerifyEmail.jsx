@@ -28,7 +28,9 @@ export default function VerifyEmail() {
         setStatus(data.already ? "already" : "success");
       })
       .catch(err => { setStatus("error"); setError(err.message); });
-  }, [token]);
+  // BUG-16: Include loginWithToken and navigate in deps array to satisfy exhaustive-deps lint rule
+  // and ensure the effect always uses the current function references
+  }, [token, loginWithToken, navigate]);
 
   return (
     <div className="min-h-screen bg-[#080810] flex flex-col items-center justify-center p-6 relative">

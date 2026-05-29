@@ -10,12 +10,36 @@ router.get("/guide/:token", (req, res) => {
   const guide = db.prepare("SELECT * FROM guides WHERE share_token = ?").get(req.params.token);
   if (!guide) return res.status(404).json({ error: "This shared guide doesn't exist or the link has been revoked." });
 
+  // BUG-9: Strip HTML from plain-text fields before serving to public viewers
+  const stripHtml = (s) => typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : s;
+
   // Return safe subset — no user_id, no share_token
   let summary, key_terms, quiz_questions, sections;
   try { summary       = JSON.parse(guide.summary);        } catch { summary       = []; }
   try { key_terms     = JSON.parse(guide.key_terms);      } catch { key_terms     = []; }
   try { quiz_questions= JSON.parse(guide.quiz_questions); } catch { quiz_questions= []; }
   try { sections      = JSON.parse(guide.sections || "[]"); } catch { sections    = []; }
+
+  // Sanitize plain-text fields
+  key_terms      = Array.isArray(key_terms)
+    ? key_terms.map(t => ({ term: stripHtml(t.term), definition: stripHtml(t.definition) }))
+    : [];
+  quiz_questions = Array.isArray(quiz_questions)
+    ? quiz_questions.map(q => ({ question: stripHtml(q.question), answer: stripHtml(q.answer) }))
+    : [];
+  summary        = Array.isArray(summary) ? summary.map(stripHtml) : [];
+  // Sections: strip plain-text sub-fields, keep content HTML for rendering
+  sections = Array.isArray(sections) ? sections.map(s => ({
+    ...s,
+    keyPoints: Array.isArray(s.keyPoints) ? s.keyPoints.map(stripHtml) : [],
+    terms:     Array.isArray(s.terms)
+      ? s.terms.map(t => ({ term: stripHtml(t.term), definition: stripHtml(t.definition) }))
+      : [],
+    quiz:      Array.isArray(s.quiz)
+      ? s.quiz.map(q => ({ question: stripHtml(q.question), answer: stripHtml(q.answer) }))
+      : [],
+    content:   Array.isArray(s.content) ? s.content : [],
+  })) : [];
 
   res.json({
     id: guide.id,

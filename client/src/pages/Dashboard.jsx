@@ -149,7 +149,8 @@ export default function Dashboard() {
   };
 
   const firstName = user?.name?.split(" ")[0] || "there";
-  const isPro = user?.plan === "pro";
+  // BUG-10: Include lifetime, whitelisted, and admin as pro-equivalent
+  const isPro = user?.plan === "pro" || user?.plan === "lifetime" || user?.is_whitelisted || user?.role === "admin";
 
   const handleUpgrade = async () => {
     try {

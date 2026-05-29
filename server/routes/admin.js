@@ -110,7 +110,7 @@ router.get("/users", (req, res) => {
   }
 
   const users = db.prepare(
-    `SELECT id, name, email, plan, role, is_whitelisted, is_banned, is_banned,
+    `SELECT id, name, email, plan, role, is_whitelisted, is_banned,
             total_guides, guides_created_ever, total_quizzes, xp, level,
             streak, last_study_date, created_at, admin_notes
      FROM users WHERE ${where}
