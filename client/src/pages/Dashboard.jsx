@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -62,6 +62,8 @@ export default function Dashboard() {
   const [recentGuides,  setRecentGuides]  = useState([]);
   const [results,       setResults]       = useState(null);
   const [loading,       setLoading]       = useState(false);
+  const [loadingStage,  setLoadingStage]  = useState("");
+  const loadingTimerRef = useRef(null);
   const [guidesLoading, setGuidesLoading] = useState(true);
   const [error,         setError]         = useState("");
   const [saveFolder,    setSaveFolder]    = useState("");
@@ -94,6 +96,22 @@ export default function Dashboard() {
     }
     setLoading(true); setError(""); setResults(null);
     analytics.track(Events.GENERATION_STARTED, { type });
+
+    // Cycle through meaningful loading stages so the wait feels shorter
+    const stages = [
+      "Reading your content…",
+      "Identifying key concepts…",
+      "Building your study guide…",
+      "Organising sections…",
+      "Almost done…",
+    ];
+    let stageIdx = 0;
+    setLoadingStage(stages[0]);
+    loadingTimerRef.current = setInterval(() => {
+      stageIdx = Math.min(stageIdx + 1, stages.length - 1);
+      setLoadingStage(stages[stageIdx]);
+    }, 3500);
+
     try {
       let data;
       if (type === "text")         data = await api.summarize.text(transcript, difficulty, style);
@@ -115,7 +133,11 @@ export default function Dashboard() {
         analytics.track(Events.GENERATION_FAILED, { type, error: err.message });
         setError(err.message);
       }
-    } finally { setLoading(false); }
+    } finally {
+      clearInterval(loadingTimerRef.current);
+      setLoading(false);
+      setLoadingStage("");
+    }
   };
 
   const handleSave = async (folderId) => {
@@ -240,7 +262,7 @@ export default function Dashboard() {
           )}
 
           {!results ? (
-            <UploadForm onSubmit={handleSubmit} loading={loading} dark />
+            <UploadForm onSubmit={handleSubmit} loading={loading} loadingStage={loadingStage} dark />
           ) : (
             <motion.div
               initial={{ opacity: 0, scale: 0.99 }}

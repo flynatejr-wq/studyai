@@ -31,7 +31,7 @@ function getFileIcon(name = "") {
   return FILE_ICONS[ext] || "📄";
 }
 
-export default function UploadForm({ onSubmit, loading, dark }) {
+export default function UploadForm({ onSubmit, loading, loadingStage, dark }) {
   const [activeTab,   setActiveTab]   = useState("text");
   const [transcript,  setTranscript]  = useState("");
   const [youtubeUrl,  setYoutubeUrl]  = useState("");
@@ -249,10 +249,17 @@ export default function UploadForm({ onSubmit, loading, dark }) {
           {activeTab === "text"
             ? <span className={`text-xs ${base.sub} ${transcript.length > MAX_TEXT ? "text-red-400" : ""}`}>{transcript.length.toLocaleString()} / {MAX_TEXT.toLocaleString()}</span>
             : <span />}
-          <button type="submit" disabled={loading || !canSubmit}
-            className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white font-semibold px-6 py-3 rounded-xl transition-all text-sm min-h-[44px] shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:-translate-y-0.5">
-            {loading ? "⏳ Processing..." : "✨ Generate Notes"}
-          </button>
+          <div className="flex flex-col items-end gap-1.5 w-full sm:w-auto">
+            <button type="submit" disabled={loading || !canSubmit}
+              className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white font-semibold px-6 py-3 rounded-xl transition-all text-sm min-h-[44px] shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:-translate-y-0.5 flex items-center justify-center gap-2">
+              {loading
+                ? <><span className="inline-block w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />Generating…</>
+                : "✨ Generate Notes"}
+            </button>
+            {loading && loadingStage && (
+              <span className="text-xs text-indigo-400/80 animate-pulse">{loadingStage}</span>
+            )}
+          </div>
         </div>
       </div>
     </form>
