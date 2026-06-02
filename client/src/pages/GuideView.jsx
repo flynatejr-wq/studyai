@@ -1065,12 +1065,11 @@ export default function GuideView() {
     </div>
   );
 
-  // Per-format display rules — mirrors the server-side STYLE_STRIP config.
-  // Each entry lists what to hide in the GuideView for that format.
+  // Per-format display rules — only hides static content sections, never AI-generated quiz tabs.
+  // MCQ, Adaptive, and Self-Grade are generated fresh on demand and available for every format.
   const FORMAT_HIDE = {
-    bullets: { terms: true, quiz: true },   // bullets = content only, no vocab or quiz
-    brief:   { quiz: true },                // brief = summary only, no quiz
-    // terms / guide / detailed: show everything (server already shapes the data)
+    bullets: { terms: true },   // bullets = no key terms (content only)
+    // brief / terms / guide / detailed: show everything
   };
   const hide = FORMAT_HIDE[guide.format] || {};
 
@@ -1082,11 +1081,11 @@ export default function GuideView() {
     ...(hasSections ? [{ id: "sections", label: "📚 Sections", desc: `${guide.sections.length} sections` }] : []),
     { id: "notes",      label: "📝 Notes",          desc: "Summary & key terms" },
     ...(terms.length > 0 ? [{ id: "flashcards", label: "🃏 Flashcards", desc: `${terms.length} key terms` }] : []),
-    ...(!hide.quiz ? [
+    ...[
       { id: "adaptive", label: "🧠 Adaptive",        desc: "Mastery-based quiz" },
       { id: "mcq",      label: "🎯 Multiple Choice", desc: "AI-generated MCQ" },
       { id: "quiz",     label: "✏️ Self-Grade",      desc: "Reveal & mark answers" },
-    ] : []),
+    ],
   ];
 
   return (

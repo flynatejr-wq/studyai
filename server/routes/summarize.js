@@ -214,8 +214,7 @@ function outputTokensForInput(textLength) {
 // The prompt instructions alone aren't reliable enough — enforce server-side.
 // Must stay in sync with FORMAT_HIDE in client/src/pages/GuideView.jsx.
 const STYLE_STRIP = {
-  bullets: { terms: true, quiz: true },   // bullets = content only
-  brief:   { quiz: true },                // brief = summary only, no quiz
+  bullets: { terms: true },   // bullets = no key terms in sections
 };
 
 async function generateFromText(text, difficulty = "standard", style = "detailed") {
