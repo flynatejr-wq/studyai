@@ -1,5 +1,10 @@
 import express from "express";
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic, {
+  APIConnectionError,
+  APIConnectionTimeoutError,
+  InternalServerError,
+  RateLimitError,
+} from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import multer from "multer";
 import mammoth from "mammoth";
@@ -14,6 +19,38 @@ import {
 
 // ESM-native import of CJS pdf-parse — module.exports becomes .default
 const { default: pdfParse } = await import("pdf-parse/lib/pdf-parse.js");
+
+// ── Anthropic client factory ──────────────────────────────────────────────────
+// maxRetries: 3 — the SDK retries automatically on 429, 500, 529 (overloaded),
+// connection errors and timeouts with exponential backoff. This alone eliminates
+// most transient "try again" failures without any extra code.
+function makeAnthropicClient() {
+  return new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    maxRetries: 3,
+    timeout: 120_000, // 2 min — long enough for large PDFs / detailed guides
+  });
+}
+
+// Retry wrapper for JSON-parse failures. Haiku occasionally returns slightly
+// malformed JSON; retrying the full generation usually succeeds on attempt 2.
+async function withJsonRetry(fn, attempts = 2) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      // Only retry on JSON parse / "unexpected response" errors, not on
+      // max_tokens truncation (retrying won't help there) or auth/limit errors.
+      const msg = err?.message || "";
+      const retryable = msg.includes("unexpected response") || msg.includes("No JSON");
+      if (!retryable || i === attempts - 1) throw err;
+      console.warn(`[summarize] JSON parse failed, retrying (attempt ${i + 2}/${attempts})…`);
+    }
+  }
+  throw lastErr;
+}
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB
@@ -79,7 +116,7 @@ const STYLE_ADDENDUM = {
 async function generateFromText(text, difficulty = "standard", style = "detailed") {
   const diffNote  = DIFFICULTY_ADDENDUM[difficulty] || "";
   const styleNote = STYLE_ADDENDUM[style]           || "";
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = makeAnthropicClient();
   // MEDIUM-3: Use system parameter for the prompt so user-supplied content can't override
   // the instructions (prompt injection defence) and to separate concerns clearly.
   const message = await client.messages.create({
@@ -215,12 +252,12 @@ router.post("/", requireAuth, async (req, res) => {
   if (transcript.length > MAX_TEXT_CHARS)
     return res.status(400).json({ error: `Transcript is too long. Please limit to ${MAX_TEXT_CHARS.toLocaleString()} characters.` });
   try {
-    const result = await generateFromText(transcript, difficulty, style);
+    const result = await withJsonRetry(() => generateFromText(transcript, difficulty, style));
     recordFreeGeneration(req, req.user.id);
     res.json(result);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Something went wrong. Please try again." });
+    res.status(500).json({ error: err.message?.includes("too long") ? err.message : "Something went wrong. Please try again." });
   }
 });
 
@@ -244,7 +281,7 @@ router.post("/youtube", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "The transcript is too short to generate a study guide." });
     }
     console.log(`[youtube] OK for ${videoId} (${text.length} chars)`);
-    const ytResult = await generateFromText(text.slice(0, 60000), difficulty, req.body?.style);
+    const ytResult = await withJsonRetry(() => generateFromText(text.slice(0, 60000), difficulty, req.body?.style));
     recordFreeGeneration(req, req.user.id);
     return res.json(ytResult);
   } catch (err) {
@@ -274,48 +311,51 @@ router.post("/image", requireAuth, upload.single("image"), async (req, res) => {
   const diffNote  = DIFFICULTY_ADDENDUM[difficulty] || "";
   const styleNote = STYLE_ADDENDUM[style]           || "";
   try {
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const base64 = req.file.buffer.toString("base64");
     const mediaType = req.file.mimetype;
-    // MEDIUM-3: Use system: parameter so the guide-generation instructions can't be
-    // overridden by content embedded in the uploaded image.
-    const message = await client.messages.create({
-      model: "claude-opus-4-5",
-      max_tokens: 8000,
-      system: `${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}`,
-      messages: [{
-        role: "user",
-        content: [
-          { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-          { type: "text", text: "Extract all text and content from this image (lecture slides, whiteboard, notes, textbook) and create a study guide." },
-        ],
-      }],
-    });
-    const raw = message.content[0].text.trim();
-    const start = raw.indexOf("{");
-    const end = raw.lastIndexOf("}");
-    if (start === -1 || end === -1) throw new Error("Invalid AI response");
-    const parsed = JSON.parse(raw.slice(start, end + 1));
     const stripHtml = (s) => typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : s;
-    const rawSections = Array.isArray(parsed.sections) ? parsed.sections : [];
-    const sections = rawSections.map(s => ({
-      ...s,
-      keyPoints: Array.isArray(s.keyPoints) ? s.keyPoints.map(stripHtml) : [],
-      terms: Array.isArray(s.terms) ? s.terms.map(t => ({ term: stripHtml(t.term), definition: stripHtml(t.definition) })) : [],
-      quiz: Array.isArray(s.quiz) ? s.quiz.map(q => ({ question: stripHtml(q.question), answer: stripHtml(q.answer) })) : [],
-      content: Array.isArray(s.content) ? s.content : [],
-    }));
-    const summary = sections.map(s => s.overview).filter(Boolean);
-    const keyTerms = sections.flatMap(s => s.terms);
-    const quizQuestions = sections.flatMap(s => s.quiz);
-    recordFreeGeneration(req, req.user.id);
-    res.json({
-      title: parsed.title || "Untitled Guide",
-      sections,
-      summary: summary.length ? summary : ["See sections for full details."],
-      keyTerms,
-      quizQuestions,
+
+    const result = await withJsonRetry(async () => {
+      const client = makeAnthropicClient();
+      // MEDIUM-3: Use system: parameter so the guide-generation instructions can't be
+      // overridden by content embedded in the uploaded image.
+      const message = await client.messages.create({
+        model: "claude-opus-4-5",
+        max_tokens: 8000,
+        system: `${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}`,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+            { type: "text", text: "Extract all text and content from this image (lecture slides, whiteboard, notes, textbook) and create a study guide." },
+          ],
+        }],
+      });
+      const raw = message.content[0].text.trim();
+      const start = raw.indexOf("{");
+      const end = raw.lastIndexOf("}");
+      if (start === -1 || end === -1) throw new Error("No JSON found in image response");
+      const parsed = JSON.parse(raw.slice(start, end + 1));
+      const rawSections = Array.isArray(parsed.sections) ? parsed.sections : [];
+      const sections = rawSections.map(s => ({
+        ...s,
+        keyPoints: Array.isArray(s.keyPoints) ? s.keyPoints.map(stripHtml) : [],
+        terms: Array.isArray(s.terms) ? s.terms.map(t => ({ term: stripHtml(t.term), definition: stripHtml(t.definition) })) : [],
+        quiz: Array.isArray(s.quiz) ? s.quiz.map(q => ({ question: stripHtml(q.question), answer: stripHtml(q.answer) })) : [],
+        content: Array.isArray(s.content) ? s.content : [],
+      }));
+      const summary = sections.map(s => s.overview).filter(Boolean);
+      return {
+        title: parsed.title || "Untitled Guide",
+        sections,
+        summary: summary.length ? summary : ["See sections for full details."],
+        keyTerms: sections.flatMap(s => s.terms),
+        quizQuestions: sections.flatMap(s => s.quiz),
+      };
     });
+
+    recordFreeGeneration(req, req.user.id);
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong processing your image." });
@@ -368,7 +408,7 @@ router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
     if (!transcription.text?.trim())
       return res.status(400).json({ error: "Could not transcribe audio. Make sure it contains clear speech." });
 
-    const audioResult = await generateFromText(transcription.text, difficulty, req.body?.style);
+    const audioResult = await withJsonRetry(() => generateFromText(transcription.text, difficulty, req.body?.style));
     recordFreeGeneration(req, req.user.id);
     res.json(audioResult);
   } catch (err) {
@@ -410,53 +450,52 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
       // native PDF vision — it can read scanned documents directly.
       if (!text?.trim()) {
         console.log("[pdf] no text layer found — falling back to Claude PDF vision");
-        const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
         const diffNote  = DIFFICULTY_ADDENDUM[difficulty] || "";
         const styleNote = STYLE_ADDENDUM[style] || "";
         const base64Pdf = buffer.toString("base64");
-        // MEDIUM-3: Use system: parameter so instructions can't be overridden by
-        // content embedded in the uploaded PDF document.
-        const message = await client.messages.create({
-          model: "claude-opus-4-5",
-          max_tokens: 8000,
-          system: `${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}`,
-          messages: [{
-            role: "user",
-            content: [
-              {
-                type: "document",
-                source: { type: "base64", media_type: "application/pdf", data: base64Pdf },
-              },
-              {
-                type: "text",
-                text: "Extract all text and content from this PDF document and create a study guide.",
-              },
-            ],
-          }],
-        });
-        const raw = message.content[0].text.trim();
-        const start = raw.indexOf("{");
-        const end = raw.lastIndexOf("}");
-        if (start === -1 || end === -1) throw new Error("AI returned an unexpected response. Please try again.");
-        const parsed = JSON.parse(raw.slice(start, end + 1));
         const stripHtml = (s) => typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : s;
-        const rawSections = Array.isArray(parsed.sections) ? parsed.sections : [];
-        const sections = rawSections.map(s => ({
-          ...s,
-          keyPoints: Array.isArray(s.keyPoints) ? s.keyPoints.map(stripHtml) : [],
-          terms: Array.isArray(s.terms) ? s.terms.map(t => ({ term: stripHtml(t.term), definition: stripHtml(t.definition) })) : [],
-          quiz: Array.isArray(s.quiz) ? s.quiz.map(q => ({ question: stripHtml(q.question), answer: stripHtml(q.answer) })) : [],
-          content: Array.isArray(s.content) ? s.content : [],
-        }));
-        const summary = sections.map(s => s.overview).filter(Boolean);
-        recordFreeGeneration(req, req.user.id);
-        return res.json({
-          title: parsed.title || "Untitled Guide",
-          sections,
-          summary: summary.length ? summary : ["See sections for full details."],
-          keyTerms: sections.flatMap(s => s.terms),
-          quizQuestions: sections.flatMap(s => s.quiz),
+
+        const pdfResult = await withJsonRetry(async () => {
+          const client = makeAnthropicClient();
+          // MEDIUM-3: Use system: parameter so instructions can't be overridden by
+          // content embedded in the uploaded PDF document.
+          const message = await client.messages.create({
+            model: "claude-opus-4-5",
+            max_tokens: 8000,
+            system: `${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}`,
+            messages: [{
+              role: "user",
+              content: [
+                { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64Pdf } },
+                { type: "text", text: "Extract all text and content from this PDF document and create a study guide." },
+              ],
+            }],
+          });
+          const raw = message.content[0].text.trim();
+          const start = raw.indexOf("{");
+          const end = raw.lastIndexOf("}");
+          if (start === -1 || end === -1) throw new Error("No JSON found in PDF vision response");
+          const parsed = JSON.parse(raw.slice(start, end + 1));
+          const rawSections = Array.isArray(parsed.sections) ? parsed.sections : [];
+          const sections = rawSections.map(s => ({
+            ...s,
+            keyPoints: Array.isArray(s.keyPoints) ? s.keyPoints.map(stripHtml) : [],
+            terms: Array.isArray(s.terms) ? s.terms.map(t => ({ term: stripHtml(t.term), definition: stripHtml(t.definition) })) : [],
+            quiz: Array.isArray(s.quiz) ? s.quiz.map(q => ({ question: stripHtml(q.question), answer: stripHtml(q.answer) })) : [],
+            content: Array.isArray(s.content) ? s.content : [],
+          }));
+          const summary = sections.map(s => s.overview).filter(Boolean);
+          return {
+            title: parsed.title || "Untitled Guide",
+            sections,
+            summary: summary.length ? summary : ["See sections for full details."],
+            keyTerms: sections.flatMap(s => s.terms),
+            quizQuestions: sections.flatMap(s => s.quiz),
+          };
         });
+
+        recordFreeGeneration(req, req.user.id);
+        return res.json(pdfResult);
       }
     }
 
@@ -489,7 +528,7 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
 
     // Trim to avoid token limits (roughly 15k words max)
     const trimmed = text.trim().slice(0, 60000);
-    const fileResult = await generateFromText(trimmed, difficulty, style);
+    const fileResult = await withJsonRetry(() => generateFromText(trimmed, difficulty, style));
     recordFreeGeneration(req, req.user.id);
     res.json(fileResult);
   } catch (err) {
