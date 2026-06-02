@@ -277,14 +277,17 @@ router.post("/image", requireAuth, upload.single("image"), async (req, res) => {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const base64 = req.file.buffer.toString("base64");
     const mediaType = req.file.mimetype;
+    // MEDIUM-3: Use system: parameter so the guide-generation instructions can't be
+    // overridden by content embedded in the uploaded image.
     const message = await client.messages.create({
       model: "claude-opus-4-5",
       max_tokens: 8000,
+      system: `${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}`,
       messages: [{
         role: "user",
         content: [
           { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-          { type: "text", text: `Extract all text and content from this image (lecture slides, whiteboard, notes, textbook). Then create a study guide.\n\n${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}` },
+          { type: "text", text: "Extract all text and content from this image (lecture slides, whiteboard, notes, textbook) and create a study guide." },
         ],
       }],
     });
@@ -411,9 +414,12 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
         const diffNote  = DIFFICULTY_ADDENDUM[difficulty] || "";
         const styleNote = STYLE_ADDENDUM[style] || "";
         const base64Pdf = buffer.toString("base64");
+        // MEDIUM-3: Use system: parameter so instructions can't be overridden by
+        // content embedded in the uploaded PDF document.
         const message = await client.messages.create({
           model: "claude-opus-4-5",
           max_tokens: 8000,
+          system: `${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}`,
           messages: [{
             role: "user",
             content: [
@@ -423,7 +429,7 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
               },
               {
                 type: "text",
-                text: `Extract all text and content from this PDF document. Then create a study guide.\n\n${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}`,
+                text: "Extract all text and content from this PDF document and create a study guide.",
               },
             ],
           }],

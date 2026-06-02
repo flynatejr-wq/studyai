@@ -138,19 +138,21 @@ export default function AllGuides() {
 
   // ── Move guide to folder ──────────────────────────────────────────────────
   const moveGuide = async (guideId, folderId) => {
+    // Snapshot old folder_id BEFORE the await so the optimistic update below
+    // isn't affected by stale closure state (reviewer issue #2)
+    const oldFolderId = guides.find(g => g.id === guideId)?.folder_id ?? null;
+    const targetFolder = folders.find(f => f.id === folderId);
     setMovingLoading(true);
     try {
       await api.guides.move(guideId, folderId);
       setGuides(prev => prev.map(g => g.id === guideId ? { ...g, folder_id: folderId } : g));
-      // Update folder guide_count counters
+      // Update folder guide_count counters using the pre-await snapshot
       setFolders(prev => prev.map(f => {
-        const guide = guides.find(g => g.id === guideId);
-        if (f.id === folderId)             return { ...f, guide_count: (f.guide_count || 0) + 1 };
-        if (guide && f.id === guide.folder_id) return { ...f, guide_count: Math.max(0, (f.guide_count || 0) - 1) };
+        if (f.id === folderId)    return { ...f, guide_count: (f.guide_count || 0) + 1 };
+        if (f.id === oldFolderId) return { ...f, guide_count: Math.max(0, (f.guide_count || 0) - 1) };
         return f;
       }));
-      const folder = folders.find(f => f.id === folderId);
-      toast({ message: folderId ? `Moved to "${folder?.name}"` : "Removed from folder", type: "success" });
+      toast({ message: folderId ? `Moved to "${targetFolder?.name}"` : "Removed from folder", type: "success" });
     } catch (err) {
       toast({ message: err.message, type: "error" });
     } finally {

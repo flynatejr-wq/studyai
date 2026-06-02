@@ -10,15 +10,14 @@ import {
   recordSignup, archiveDeletedAccount,
 } from "../lib/abuse.js";
 
-// H-7: SHA-256 hash reset tokens before storing so a DB read can't be used to take over accounts
-function hashResetToken(token) {
+// H-7 / HIGH-2: SHA-256 hash single-use tokens before storing so a DB read can't
+// be used to take over accounts. Used for both password-reset and email-verify tokens.
+function hashToken(token) {
   return createHash("sha256").update(token).digest("hex");
 }
-
-// HIGH-2: Hash verify tokens before storage (same pattern as reset tokens)
-function hashVerifyToken(token) {
-  return createHash("sha256").update(token).digest("hex");
-}
+// Aliases kept for call-site readability
+const hashResetToken  = hashToken;
+const hashVerifyToken = hashToken;
 
 const router = express.Router();
 
@@ -470,7 +469,7 @@ router.get("/google/callback", async (req, res) => {
     const { id: googleId, email, name: rawName } = profile;
     if (!email) throw new Error("Google did not return an email address");
     // LOW-5: Cap name to DB/validation limit
-    const name = (rawName || "User").slice(0, 80);;
+    const name = (rawName || "User").slice(0, 80);
 
     const normEmail = email.toLowerCase().trim();
 

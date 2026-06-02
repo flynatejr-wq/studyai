@@ -384,7 +384,7 @@ export default function Progress() {
                     {guides.map(g => {
                       const best    = g.best_quiz_score ?? 0;
                       // BUG-13: Use the most recent attempt's total (last element), not the oldest (first)
-                      const total   = g.attempts?.at(-1)?.total || g.attempts?.[0]?.total || best || 1;
+                      const total   = g.attempts?.at(-1)?.total || best || 1;
                       const bestPct = total > 0 ? Math.round((best / total) * 100) : 0;
                       const days    = daysSince(g.last_studied_at);
                       return (

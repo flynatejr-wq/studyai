@@ -141,7 +141,7 @@ app.use("/api/auth/forgot-password",             passwordResetLimiter);
 app.use("/api/auth/reset-password",              passwordResetLimiter);
 app.use("/api/auth/resend-verification-public",  passwordResetLimiter);
 app.use("/api/auth/resend-verification",         passwordResetLimiter); // authenticated resend — same tight limit
-app.delete("/api/auth/account",                  passwordResetLimiter); // brute-force guard on password check
+app.use("/api/auth/account",                      passwordResetLimiter); // brute-force guard on password check (app.use, not app.delete — registers middleware not a route handler)
 app.use("/api/auth", authLimiter, authRoute);
 app.use("/api/summarize", aiLimiter, summarizeRoute);
 app.use("/api/folders", foldersRoute);
