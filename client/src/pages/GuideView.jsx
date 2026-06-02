@@ -831,7 +831,7 @@ function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPr
 }
 
 // ── Sections Mode ─────────────────────────────────────────────────────────────
-function SectionsMode({ guide, guideId, onProgressUpdate }) {
+function SectionsMode({ guide, guideId, onProgressUpdate, hideTerms }) {
   const sections = guide.sections || [];
   const [progress, setProgress] = useState(
     Array.isArray(guide.section_progress) && guide.section_progress.length === sections.length
@@ -1167,7 +1167,7 @@ export default function GuideView() {
 
           {/* ── SECTIONS MODE ── */}
           {studyMode === "sections" && (
-            <SectionsMode guide={guide} guideId={id} onProgressUpdate={(next) => setGuide(g => ({ ...g, section_progress: next }))} />
+            <SectionsMode guide={guide} guideId={id} onProgressUpdate={(next) => setGuide(g => ({ ...g, section_progress: next }))} hideTerms={!!hide.terms} />
           )}
 
           {/* ── NOTES MODE ── */}
