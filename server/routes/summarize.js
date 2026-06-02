@@ -173,7 +173,7 @@ FORMAT — BULLETS: The user wants a clean bullet-point sheet. No prose. No para
 - overview: one short sentence, plain text, no HTML tags.
 - content: ONLY <ul><li>short bullet points</li></ul>. Every item must be a bullet. No <p> tags anywhere.
 - keyPoints: 4-6 short one-line bullets. No full sentences.
-- terms: 3-4 terms max. Each definition must be under 8 words.
+- terms: OMIT — set to empty array [].
 - quiz: OMIT — set to empty array [].
 If you find yourself writing a sentence that isn't inside an <li> tag, stop and convert it to a bullet point.`,
 
