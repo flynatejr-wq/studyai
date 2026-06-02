@@ -97,14 +97,15 @@ export default function Dashboard() {
     setLoading(true); setError(""); setResults(null);
     analytics.track(Events.GENERATION_STARTED, { type });
 
-    // Cycle through meaningful loading stages so the wait feels shorter
-    const stages = [
-      "Reading your content…",
-      "Identifying key concepts…",
-      "Building your study guide…",
-      "Organising sections…",
-      "Almost done…",
-    ];
+    // Type-specific loading stages so each input method shows relevant feedback
+    const stagesByType = {
+      text:    ["Reading your notes…",           "Identifying key concepts…", "Building your study guide…", "Organising sections…",    "Almost done…"],
+      youtube: ["Fetching YouTube transcript…",  "Reading the transcript…",   "Building your study guide…", "Organising sections…",    "Almost done…"],
+      audio:   ["Transcribing your audio…",      "Reading the transcript…",   "Building your study guide…", "Organising sections…",    "Almost done…"],
+      image:   ["Reading your image…",           "Extracting content…",       "Building your study guide…", "Organising sections…",    "Almost done…"],
+      file:    ["Extracting text from file…",    "Identifying key concepts…", "Building your study guide…", "Organising sections…",    "Almost done…"],
+    };
+    const stages = stagesByType[type] ?? stagesByType.text;
     let stageIdx = 0;
     setLoadingStage(stages[0]);
     loadingTimerRef.current = setInterval(() => {
