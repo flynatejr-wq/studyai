@@ -210,9 +210,17 @@ function outputTokensForInput(textLength) {
   return 8000;
 }
 
+// Fields that certain styles always strip regardless of what the model returns.
+// The prompt instructions alone aren't reliable enough — enforce server-side.
+const STYLE_STRIP = {
+  bullets: { terms: true, quiz: true },
+  brief:   { quiz: true },
+};
+
 async function generateFromText(text, difficulty = "standard", style = "detailed") {
   const diffNote  = DIFFICULTY_ADDENDUM[difficulty] || "";
   const styleNote = STYLE_ADDENDUM[style]           || "";
+  const strip     = STYLE_STRIP[style] || {};
   const client = makeAnthropicClient();
   // MEDIUM-3: Use system parameter for the prompt so user-supplied content can't override
   // the instructions (prompt injection defence) and to separate concerns clearly.
@@ -254,12 +262,17 @@ async function generateFromText(text, difficulty = "standard", style = "detailed
     ...s,
     // overview may contain inline HTML — kept as-is for RichText rendering
     keyPoints: Array.isArray(s.keyPoints) ? s.keyPoints.map(stripHtml) : [],
-    terms: Array.isArray(s.terms)
-      ? s.terms.map(t => ({ term: stripHtml(t.term), definition: stripHtml(t.definition) }))
-      : [],
-    quiz: Array.isArray(s.quiz)
-      ? s.quiz.map(q => ({ question: stripHtml(q.question), answer: stripHtml(q.answer) }))
-      : [],
+    // Server-side enforcement: strip fields the style forbids, regardless of model output
+    terms: strip.terms ? [] : (
+      Array.isArray(s.terms)
+        ? s.terms.map(t => ({ term: stripHtml(t.term), definition: stripHtml(t.definition) }))
+        : []
+    ),
+    quiz: strip.quiz ? [] : (
+      Array.isArray(s.quiz)
+        ? s.quiz.map(q => ({ question: stripHtml(q.question), answer: stripHtml(q.answer) }))
+        : []
+    ),
     // content paragraphs keep HTML for rich rendering
     content: Array.isArray(s.content) ? s.content : [],
   }));
