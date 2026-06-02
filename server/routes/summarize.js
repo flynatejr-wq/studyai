@@ -212,9 +212,10 @@ function outputTokensForInput(textLength) {
 
 // Fields that certain styles always strip regardless of what the model returns.
 // The prompt instructions alone aren't reliable enough — enforce server-side.
+// Must stay in sync with FORMAT_HIDE in client/src/pages/GuideView.jsx.
 const STYLE_STRIP = {
-  bullets: { terms: true, quiz: true },
-  brief:   { quiz: true },
+  bullets: { terms: true, quiz: true },   // bullets = content only
+  brief:   { quiz: true },                // brief = summary only, no quiz
 };
 
 async function generateFromText(text, difficulty = "standard", style = "detailed") {

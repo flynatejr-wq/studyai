@@ -911,7 +911,7 @@ function SectionsMode({ guide, guideId, onProgressUpdate }) {
         onMarkComplete={markComplete}
         onPrev={() => setActiveIdx(i => Math.max(0, i - 1))}
         onNext={() => setActiveIdx(i => Math.min(sections.length - 1, i + 1))}
-        hideTerms={isBullets}
+        hideTerms={!!hide.terms}
       />
     </div>
   );
@@ -1065,18 +1065,28 @@ export default function GuideView() {
     </div>
   );
 
+  // Per-format display rules — mirrors the server-side STYLE_STRIP config.
+  // Each entry lists what to hide in the GuideView for that format.
+  const FORMAT_HIDE = {
+    bullets: { terms: true, quiz: true },   // bullets = content only, no vocab or quiz
+    brief:   { quiz: true },                // brief = summary only, no quiz
+    // terms / guide / detailed: show everything (server already shapes the data)
+  };
+  const hide = FORMAT_HIDE[guide.format] || {};
+
   const questions = activeQuestions || guide.quiz_questions || [];
-  const isBullets = guide.format === "bullets";
-  const terms = isBullets ? [] : (guide.key_terms || []);
+  const terms = hide.terms ? [] : (guide.key_terms || []);
   const hasSections = guide.sections?.length > 0;
 
   const MODES = [
     ...(hasSections ? [{ id: "sections", label: "📚 Sections", desc: `${guide.sections.length} sections` }] : []),
     { id: "notes",      label: "📝 Notes",          desc: "Summary & key terms" },
-    { id: "flashcards", label: "🃏 Flashcards",      desc: `${terms.length} key terms` },
-    { id: "adaptive",   label: "🧠 Adaptive",        desc: "Mastery-based quiz" },
-    { id: "mcq",        label: "🎯 Multiple Choice", desc: "AI-generated MCQ" },
-    { id: "quiz",       label: "✏️ Self-Grade",      desc: "Reveal & mark answers" },
+    ...(terms.length > 0 ? [{ id: "flashcards", label: "🃏 Flashcards", desc: `${terms.length} key terms` }] : []),
+    ...(!hide.quiz ? [
+      { id: "adaptive", label: "🧠 Adaptive",        desc: "Mastery-based quiz" },
+      { id: "mcq",      label: "🎯 Multiple Choice", desc: "AI-generated MCQ" },
+      { id: "quiz",     label: "✏️ Self-Grade",      desc: "Reveal & mark answers" },
+    ] : []),
   ];
 
   return (
