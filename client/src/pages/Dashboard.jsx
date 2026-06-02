@@ -310,6 +310,71 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* ── Continue Studying ── */}
+        {(() => {
+          const inProgress = recentGuides.filter(g => {
+            const sp = g.section_progress;
+            if (!Array.isArray(sp) || sp.length === 0) return false;
+            return sp.some(Boolean) && sp.some(v => !v);
+          }).slice(0, 3);
+          if (inProgress.length === 0) return null;
+          return (
+            <section className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <h2 className="text-sm font-bold text-white">📖 Continue Studying</h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {inProgress.map((guide, i) => {
+                  const sp = guide.section_progress;
+                  const total = sp.length;
+                  const completed = sp.filter(Boolean).length;
+                  const pct = Math.round((completed / total) * 100);
+                  return (
+                    <motion.div
+                      key={guide.id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.06, duration: 0.35 }}>
+                      <div className="group relative bg-white/3 border border-white/7 rounded-2xl p-4 hover:bg-white/5 hover:border-indigo-500/20 transition-all">
+                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-600/0 to-violet-600/0 group-hover:from-indigo-600/3 group-hover:to-violet-600/3 transition-all" />
+                        <div className="relative">
+                          <div className="flex items-start justify-between mb-2.5">
+                            <span className="text-xs text-indigo-400 font-bold uppercase tracking-wider bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/15">
+                              {guideTypeLabel(guide.type)}
+                            </span>
+                          </div>
+                          <h3 className="text-white font-semibold text-sm leading-snug mb-3 group-hover:text-indigo-300 transition-colors line-clamp-1">
+                            {guide.title}
+                          </h3>
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-xs text-gray-500">{completed} of {total} sections</span>
+                              <span className="text-xs text-indigo-400 font-semibold">{pct}%</span>
+                            </div>
+                            <div className="h-1.5 bg-indigo-500/20 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-end">
+                            <Link
+                              to={`/guide/${guide.id}`}
+                              className="flex items-center gap-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors">
+                              Continue <ArrowRight size={12} />
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })()}
+
         {/* ── Recent Guides ── */}
         <section>
           <div className="flex items-center justify-between mb-4">

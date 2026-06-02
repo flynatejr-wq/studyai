@@ -4,7 +4,7 @@ import { createHash, randomBytes } from "crypto";
 import { v4 as uuid } from "uuid";
 import db from "../db.js";
 import { signToken, requireAuth } from "../middleware/auth.js";
-import { sendPasswordReset, sendVerificationEmail, sendWelcomeEmail, isEmailConfigured } from "../utils/email.js";
+import { sendPasswordReset, sendVerificationEmail, sendWelcomeEmail, isEmailConfigured, sendStreakReminder, sendStudyPlanReminder } from "../utils/email.js";
 import {
   hashValue, getClientIp, isDisposableEmail, getEmailDomain, isValidFp,
   recordSignup, archiveDeletedAccount,
@@ -150,6 +150,34 @@ router.post("/login", async (req, res) => {
 
     db.prepare("UPDATE users SET streak = ?, last_study_date = ? WHERE id = ?")
       .run(newStreak, today, user.id);
+
+    // ── Reminder emails (fire-and-forget — never block login) ─────────────────
+    if (isEmailConfigured()) {
+      // Streak reminder: warn users with a meaningful streak who haven't studied today
+      if (user.streak >= 2 && user.last_study_date !== today) {
+        const freshUser = db.prepare("SELECT streak_reminder_sent_date FROM users WHERE id = ?").get(user.id);
+        if (freshUser?.streak_reminder_sent_date !== today) {
+          db.prepare("UPDATE users SET streak_reminder_sent_date = ? WHERE id = ?").run(today, user.id);
+          sendStreakReminder(user.email, user.streak).catch(err =>
+            console.error("[reminder] streak reminder failed:", err.message)
+          );
+        }
+      }
+
+      // Study plan reminder: warn about exams within the next 3 days
+      const threeDaysOut = new Date(Date.now() + 3 * 86400000).toISOString().split("T")[0];
+      const upcomingPlans = db.prepare(
+        "SELECT * FROM study_plans WHERE user_id = ? AND exam_date >= ? AND exam_date <= ?"
+      ).all(user.id, today, threeDaysOut);
+      for (const plan of upcomingPlans) {
+        const examMs = new Date(plan.exam_date).getTime();
+        const todayMs = new Date(today).getTime();
+        const daysUntil = Math.round((examMs - todayMs) / 86400000);
+        sendStudyPlanReminder(user.email, plan.title, plan.exam_date, daysUntil).catch(err =>
+          console.error("[reminder] study plan reminder failed:", err.message)
+        );
+      }
+    }
 
     const token = signToken({ id: user.id });
     const { password_hash, ...safeUser } = user;

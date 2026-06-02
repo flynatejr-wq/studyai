@@ -59,6 +59,14 @@ export default function AllGuides() {
   const [upgradeReason, setUpgradeReason] = useState("");
   const [sort,           setSort]           = useState("newest"); // newest|oldest|alpha|score
 
+  // ── Bulk selection state ──────────────────────────────────────────────────
+  const [selectedIds,        setSelectedIds]        = useState(new Set());
+  const [selectMode,         setSelectMode]         = useState(false);
+  const [bulkDeleteOpen,     setBulkDeleteOpen]     = useState(false);
+  const [bulkMoveOpen,       setBulkMoveOpen]       = useState(false);
+  const [bulkActionLoading,  setBulkActionLoading]  = useState(false);
+  const bulkMoveRef = useRef(null);
+
   // ── Data fetching ─────────────────────────────────────────────────────────
   const fetchGuides = useCallback(async (newOffset, query, append = false) => {
     // BUG-18: Capture sequence at call time; discard response if a newer request has since fired
@@ -99,6 +107,18 @@ export default function AllGuides() {
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
   }, [movingGuideId]);
+
+  // Close the bulk move dropdown when clicking anywhere outside
+  useEffect(() => {
+    if (!bulkMoveOpen) return;
+    const handler = (e) => {
+      if (bulkMoveRef.current && !bulkMoveRef.current.contains(e.target)) {
+        setBulkMoveOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [bulkMoveOpen]);
 
   const isFirstRender = useRef(true);
   useEffect(() => {
@@ -193,6 +213,112 @@ export default function AllGuides() {
     }
   };
 
+  // ── Bulk selection helpers ────────────────────────────────────────────────
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setBulkMoveOpen(false);
+  };
+
+  const toggleSelectCard = (e, guideId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(guideId)) {
+        next.delete(guideId);
+      } else {
+        next.add(guideId);
+      }
+      // If nothing selected after deselect, exit select mode
+      if (next.size === 0) {
+        setSelectMode(false);
+      } else {
+        setSelectMode(true);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === sortedGuides.length) {
+      // All selected — deselect all / exit
+      exitSelectMode();
+    } else {
+      // Select all visible
+      setSelectedIds(new Set(sortedGuides.map(g => g.id)));
+      setSelectMode(true);
+    }
+  };
+
+  // ── Bulk delete ───────────────────────────────────────────────────────────
+  const confirmBulkDelete = async () => {
+    setBulkActionLoading(true);
+    const ids = [...selectedIds];
+    try {
+      await Promise.all(ids.map(id => api.guides.delete(id)));
+      const newGuides = guides.filter(g => !ids.includes(g.id));
+      const newTotal  = total - ids.length;
+      setGuides(newGuides);
+      setTotal(newTotal);
+      setHasMore(newGuides.length < newTotal);
+      toast({ message: `${ids.length} guide${ids.length !== 1 ? "s" : ""} deleted.`, type: "success" });
+      exitSelectMode();
+    } catch (err) {
+      toast({ message: err.message, type: "error" });
+    } finally {
+      setBulkActionLoading(false);
+      setBulkDeleteOpen(false);
+    }
+  };
+
+  // ── Bulk move ─────────────────────────────────────────────────────────────
+  const handleBulkMove = async (folderId) => {
+    setBulkMoveOpen(false);
+    setBulkActionLoading(true);
+    const ids = [...selectedIds];
+    const targetFolder = folders.find(f => f.id === folderId);
+    try {
+      await Promise.all(ids.map(id => api.guides.move(id, folderId)));
+      // Update folder_id on all moved guides in state
+      setGuides(prev => prev.map(g => ids.includes(g.id) ? { ...g, folder_id: folderId } : g));
+      // Update folder guide_count counters
+      setFolders(prev => {
+        // Build a map of how many guides are moving FROM each folder
+        const fromCounts = {};
+        ids.forEach(id => {
+          const guide = guides.find(g => g.id === id);
+          const oldFid = guide?.folder_id ?? null;
+          if (oldFid !== folderId) {
+            fromCounts[oldFid] = (fromCounts[oldFid] || 0) + 1;
+          }
+        });
+        // Count how many are actually moving TO the target folder (excluding ones already there)
+        const movingToTarget = ids.filter(id => {
+          const g = guides.find(x => x.id === id);
+          return g?.folder_id !== folderId;
+        }).length;
+
+        return prev.map(f => {
+          if (folderId && f.id === folderId) return { ...f, guide_count: (f.guide_count || 0) + movingToTarget };
+          if (fromCounts[f.id])              return { ...f, guide_count: Math.max(0, (f.guide_count || 0) - fromCounts[f.id]) };
+          return f;
+        });
+      });
+      toast({
+        message: folderId
+          ? `${ids.length} guide${ids.length !== 1 ? "s" : ""} moved to "${targetFolder?.name}"`
+          : `${ids.length} guide${ids.length !== 1 ? "s" : ""} removed from folder`,
+        type: "success",
+      });
+      exitSelectMode();
+    } catch (err) {
+      toast({ message: err.message, type: "error" });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
   // Compute sorted copy without mutating state
   const sortedGuides = (() => {
     const copy = [...guides];
@@ -203,6 +329,8 @@ export default function AllGuides() {
     else copy.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // newest
     return copy;
   })();
+
+  const allSelected = sortedGuides.length > 0 && selectedIds.size === sortedGuides.length;
 
   return (
     <div className="flex min-h-dvh bg-[#080810] w-full">
@@ -343,9 +471,19 @@ export default function AllGuides() {
 
         {/* ── Guides ── */}
         <section>
-          <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 mb-4">
-            <BookOpen size={14} className="text-indigo-400" /> Guides
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <BookOpen size={14} className="text-indigo-400" /> Guides
+            </h2>
+            {/* Select all toggle — only shown in select mode */}
+            {selectMode && sortedGuides.length > 0 && (
+              <button
+                onClick={handleSelectAll}
+                className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-indigo-500/10">
+                {allSelected ? "Deselect all" : "Select all"}
+              </button>
+            )}
+          </div>
 
           {loading ? (
             <div className="flex items-center justify-center py-20">
@@ -368,132 +506,160 @@ export default function AllGuides() {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {sortedGuides.map((guide, i) => (
-                  <motion.div
-                    key={guide.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(i * 0.03, 0.25) }}
-                    className="relative">
-                    <Link
-                      to={`/guide/${guide.id}`}
-                      className="card-lift group relative bg-white/4 border border-white/8 rounded-2xl p-4 block hover:bg-white/6">
-                      {/* Favorite star */}
+                {sortedGuides.map((guide, i) => {
+                  const isSelected = selectedIds.has(guide.id);
+                  return (
+                    <motion.div
+                      key={guide.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(i * 0.03, 0.25) }}
+                      className="relative">
+                      {/* Checkbox — shown on hover always, always visible in select mode */}
                       <button
-                        onClick={e => toggleFavorite(e, guide)}
-                        className={`absolute top-3 right-10 p-1.5 rounded-lg transition-all ${guide.is_favorite ? "text-yellow-400 opacity-100" : "opacity-0 group-hover:opacity-100 text-gray-600 hover:text-yellow-400 hover:bg-yellow-400/10"}`}
-                        title={guide.is_favorite ? "Remove from favorites" : "Add to favorites"}>
-                        <Star size={13} fill={guide.is_favorite ? "currentColor" : "none"} />
+                        onClick={e => toggleSelectCard(e, guide.id)}
+                        aria-label={isSelected ? "Deselect guide" : "Select guide"}
+                        className={`absolute top-3 left-3 z-10 w-5 h-5 rounded-md border flex items-center justify-center transition-all
+                          ${selectMode
+                            ? "opacity-100"
+                            : "opacity-0 group-hover/card:opacity-100"}
+                          ${isSelected
+                            ? "bg-indigo-600 border-indigo-500"
+                            : "bg-black/40 border-white/20 hover:border-indigo-400"}`}>
+                        {isSelected && <Check size={11} className="text-white" strokeWidth={3} />}
                       </button>
-                      <button
-                        onClick={e => { e.preventDefault(); e.stopPropagation(); setDeleteTarget({ id: guide.id, title: guide.title }); }}
-                        className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-all p-1.5 rounded-lg hover:bg-red-400/10">
-                        <Trash2 size={13} />
-                      </button>
 
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-xs text-indigo-400 font-bold uppercase tracking-wider bg-indigo-500/10 px-2 py-0.5 rounded-md">{guideTypeLabel(guide.type)}</span>
-                        {/* Folder badge — shows which folder this guide is in */}
-                        {guide.folder_id && (() => {
-                          const f = folders.find(x => x.id === guide.folder_id);
-                          return f ? (
-                            <span className="text-xs text-gray-500 flex items-center gap-1 truncate max-w-[7rem]">
-                              <FolderOpen size={10} className="shrink-0" /> {f.icon} {f.name}
-                            </span>
-                          ) : null;
-                        })()}
-                      </div>
+                      <Link
+                        to={selectMode ? "#" : `/guide/${guide.id}`}
+                        onClick={selectMode ? e => toggleSelectCard(e, guide.id) : undefined}
+                        className={`card-lift group/card relative bg-white/4 border rounded-2xl p-4 block hover:bg-white/6 transition-all
+                          ${isSelected
+                            ? "border-indigo-500/60 ring-2 ring-indigo-500/60 bg-indigo-500/5"
+                            : "border-white/8"}`}>
+                        {/* Favorite star — hidden in select mode */}
+                        {!selectMode && (
+                          <button
+                            onClick={e => toggleFavorite(e, guide)}
+                            className={`absolute top-3 right-10 p-1.5 rounded-lg transition-all ${guide.is_favorite ? "text-yellow-400 opacity-100" : "opacity-0 group-hover/card:opacity-100 text-gray-600 hover:text-yellow-400 hover:bg-yellow-400/10"}`}
+                            title={guide.is_favorite ? "Remove from favorites" : "Add to favorites"}>
+                            <Star size={13} fill={guide.is_favorite ? "currentColor" : "none"} />
+                          </button>
+                        )}
+                        {/* Single-item delete — hidden in select mode */}
+                        {!selectMode && (
+                          <button
+                            onClick={e => { e.preventDefault(); e.stopPropagation(); setDeleteTarget({ id: guide.id, title: guide.title }); }}
+                            className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 text-gray-600 hover:text-red-400 transition-all p-1.5 rounded-lg hover:bg-red-400/10">
+                            <Trash2 size={13} />
+                          </button>
+                        )}
 
-                      <h3 className="text-white font-semibold text-sm leading-snug mb-3 group-hover:text-indigo-300 transition-colors pr-6 line-clamp-2">
-                        {guide.title}
-                      </h3>
+                        <div className={`flex items-center gap-2 mb-3 ${selectMode ? "pl-5" : ""}`}>
+                          <span className="text-xs text-indigo-400 font-bold uppercase tracking-wider bg-indigo-500/10 px-2 py-0.5 rounded-md">{guideTypeLabel(guide.type)}</span>
+                          {/* Folder badge — shows which folder this guide is in */}
+                          {guide.folder_id && (() => {
+                            const f = folders.find(x => x.id === guide.folder_id);
+                            return f ? (
+                              <span className="text-xs text-gray-500 flex items-center gap-1 truncate max-w-[7rem]">
+                                <FolderOpen size={10} className="shrink-0" /> {f.icon} {f.name}
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
 
-                      {guide.quiz_attempts > 0 && (
-                        <div className="mb-3">
-                          <div className="h-1 bg-white/8 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
-                              style={{ width: `${Math.round((guide.best_quiz_score / (guide.quiz_questions?.length || guide.best_quiz_score || 1)) * 100)}%` }}
-                            />
+                        <h3 className={`text-white font-semibold text-sm leading-snug mb-3 group-hover/card:text-indigo-300 transition-colors line-clamp-2 ${selectMode ? "pl-5 pr-2" : "pr-6"}`}>
+                          {guide.title}
+                        </h3>
+
+                        {guide.quiz_attempts > 0 && (
+                          <div className="mb-3">
+                            <div className="h-1 bg-white/8 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
+                                style={{ width: `${Math.round((guide.best_quiz_score / (guide.quiz_questions?.length || guide.best_quiz_score || 1)) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-xs text-gray-600">
+                          <span className="flex items-center gap-1">
+                            <Clock size={10} />
+                            {new Date(guide.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            {/* Move-to-folder button — hidden in select mode */}
+                            {!selectMode && (
+                              <button
+                                onClick={e => { e.preventDefault(); e.stopPropagation(); setMovingGuideId(g => g === guide.id ? null : guide.id); }}
+                                className={`opacity-0 group-hover/card:opacity-100 flex items-center gap-1 px-1.5 py-0.5 rounded-md transition-all ${guide.folder_id ? "text-indigo-400 hover:bg-indigo-500/10" : "text-gray-600 hover:text-indigo-400 hover:bg-indigo-500/10"}`}
+                                title="Move to folder">
+                                <FolderInput size={11} />
+                              </button>
+                            )}
+                            {guide.best_quiz_score > 0 && (
+                              <span className="flex items-center gap-1 text-yellow-500">
+                                <Trophy size={10} /> {guide.best_quiz_score}/{guide.quiz_questions?.length || guide.best_quiz_score || 1}
+                              </span>
+                            )}
+                            {!selectMode && <ArrowRight size={12} className="text-gray-700 group-hover/card:text-indigo-400 transition-colors" />}
                           </div>
                         </div>
-                      )}
+                      </Link>
 
-                      <div className="flex items-center justify-between text-xs text-gray-600">
-                        <span className="flex items-center gap-1">
-                          <Clock size={10} />
-                          {new Date(guide.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          {/* Move-to-folder button */}
-                          <button
-                            onClick={e => { e.preventDefault(); e.stopPropagation(); setMovingGuideId(g => g === guide.id ? null : guide.id); }}
-                            className={`opacity-0 group-hover:opacity-100 flex items-center gap-1 px-1.5 py-0.5 rounded-md transition-all ${guide.folder_id ? "text-indigo-400 hover:bg-indigo-500/10" : "text-gray-600 hover:text-indigo-400 hover:bg-indigo-500/10"}`}
-                            title="Move to folder">
-                            <FolderInput size={11} />
-                          </button>
-                          {guide.best_quiz_score > 0 && (
-                            <span className="flex items-center gap-1 text-yellow-500">
-                              <Trophy size={10} /> {guide.best_quiz_score}/{guide.quiz_questions?.length || guide.best_quiz_score || 1}
-                            </span>
-                          )}
-                          <ArrowRight size={12} className="text-gray-700 group-hover:text-indigo-400 transition-colors" />
-                        </div>
-                      </div>
-                    </Link>
+                      {/* ── Folder picker popover ── */}
+                      <AnimatePresence>
+                        {movingGuideId === guide.id && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                            transition={{ duration: 0.12 }}
+                            className="absolute left-0 right-0 z-30 mt-1 bg-[#13131f] border border-white/12 rounded-2xl shadow-2xl shadow-black/60 p-2 overflow-hidden">
+                            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider px-2 py-1.5">Move to folder</p>
 
-                    {/* ── Folder picker popover ── */}
-                    <AnimatePresence>
-                      {movingGuideId === guide.id && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                          transition={{ duration: 0.12 }}
-                          className="absolute left-0 right-0 z-30 mt-1 bg-[#13131f] border border-white/12 rounded-2xl shadow-2xl shadow-black/60 p-2 overflow-hidden">
-                          <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider px-2 py-1.5">Move to folder</p>
+                            {/* No folder option */}
+                            <button
+                              disabled={movingLoading}
+                              onClick={e => { e.stopPropagation(); moveGuide(guide.id, null); }}
+                              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors text-left
+                                ${!guide.folder_id ? "bg-indigo-500/15 text-indigo-300" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}>
+                              <span className="w-6 h-6 rounded-md bg-white/8 flex items-center justify-center text-gray-500 text-xs">—</span>
+                              <span className="flex-1">No folder</span>
+                              {!guide.folder_id && <Check size={12} className="text-indigo-400 shrink-0" />}
+                            </button>
 
-                          {/* No folder option */}
-                          <button
-                            disabled={movingLoading}
-                            onClick={e => { e.stopPropagation(); moveGuide(guide.id, null); }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors text-left
-                              ${!guide.folder_id ? "bg-indigo-500/15 text-indigo-300" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}>
-                            <span className="w-6 h-6 rounded-md bg-white/8 flex items-center justify-center text-gray-500 text-xs">—</span>
-                            <span className="flex-1">No folder</span>
-                            {!guide.folder_id && <Check size={12} className="text-indigo-400 shrink-0" />}
-                          </button>
+                            {folders.length === 0 && (
+                              <p className="text-xs text-gray-600 px-3 py-2">No folders yet — create one above.</p>
+                            )}
 
-                          {folders.length === 0 && (
-                            <p className="text-xs text-gray-600 px-3 py-2">No folders yet — create one above.</p>
-                          )}
-
-                          {folders.map(folder => {
-                            const grad = FOLDER_COLORS[folder.color] || FOLDER_COLORS.indigo;
-                            const active = guide.folder_id === folder.id;
-                            return (
-                              <button
-                                key={folder.id}
-                                disabled={movingLoading}
-                                onClick={e => { e.stopPropagation(); moveGuide(guide.id, folder.id); }}
-                                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors text-left
-                                  ${active ? "bg-indigo-500/15 text-indigo-300" : "text-gray-300 hover:bg-white/5 hover:text-white"}`}>
-                                <span className={`w-6 h-6 shrink-0 rounded-md bg-gradient-to-br ${grad} flex items-center justify-center text-xs`}>
-                                  {folder.icon}
-                                </span>
-                                <span className="flex-1 truncate">{folder.name}</span>
-                                {active
-                                  ? <Check size={12} className="text-indigo-400 shrink-0" />
-                                  : <span className="text-gray-600 text-xs shrink-0">{folder.guide_count ?? 0}</span>
-                                }
-                              </button>
-                            );
-                          })}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                ))}
+                            {folders.map(folder => {
+                              const grad = FOLDER_COLORS[folder.color] || FOLDER_COLORS.indigo;
+                              const active = guide.folder_id === folder.id;
+                              return (
+                                <button
+                                  key={folder.id}
+                                  disabled={movingLoading}
+                                  onClick={e => { e.stopPropagation(); moveGuide(guide.id, folder.id); }}
+                                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors text-left
+                                    ${active ? "bg-indigo-500/15 text-indigo-300" : "text-gray-300 hover:bg-white/5 hover:text-white"}`}>
+                                  <span className={`w-6 h-6 shrink-0 rounded-md bg-gradient-to-br ${grad} flex items-center justify-center text-xs`}>
+                                    {folder.icon}
+                                  </span>
+                                  <span className="flex-1 truncate">{folder.name}</span>
+                                  {active
+                                    ? <Check size={12} className="text-indigo-400 shrink-0" />
+                                    : <span className="text-gray-600 text-xs shrink-0">{folder.guide_count ?? 0}</span>
+                                  }
+                                </button>
+                              );
+                            })}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  );
+                })}
               </div>
 
               {hasMore && (
@@ -511,8 +677,92 @@ export default function AllGuides() {
           )}
         </section>
 
-        <div aria-hidden="true" style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
+        <div aria-hidden="true" style={{ height: selectMode ? "80px" : "env(safe-area-inset-bottom, 0px)" }} />
       </main>
+
+      {/* ── Bulk action bar ── */}
+      <AnimatePresence>
+        {selectMode && selectedIds.size > 0 && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: "spring", damping: 22, stiffness: 300 }}
+            className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-3 px-4 py-3 bg-[#0c0c1e] border-t border-white/10 backdrop-blur-xl md:left-64">
+            {/* Count */}
+            <span className="text-white font-semibold text-sm whitespace-nowrap">
+              {selectedIds.size} guide{selectedIds.size !== 1 ? "s" : ""} selected
+            </span>
+
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {/* Move to folder button + dropdown */}
+              <div className="relative" ref={bulkMoveRef}>
+                <button
+                  disabled={bulkActionLoading}
+                  onClick={() => setBulkMoveOpen(v => !v)}
+                  className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50">
+                  <FolderInput size={14} />
+                  Move to folder
+                  <ChevronRight size={12} className={`transition-transform ${bulkMoveOpen ? "rotate-90" : ""}`} />
+                </button>
+
+                <AnimatePresence>
+                  {bulkMoveOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: 4 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 4 }}
+                      transition={{ duration: 0.12 }}
+                      className="absolute bottom-full mb-2 right-0 min-w-[180px] bg-[#13131f] border border-white/12 rounded-2xl shadow-2xl shadow-black/60 p-2 overflow-hidden z-10">
+                      <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider px-2 py-1.5">Move to folder</p>
+                      <button
+                        onClick={() => handleBulkMove(null)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-400 hover:bg-white/5 hover:text-white transition-colors text-left">
+                        <span className="w-6 h-6 rounded-md bg-white/8 flex items-center justify-center text-gray-500 text-xs">—</span>
+                        No folder
+                      </button>
+                      {folders.length === 0 && (
+                        <p className="text-xs text-gray-600 px-3 py-2">No folders yet.</p>
+                      )}
+                      {folders.map(folder => {
+                        const grad = FOLDER_COLORS[folder.color] || FOLDER_COLORS.indigo;
+                        return (
+                          <button
+                            key={folder.id}
+                            onClick={() => handleBulkMove(folder.id)}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors text-left">
+                            <span className={`w-6 h-6 shrink-0 rounded-md bg-gradient-to-br ${grad} flex items-center justify-center text-xs`}>
+                              {folder.icon}
+                            </span>
+                            <span className="flex-1 truncate">{folder.name}</span>
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Delete button */}
+              <button
+                disabled={bulkActionLoading}
+                onClick={() => setBulkDeleteOpen(true)}
+                className="flex items-center gap-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 rounded-xl px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50">
+                <Trash2 size={14} />
+                Delete
+              </button>
+
+              {/* Cancel */}
+              <button
+                onClick={exitSelectMode}
+                className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 hover:text-white transition-colors"
+                title="Cancel selection">
+                <X size={16} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <ConfirmModal
         open={!!deleteTarget}
@@ -530,6 +780,16 @@ export default function AllGuides() {
         confirmText="Delete Folder"
         onConfirm={confirmDeleteFolder}
         onCancel={() => setDeleteFolderTarget(null)}
+      />
+
+      {/* Bulk delete confirm modal */}
+      <ConfirmModal
+        open={bulkDeleteOpen}
+        title={`Delete ${selectedIds.size} guide${selectedIds.size !== 1 ? "s" : ""}?`}
+        message={`${selectedIds.size} guide${selectedIds.size !== 1 ? "s" : ""} will be permanently deleted along with all quiz history. This cannot be undone.`}
+        confirmText={`Delete ${selectedIds.size} Guide${selectedIds.size !== 1 ? "s" : ""}`}
+        onConfirm={confirmBulkDelete}
+        onCancel={() => setBulkDeleteOpen(false)}
       />
 
       <UpgradeModal

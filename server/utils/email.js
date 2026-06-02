@@ -129,6 +129,36 @@ export async function sendPasswordReset(toEmail, resetLink) {
   });
 }
 
+// ── Streak reminder ───────────────────────────────────────────────────────────
+export async function sendStreakReminder(toEmail, streakCount) {
+  await send({
+    to: toEmail,
+    subject: `🔥 Don't break your ${streakCount}-day streak!`,
+    html: wrap(`
+      <h2>Your streak is at risk!</h2>
+      <p>You haven't studied today — and your <strong style="color:#e2e8f0;">${streakCount}-day streak</strong> is on the line.</p>
+      <p>Log in and study anything to keep it alive. Even a quick review counts!</p>
+      <a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/dashboard" class="btn">Study Now →</a>
+      <p class="note">Don't let your hard-earned streak disappear. A few minutes is all it takes.</p>
+    `),
+  });
+}
+
+// ── Study plan reminder ───────────────────────────────────────────────────────
+export async function sendStudyPlanReminder(toEmail, planTitle, examDate, daysLeft) {
+  await send({
+    to: toEmail,
+    subject: `📅 ${planTitle} exam is in ${daysLeft} day${daysLeft === 1 ? "" : "s"}!`,
+    html: wrap(`
+      <h2>Your exam is coming up fast!</h2>
+      <p><strong style="color:#e2e8f0;">${planTitle}</strong> is on <strong style="color:#e2e8f0;">${examDate}</strong> — just <strong style="color:#e2e8f0;">${daysLeft} day${daysLeft === 1 ? "" : "s"}</strong> away.</p>
+      <p>Open StudyBuddi and review your guide today. A focused session now can make all the difference.</p>
+      <a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/dashboard" class="btn">Review Now →</a>
+      <p class="note">Stay on track with your study plan and walk into your exam feeling prepared.</p>
+    `),
+  });
+}
+
 // ── Upgrade prompt ────────────────────────────────────────────────────────────
 export async function sendUpgradePromptEmail(toEmail, name) {
   await send({
