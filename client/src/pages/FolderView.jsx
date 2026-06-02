@@ -93,7 +93,7 @@ export default function FolderView() {
             {guides.map((guide, i) => (
               <motion.div key={guide.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                 <Link to={`/guide/${guide.id}`}
-                  className="group relative bg-white/4 border border-white/8 hover:border-indigo-500/30 rounded-2xl p-5 transition-all hover:bg-white/6 hover:-translate-y-0.5 block">
+                  className="card-lift group relative bg-white/4 border border-white/8 rounded-2xl p-5 hover:bg-white/6 block">
                   <button
                     onClick={e => { e.preventDefault(); e.stopPropagation(); setDeleteTarget({ id: guide.id, title: guide.title }); }}
                     className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all p-1">

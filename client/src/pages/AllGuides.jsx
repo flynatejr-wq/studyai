@@ -377,7 +377,7 @@ export default function AllGuides() {
                     className="relative">
                     <Link
                       to={`/guide/${guide.id}`}
-                      className="group relative bg-white/4 border border-white/8 hover:border-indigo-500/30 rounded-2xl p-4 block transition-all hover:bg-white/6 hover:-translate-y-0.5">
+                      className="card-lift group relative bg-white/4 border border-white/8 rounded-2xl p-4 block hover:bg-white/6">
                       {/* Favorite star */}
                       <button
                         onClick={e => toggleFavorite(e, guide)}

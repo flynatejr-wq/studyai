@@ -250,7 +250,7 @@ export default function UploadForm({ onSubmit, loading, dark }) {
             ? <span className={`text-xs ${base.sub} ${transcript.length > MAX_TEXT ? "text-red-400" : ""}`}>{transcript.length.toLocaleString()} / {MAX_TEXT.toLocaleString()}</span>
             : <span />}
           <button type="submit" disabled={loading || !canSubmit}
-            className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white font-semibold px-6 py-3 rounded-xl transition-all text-sm min-h-[44px]">
+            className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white font-semibold px-6 py-3 rounded-xl transition-all text-sm min-h-[44px] shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:-translate-y-0.5">
             {loading ? "⏳ Processing..." : "✨ Generate Notes"}
           </button>
         </div>

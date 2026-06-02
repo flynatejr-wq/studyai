@@ -12,21 +12,21 @@
 :root {
   color-scheme: dark;
 
-  /* Backgrounds */
-  --th-bg:       #080810;   /* page background          */
-  --th-panel:    #0c0c18;   /* sidebar / top-bar        */
-  --th-surface:  #0d0d1a;   /* modals / elevated cards  */
-  --th-raised:   #0f0f1a;   /* slightly raised surfaces */
-  --th-card:     rgba(255,255,255,0.03);
-  --th-card-md:  rgba(255,255,255,0.05);
-  --th-input:    rgba(255,255,255,0.05);
+  /* Backgrounds — navy-tinted dark for warmth over cold grey-black */
+  --th-bg:       #08081a;   /* page background          */
+  --th-panel:    #0c0c1e;   /* sidebar / top-bar        */
+  --th-surface:  #0e0e22;   /* modals / elevated cards  */
+  --th-raised:   #101028;   /* slightly raised surfaces */
+  --th-card:     rgba(255,255,255,0.035);
+  --th-card-md:  rgba(255,255,255,0.055);
+  --th-input:    rgba(255,255,255,0.055);
 
-  /* Borders */
-  --th-bd-xs:    rgba(255,255,255,0.04);
-  --th-bd-sm:    rgba(255,255,255,0.06);
-  --th-bd:       rgba(255,255,255,0.08);
-  --th-bd-md:    rgba(255,255,255,0.10);
-  --th-bd-lg:    rgba(255,255,255,0.14);
+  /* Borders — slightly brighter for better card definition */
+  --th-bd-xs:    rgba(255,255,255,0.05);
+  --th-bd-sm:    rgba(255,255,255,0.07);
+  --th-bd:       rgba(255,255,255,0.09);
+  --th-bd-md:    rgba(255,255,255,0.12);
+  --th-bd-lg:    rgba(255,255,255,0.16);
 
   /* Text */
   --th-tx-1:     #f1f5f9;   /* primary   */
@@ -77,6 +77,7 @@ html.light body {
 
 /* ── Dark page backgrounds ── */
 html.light .bg-\[\#080810\],
+html.light .bg-\[\#08081a\],
 html.light .bg-\[\#0a0a12\],
 html.light .bg-\[\#08080f\],
 html.light .bg-\[\#0a0a14\] {
@@ -85,19 +86,24 @@ html.light .bg-\[\#0a0a14\] {
 
 /* ── Panel / sidebar / header backgrounds ── */
 html.light .bg-\[\#0c0c18\],
+html.light .bg-\[\#0c0c1e\],
 html.light .bg-\[\#0d0d1a\],
 html.light .bg-\[\#0e0e1a\],
+html.light .bg-\[\#0e0e22\],
 html.light .bg-\[\#0f0f1a\],
+html.light .bg-\[\#101028\],
 html.light .bg-\[\#111122\],
 html.light .bg-\[\#0b0b16\] {
   background-color: var(--th-panel) !important;
 }
 
 /* ── Opacity-modified dark backgrounds ── */
-html.light .bg-\[\#0c0c18\]\/95 {
+html.light .bg-\[\#0c0c18\]\/95,
+html.light .bg-\[\#0c0c1e\]\/95 {
   background-color: rgba(255,255,255,0.95) !important;
 }
-html.light .bg-\[\#0e0e1a\]\/80 {
+html.light .bg-\[\#0e0e1a\]\/80,
+html.light .bg-\[\#0e0e22\]\/80 {
   background-color: rgba(255,255,255,0.90) !important;
 }
 
@@ -433,13 +439,39 @@ input[type="submit"], input[type="button"] {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   AMBIENT BACKGROUND ORBS
+   Subtle fixed radial glows that add depth to the dark background.
+   Pointer-events: none so they never interfere with clicks.
+═══════════════════════════════════════════════════════════════════════════ */
+#root::before {
+  content: '';
+  position: fixed;
+  top: -220px; left: -120px;
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 68%);
+  pointer-events: none;
+  z-index: 0;
+}
+#root::after {
+  content: '';
+  position: fixed;
+  bottom: -160px; right: -140px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(139,92,246,0.055) 0%, transparent 68%);
+  pointer-events: none;
+  z-index: 0;
+}
+html.light #root::before,
+html.light #root::after { display: none; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
    GLOW EFFECTS
 ═══════════════════════════════════════════════════════════════════════════ */
 .glow-indigo {
-  box-shadow: 0 0 30px rgba(99,102,241,0.15), 0 0 60px rgba(99,102,241,0.05);
+  box-shadow: 0 0 30px rgba(99,102,241,0.18), 0 0 60px rgba(99,102,241,0.07);
 }
 .glow-violet {
-  box-shadow: 0 0 30px rgba(139,92,246,0.15), 0 0 60px rgba(139,92,246,0.05);
+  box-shadow: 0 0 30px rgba(139,92,246,0.18), 0 0 60px rgba(139,92,246,0.07);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -484,13 +516,37 @@ input[type="submit"], input[type="button"] {
    sticky pressed states on mobile.
 ═══════════════════════════════════════════════════════════════════════════ */
 .card-hover {
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 @media (hover: hover) and (pointer: fine) {
   .card-hover:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 32px rgba(99,102,241,0.12);
+    box-shadow: 0 12px 40px rgba(99,102,241,0.15), 0 4px 12px rgba(0,0,0,0.3);
+    border-color: rgba(99,102,241,0.22) !important;
   }
+}
+
+/* card-lift: guide/folder cards with a gradient top accent on hover */
+.card-lift {
+  position: relative;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  overflow: hidden;
+}
+.card-lift::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 1;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 48px rgba(99,102,241,0.16), 0 4px 14px rgba(0,0,0,0.35);
+    border-color: rgba(99,102,241,0.25) !important;
+  }
+  .card-lift:hover::before { opacity: 1; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

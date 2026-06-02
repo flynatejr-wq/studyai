@@ -331,7 +331,7 @@ export default function Dashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.06, duration: 0.35 }}>
                   <Link to={`/guide/${guide.id}`}
-                    className="group relative bg-white/3 border border-white/7 hover:border-indigo-500/25 rounded-2xl p-4 transition-all hover:bg-white/5 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-500/5 block card-hover">
+                    className="card-lift group relative bg-white/3 border border-white/7 rounded-2xl p-4 hover:bg-white/5 block">
                     {/* Subtle glow on hover */}
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-600/0 to-violet-600/0 group-hover:from-indigo-600/3 group-hover:to-violet-600/3 transition-all" />
 
