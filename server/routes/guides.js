@@ -140,7 +140,7 @@ router.get("/:id", (req, res) => {
 const FREE_GUIDE_LIMIT = 1;
 
 router.post("/", (req, res) => {
-  const { title, folder_id, type, summary, key_terms, quiz_questions, sections, idempotency_key } = req.body;
+  const { title, folder_id, type, format, summary, key_terms, quiz_questions, sections, idempotency_key } = req.body;
   if (!title?.trim() || !summary || !key_terms || !quiz_questions)
     return res.status(400).json({ error: "Missing required fields." });
   if (title.trim().length > 200)
@@ -175,9 +175,9 @@ router.post("/", (req, res) => {
     }
 
     db.prepare(
-      `INSERT INTO guides (id, user_id, folder_id, title, type, summary, key_terms, quiz_questions, sections, section_progress, idempotency_key)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(id, req.user.id, folder_id || null, title.trim(), type || "text",
+      `INSERT INTO guides (id, user_id, folder_id, title, type, format, summary, key_terms, quiz_questions, sections, section_progress, idempotency_key)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, req.user.id, folder_id || null, title.trim(), type || "text", format || "detailed",
       JSON.stringify(summary), JSON.stringify(key_terms), JSON.stringify(quiz_questions),
       JSON.stringify(sectionsArr), JSON.stringify(initialProgress),
       idempotency_key || null);

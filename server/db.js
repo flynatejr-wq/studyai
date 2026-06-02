@@ -114,6 +114,7 @@ safeAlter("ALTER TABLE guides ADD COLUMN share_token TEXT");
 safeAlter("ALTER TABLE guides ADD COLUMN last_studied_at TEXT");
 safeAlter("ALTER TABLE guides ADD COLUMN sections TEXT DEFAULT '[]'");
 safeAlter("ALTER TABLE guides ADD COLUMN section_progress TEXT DEFAULT '[]'");
+safeAlter("ALTER TABLE guides ADD COLUMN format TEXT DEFAULT 'detailed'");
 
 // Monetization columns
 safeAlter("ALTER TABLE users ADD COLUMN plan TEXT DEFAULT 'free'");

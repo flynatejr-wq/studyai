@@ -122,7 +122,7 @@ export default function Dashboard() {
       else                         data = await api.summarize.file(file, difficulty, style);
       // Generate a unique idempotency key for this generation result so duplicate saves are safe
       const generation_id = crypto.randomUUID();
-      setResults({ ...data, type, generation_id });
+      setResults({ ...data, type, style, generation_id });
       analytics.track(Events.GENERATION_COMPLETED, { type });
       try { localStorage.setItem("studybuddi_draft", JSON.stringify({ ...data, type, generation_id })); } catch (_) {}
     } catch (err) {
@@ -148,6 +148,7 @@ export default function Dashboard() {
         title:           results.title || "Untitled Guide",
         folder_id:       folderId || null,
         type:            results.type || "text",
+        format:          results.style || "detailed",
         summary:         results.summary,
         key_terms:       results.keyTerms || results.key_terms,
         quiz_questions:  results.quizQuestions || results.quiz_questions,

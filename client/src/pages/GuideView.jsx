@@ -660,7 +660,7 @@ function SectionQuiz({ questions }) {
 }
 
 // ── Section Detail View ───────────────────────────────────────────────────────
-function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPrev, onNext }) {
+function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPrev, onNext, hideTerms }) {
   const [termFlipped, setTermFlipped] = useState({});
   const touchStartX = useRef(null);
 
@@ -757,7 +757,7 @@ function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPr
       )}
 
       {/* Key Terms */}
-      {section.terms?.length > 0 && (
+      {!hideTerms && section.terms?.length > 0 && (
         <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <Target size={15} className="text-violet-400" />
@@ -911,6 +911,7 @@ function SectionsMode({ guide, guideId, onProgressUpdate }) {
         onMarkComplete={markComplete}
         onPrev={() => setActiveIdx(i => Math.max(0, i - 1))}
         onNext={() => setActiveIdx(i => Math.min(sections.length - 1, i + 1))}
+        hideTerms={isBullets}
       />
     </div>
   );
@@ -1065,7 +1066,8 @@ export default function GuideView() {
   );
 
   const questions = activeQuestions || guide.quiz_questions || [];
-  const terms = guide.key_terms || [];
+  const isBullets = guide.format === "bullets";
+  const terms = isBullets ? [] : (guide.key_terms || []);
   const hasSections = guide.sections?.length > 0;
 
   const MODES = [
