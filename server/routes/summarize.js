@@ -133,10 +133,10 @@ const DIFFICULTY_ADDENDUM = {
 
 const STYLE_ADDENDUM = {
   detailed: "",  // default — full depth, current behaviour
-  brief:    "\n\nFormat instruction: Be concise. Limit each section to 1–2 short paragraphs. Aim for 2–3 key points and 1–2 terms per section. Prioritise only the most essential information.",
-  bullets:  "\n\nFormat instruction: Minimise prose. In the content array use <ul><li>…</li></ul> lists instead of <p> paragraphs wherever possible. Key points must be short, punchy one-liners.",
-  guide:    "\n\nFormat instruction: Write as a practical study guide. Include real-world examples and analogies inside content paragraphs. Aim for 4–5 key points per section. Prioritise clarity and real-world application.",
-  terms:    "\n\nFormat instruction: Focus on vocabulary. Include 4–6 terms per section with precise definitions. Keep content paragraphs brief (1 short paragraph per section). Quiz questions should specifically test vocabulary and definitions.",
+  brief:    "\n\nFormat instruction: Be concise. Maximum 2 sections regardless of input length. Each section: 1 short paragraph only, 2-3 key points, 1-2 terms, 1 quiz question. No elaboration, no examples, no filler.",
+  bullets:  "\n\nFormat instruction: BULLET POINTS ONLY. This is the most important instruction — the user wants a clean bullet-point guide, nothing more.\n- overview: one sentence maximum, no HTML\n- content: ONLY <ul><li>short bullet points</li></ul> — no <p> paragraphs at all\n- keyPoints: 3-5 one-line bullets, no sentences\n- terms: 2-3 terms max, definitions under 10 words each\n- quiz: OMIT entirely — set quiz to an empty array []\nDo not write prose. Do not add explanations. Every piece of content must be a bullet point.",
+  guide:    "\n\nFormat instruction: Write as a practical how-to study guide. Use real-world examples and analogies. Prioritise clarity and application over theory. 3-4 key points per section.",
+  terms:    "\n\nFormat instruction: Vocabulary-focused. 4-6 terms per section with precise definitions. Content: 1 short paragraph per section only. Quiz questions must test definitions specifically.",
 };
 
 // Scale max_tokens to input length — small inputs don't need 8000 tokens
