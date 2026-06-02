@@ -911,7 +911,7 @@ function SectionsMode({ guide, guideId, onProgressUpdate, hideTerms }) {
         onMarkComplete={markComplete}
         onPrev={() => setActiveIdx(i => Math.max(0, i - 1))}
         onNext={() => setActiveIdx(i => Math.min(sections.length - 1, i + 1))}
-        hideTerms={!!hide.terms}
+        hideTerms={hideTerms}
       />
     </div>
   );
