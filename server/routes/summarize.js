@@ -52,6 +52,33 @@ async function withJsonRetry(fn, attempts = 2) {
   throw lastErr;
 }
 
+// Generic retry with exponential backoff for external API calls (YouTube, Whisper).
+// Retries on network errors and 5xx/429 responses. Never retries on 4xx "expected"
+// errors (captions disabled, invalid API key, etc.) since those won't resolve.
+async function withRetry(fn, { attempts = 3, label = "request" } = {}) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      const msg = (err?.message || "").toLowerCase();
+      const status = err?.status || err?.statusCode || 0;
+      // Don't retry on errors that indicate a permanent problem
+      const permanent =
+        status === 400 || status === 401 || status === 403 || status === 404 ||
+        msg.includes("disabled") || msg.includes("no transcript") ||
+        msg.includes("could not retrieve") || msg.includes("invalid") ||
+        msg.includes("unauthorized") || msg.includes("forbidden");
+      if (permanent || i === attempts - 1) throw err;
+      const delay = 1000 * Math.pow(2, i); // 1s, 2s, 4s
+      console.warn(`[${label}] attempt ${i + 1} failed (${err.message}), retrying in ${delay}ms…`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
+}
+
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB
 
@@ -272,7 +299,11 @@ router.post("/youtube", requireAuth, async (req, res) => {
   const videoId = match[1];
 
   try {
-    const segments = await YoutubeTranscript.fetchTranscript(videoId);
+    // Retry the transcript fetch — YouTube's API has occasional network hiccups
+    const segments = await withRetry(
+      () => YoutubeTranscript.fetchTranscript(videoId),
+      { label: "youtube" }
+    );
     if (!segments?.length) {
       return res.status(400).json({ error: "No captions found for this video. Enable captions on the video, or download the audio and upload it using the Audio tab." });
     }
@@ -403,7 +434,12 @@ router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
 
     const { toFile } = await import("openai");
     const audioFile = await toFile(req.file.buffer, req.file.originalname, { type: req.file.mimetype });
-    const transcription = await openai.audio.transcriptions.create({ file: audioFile, model: whisperModel });
+
+    // Retry the transcription — Groq and OpenAI both have occasional transient failures
+    const transcription = await withRetry(
+      () => openai.audio.transcriptions.create({ file: audioFile, model: whisperModel }),
+      { label: "whisper" }
+    );
 
     if (!transcription.text?.trim())
       return res.status(400).json({ error: "Could not transcribe audio. Make sure it contains clear speech." });
@@ -442,12 +478,19 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
     // ── PDF ──────────────────────────────────────────────────────────────────
     if (mimetype === "application/pdf" || ext === "pdf") {
       console.log("[pdf] parsing...");
-      const data = await pdfParse(buffer);
-      text = data.text;
-      console.log(`[pdf] extracted ${text.length} chars`);
+      // pdf-parse can throw on password-protected, corrupt, or unusual PDFs.
+      // Catch that and fall through to the Claude vision path rather than crashing.
+      try {
+        const data = await pdfParse(buffer);
+        text = data.text;
+        console.log(`[pdf] extracted ${text.length} chars`);
+      } catch (pdfErr) {
+        console.warn("[pdf] pdf-parse failed, falling through to Claude vision:", pdfErr.message);
+        text = ""; // forces the vision fallback below
+      }
 
-      // If no text was extracted (scanned/image PDF), fall back to Claude's
-      // native PDF vision — it can read scanned documents directly.
+      // If no text was extracted (scanned/image PDF or pdf-parse failure), fall back
+      // to Claude's native PDF vision — it can read scanned documents directly.
       if (!text?.trim()) {
         console.log("[pdf] no text layer found — falling back to Claude PDF vision");
         const diffNote  = DIFFICULTY_ADDENDUM[difficulty] || "";
