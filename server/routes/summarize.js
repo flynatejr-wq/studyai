@@ -210,11 +210,14 @@ FORMAT — KEY TERMS: The user wants a vocabulary-focused glossary guide. Obey t
 The output should look and function like a vocabulary study sheet.`,
 };
 
-// Scale max_tokens to input length — small inputs don't need 8000 tokens
-function outputTokensForInput(textLength) {
-  if (textLength < 500)   return 1500;
-  if (textLength < 3000)  return 3000;
-  if (textLength < 10000) return 5000;
+// Scale max_tokens to input length.
+// Style is also passed so detailed format always gets a sufficient budget
+// (its richer output needs more tokens than brief/bullets even for short inputs).
+function outputTokensForInput(textLength, style = "detailed") {
+  const isRich = style === "detailed" || style === "guide";
+  if (textLength < 500)   return isRich ? 3000 : 1500;
+  if (textLength < 3000)  return isRich ? 4000 : 2500;
+  if (textLength < 10000) return isRich ? 6000 : 4000;
   return 8000;
 }
 
@@ -234,7 +237,7 @@ async function generateFromText(text, difficulty = "standard", style = "detailed
   // the instructions (prompt injection defence) and to separate concerns clearly.
   const message = await client.messages.create({
     model: "claude-haiku-4-5",
-    max_tokens: outputTokensForInput(text.length),
+    max_tokens: outputTokensForInput(text.length, style),
     system: `${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}`,
     messages: [{ role: "user", content: `Lecture content:\n${text}` }],
   });
