@@ -270,7 +270,8 @@ router.post("/:id/quiz", (req, res) => {
   if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > totalNum || totalNum < 1)
     return res.status(400).json({ error: "Invalid quiz score." });
 
-  const xpGained = scoreNum * 10;
+  // Only award XP when the score strictly improves over the previous best (includes first attempt where best is 0)
+  const xpGained = scoreNum > (guide.best_quiz_score || 0) ? scoreNum * 10 : 0;
 
   db.transaction(() => {
     db.prepare("INSERT INTO quiz_attempts (id, guide_id, user_id, score, total) VALUES (?, ?, ?, ?, ?)")
@@ -282,8 +283,13 @@ router.post("/:id/quiz", (req, res) => {
     } else {
       db.prepare("UPDATE guides SET quiz_attempts = quiz_attempts + 1 WHERE id = ?").run(guide.id);
     }
-    db.prepare("UPDATE users SET xp = xp + ?, total_quizzes = total_quizzes + 1 WHERE id = ?")
-      .run(xpGained, req.user.id);
+    if (xpGained > 0) {
+      db.prepare("UPDATE users SET xp = xp + ?, total_quizzes = total_quizzes + 1 WHERE id = ?")
+        .run(xpGained, req.user.id);
+    } else {
+      db.prepare("UPDATE users SET total_quizzes = total_quizzes + 1 WHERE id = ?")
+        .run(req.user.id);
+    }
   })();
   updateLevel(req.user.id);
   checkAchievements(req.user.id);
