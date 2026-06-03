@@ -306,6 +306,7 @@ function TrueFalseQuestion({ q, answered, onAnswer }) {
 // ── Fill in the Blank Question Renderer ──────────────────────────────────────
 function FillBlankQuestion({ q, answered, onAnswer }) {
   const [input, setInput] = useState("");
+  useEffect(() => { if (answered == null) setInput(""); }, [answered]);
   const isCorrect = answered != null && answered.trim().toLowerCase() === q.answer.toLowerCase();
 
   return (
@@ -337,110 +338,6 @@ function FillBlankQuestion({ q, answered, onAnswer }) {
   );
 }
 
-// ── MCQ Mode ──────────────────────────────────────────────────────────────────
-function MCQMode({ guideId, onXpEarned }) {
-  const [count, setCount] = useState(10);
-  const [questions, setQuestions] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [answers, setAnswers] = useState({});
-  const [submitted, setSubmitted] = useState(false);
-  const [score, setScore] = useState(0);
-  const [error, setError] = useState("");
-  const { refreshUser } = useAuth();
-
-  const generate = async () => {
-    setLoading(true); setError(""); setQuestions(null); setAnswers({}); setSubmitted(false);
-    try { const { questions: qs } = await api.guides.generateQuiz(guideId, count, "mcq"); setQuestions(Array.isArray(qs) ? qs : null); }
-    catch (e) { setError(e.message); } finally { setLoading(false); }
-  };
-  const submit = async () => {
-    const correct = questions.filter((q, i) => answers[i] === q.correctIndex).length;
-    setScore(correct); setSubmitted(true);
-    try { await api.guides.submitQuiz(guideId, correct, questions.length); await refreshUser(); onXpEarned(correct * 10); } catch (_) {}
-  };
-  const reset = () => { setQuestions(null); setAnswers({}); setSubmitted(false); setScore(0); };
-
-  if (!questions) return (
-    <div className="flex flex-col items-center gap-5 py-8">
-      <div className="text-center">
-        <p className="text-white font-bold text-lg mb-1">Multiple Choice Quiz</p>
-        <p className="text-gray-400 text-sm">AI generates unique questions with 4 options each time.</p>
-      </div>
-      <div className="flex items-center gap-3 flex-wrap justify-center">
-        <span className="text-gray-400 text-sm">Questions:</span>
-        {[5, 10, 15, 20].map(n => (
-          <button key={n} onClick={() => setCount(n)} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${count === n ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"}`}>{n}</button>
-        ))}
-      </div>
-      {error && <p className="text-red-400 text-sm">{error}</p>}
-      <button onClick={generate} disabled={loading} className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-xl text-white font-bold transition-all">
-        {loading ? <><span className="animate-spin inline-block">⏳</span> Generating...</> : <><Zap size={16} /> Start Quiz</>}
-      </button>
-    </div>
-  );
-
-  if (submitted) return (
-    <div>
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className={`rounded-2xl p-6 mb-6 text-center ${score === questions.length ? "bg-green-500/10 border border-green-500/20" : score >= questions.length * 0.6 ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
-        <div className="text-5xl mb-2">{score === questions.length ? "🏆" : score >= questions.length * 0.6 ? "⭐" : "💪"}</div>
-        <p className="text-3xl font-bold text-white mb-1">{score}/{questions.length}</p>
-        <p className="text-gray-400 mb-1">{Math.round((score / questions.length) * 100)}% correct</p>
-        <p className="text-indigo-400 text-sm">+{score * 10} XP earned</p>
-      </motion.div>
-      <div className="space-y-4 mb-6">
-        {questions.map((q, qi) => { const chosen = answers[qi]; const correct = q.correctIndex; return (
-          <div key={qi} className={`border rounded-xl p-4 ${chosen === correct ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5"}`}>
-            <p className="text-white font-medium mb-3">{qi + 1}. {q.question}</p>
-            <div className="space-y-2">
-              {q.options.map((opt, oi) => (
-                <div key={oi} className={`px-3 py-2 rounded-lg text-sm ${oi === correct ? "bg-green-500/20 text-green-300 font-medium" : oi === chosen && chosen !== correct ? "bg-red-500/20 text-red-300 line-through" : "text-gray-500"}`}>
-                  {["A","B","C","D"][oi]}. {opt}{oi === correct && " ✓"}
-                </div>
-              ))}
-            </div>
-            {q.explanation && <p className="text-indigo-300 text-xs mt-3 italic">💡 {q.explanation}</p>}
-          </div>
-        ); })}
-      </div>
-      <button onClick={reset} className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-semibold transition-all flex items-center justify-center gap-2">
-        <RotateCcw size={14} /> Try Again
-      </button>
-    </div>
-  );
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-5">
-        <p className="text-gray-400 text-sm">{Object.keys(answers).length}/{questions.length} answered</p>
-        <div className="flex-1 mx-4 h-1.5 bg-white/10 rounded-full overflow-hidden">
-          <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${(Object.keys(answers).length / questions.length) * 100}%` }} />
-        </div>
-      </div>
-      <div className="space-y-5">
-        {questions.map((q, qi) => (
-          <div key={qi} className="border border-white/10 rounded-xl p-4">
-            <p className="text-white font-medium mb-3">{qi + 1}. {q.question}</p>
-            <div className="space-y-2">
-              {q.options.map((opt, oi) => (
-                <button key={oi} onClick={() => !submitted && setAnswers(a => ({ ...a, [qi]: oi }))}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-all break-words ${answers[qi] === oi ? "bg-indigo-600/30 border border-indigo-500/60 text-indigo-200 font-medium" : "bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20"}`}>
-                  <span className="text-gray-500 mr-2">{["A","B","C","D"][oi]}.</span> {opt}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-      {Object.keys(answers).length === questions.length && (
-        <button onClick={submit} className="w-full mt-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white transition-all">
-          Submit & Earn XP ⚡
-        </button>
-      )}
-    </div>
-  );
-}
-
 // ── Unified Quiz Mode ─────────────────────────────────────────────────────────
 const QUIZ_TYPES = [
   { id: "mcq",            label: "🎯 Multiple Choice", desc: "4 options per question" },
@@ -463,6 +360,7 @@ function UnifiedQuizMode({ guideId, onXpEarned }) {
   const [mastered, setMastered]     = useState(new Set());
   const [round, setRound]           = useState(1);
   const [finalScore, setFinalScore] = useState(0);
+  const [pendingAnswer, setPendingAnswer] = useState(null);
   const firstPassRef                = useRef(0);
   const roundBreakTimer             = useRef(null);
   const { refreshUser }             = useAuth();
@@ -475,7 +373,7 @@ function UnifiedQuizMode({ guideId, onXpEarned }) {
   const reset = () => {
     setPhase("setup"); setQuestions([]); setAnswers({}); setSubmitted(false); setScore(0);
     setQueue([]); setQueuePos(0); setMastered(new Set()); setRound(1); setFinalScore(0);
-    firstPassRef.current = 0;
+    firstPassRef.current = 0; setPendingAnswer(null);
   };
 
   const generate = async () => {
@@ -511,27 +409,31 @@ function UnifiedQuizMode({ guideId, onXpEarned }) {
   const currentQIdx = phase === "question" && isAdaptive ? queue[queuePos] : null;
   const currentQ    = currentQIdx != null ? questions[currentQIdx] : null;
 
-  const handleAdaptiveAnswer = async (answer) => {
-    if (!currentQ) return;
-    const correct = checkCorrect(currentQ, answer);
-    const newMastered = new Set(mastered);
-    if (correct) { newMastered.add(currentQIdx); if (round === 1) firstPassRef.current++; }
-    setMastered(newMastered);
+  const handleAdaptiveAnswer = (answer) => {
+    if (!currentQ || pendingAnswer != null) return;
+    setPendingAnswer(answer);
+    setTimeout(async () => {
+      setPendingAnswer(null);
+      const correct = checkCorrect(currentQ, answer);
+      const newMastered = new Set(mastered);
+      if (correct) { newMastered.add(currentQIdx); if (round === 1) firstPassRef.current++; }
+      setMastered(newMastered);
 
-    if (queuePos < queue.length - 1) {
-      setQueuePos(p => p + 1);
-    } else {
-      const nextQueue = questions.map((_, i) => i).filter(i => !newMastered.has(i));
-      if (nextQueue.length === 0) {
-        const fp = firstPassRef.current;
-        setFinalScore(fp);
-        try { await api.guides.submitQuiz(guideId, fp, questions.length); await refreshUser(); onXpEarned(fp * 10); } catch (_) {}
-        setPhase("done");
+      if (queuePos < queue.length - 1) {
+        setQueuePos(p => p + 1);
       } else {
-        setQueue(nextQueue); setQueuePos(0); setRound(r => r + 1); setPhase("roundbreak");
-        roundBreakTimer.current = setTimeout(() => setPhase("question"), 2500);
+        const nextQueue = questions.map((_, i) => i).filter(i => !newMastered.has(i));
+        if (nextQueue.length === 0) {
+          const fp = firstPassRef.current;
+          setFinalScore(fp);
+          try { await api.guides.submitQuiz(guideId, fp, questions.length); await refreshUser(); onXpEarned(fp * 10); } catch (_) {}
+          setPhase("done");
+        } else {
+          setQueue(nextQueue); setQueuePos(0); setRound(r => r + 1); setPhase("roundbreak");
+          roundBreakTimer.current = setTimeout(() => setPhase("question"), 2500);
+        }
       }
-    }
+    }, 1000);
   };
 
   if (phase === "setup" || phase === "loading") return (
@@ -582,9 +484,9 @@ function UnifiedQuizMode({ guideId, onXpEarned }) {
           <span>Q {queuePos + 1} / {queue.length} · Round {round}</span>
           <span>{mastered.size} mastered</span>
         </div>
-        {type === "mcq"        && <MCQQuestion      q={currentQ} answered={null} onAnswer={handleAdaptiveAnswer} />}
-        {type === "true-false" && <TrueFalseQuestion q={currentQ} answered={null} onAnswer={handleAdaptiveAnswer} />}
-        {type === "fill-blank" && <FillBlankQuestion q={currentQ} answered={null} onAnswer={handleAdaptiveAnswer} />}
+        {type === "mcq"        && <MCQQuestion      q={currentQ} answered={pendingAnswer} onAnswer={pendingAnswer == null ? handleAdaptiveAnswer : undefined} />}
+        {type === "true-false" && <TrueFalseQuestion q={currentQ} answered={pendingAnswer} onAnswer={pendingAnswer == null ? handleAdaptiveAnswer : undefined} />}
+        {type === "fill-blank" && <FillBlankQuestion q={currentQ} answered={pendingAnswer} onAnswer={pendingAnswer == null ? handleAdaptiveAnswer : undefined} />}
       </div>
     );
   }
@@ -630,190 +532,6 @@ function UnifiedQuizMode({ guideId, onXpEarned }) {
   );
 
   return null;
-}
-
-// ── Adaptive Quiz Mode ────────────────────────────────────────────────────────
-function AdaptiveQuizMode({ guideId, onXpEarned }) {
-  const [phase, setPhase]       = useState("setup"); // setup|loading|question|roundbreak|done
-  const [count, setCount]       = useState(10);
-  const [questions, setQuestions] = useState([]);
-  const [queue, setQueue]       = useState([]);   // question indices for current round
-  const [queuePos, setQueuePos] = useState(0);
-  const [selected, setSelected] = useState(null);
-  const [revealed, setRevealed] = useState(false);
-  const [mastered, setMastered] = useState(new Set());
-  const [round, setRound]       = useState(1);
-  const [finalScore, setFinalScore] = useState(0);
-  const [error, setError]       = useState("");
-  const firstPassRef            = useRef(0);
-  const roundBreakTimer         = useRef(null);
-  const { refreshUser }         = useAuth();
-
-  // Clear pending round-break timer on unmount to prevent setState-after-unmount
-  useEffect(() => () => { if (roundBreakTimer.current) clearTimeout(roundBreakTimer.current); }, []);
-
-  const generate = async () => {
-    setPhase("loading"); setError("");
-    try {
-      const { questions: qs } = await api.guides.generateQuiz(guideId, count, "mcq");
-      const allQs = Array.isArray(qs) ? qs : [];
-      setQuestions(allQs);
-      setQueue(allQs.map((_, i) => i));
-      setQueuePos(0); setMastered(new Set());
-      firstPassRef.current = 0; setRound(1);
-      setSelected(null); setRevealed(false);
-      setPhase("question");
-    } catch (e) { setError(e.message); setPhase("setup"); }
-  };
-
-  const currentQIdx = phase === "question" ? queue[queuePos] : null;
-  const currentQ    = currentQIdx != null ? questions[currentQIdx] : null;
-
-  const handleSelect = (oi) => { if (revealed) return; setSelected(oi); setRevealed(true); };
-
-  const handleNext = async () => {
-    if (!currentQ) return; // guard against race if button clicked during phase transition
-    const isCorrect = selected === currentQ.correctIndex;
-    const newMastered = new Set(mastered);
-    if (isCorrect) { newMastered.add(currentQIdx); if (round === 1) firstPassRef.current++; }
-    setMastered(newMastered);
-
-    if (queuePos < queue.length - 1) {
-      setQueuePos(p => p + 1); setSelected(null); setRevealed(false);
-    } else {
-      const nextQueue = questions.map((_, i) => i).filter(i => !newMastered.has(i));
-      if (nextQueue.length === 0) {
-        const fp = firstPassRef.current;
-        setFinalScore(fp);
-        try { await api.guides.submitQuiz(guideId, fp, questions.length); await refreshUser(); onXpEarned(fp * 10); } catch (_) {}
-        setPhase("done");
-      } else {
-        setQueue(nextQueue); setQueuePos(0); setSelected(null); setRevealed(false);
-        setRound(r => r + 1); setPhase("roundbreak");
-        roundBreakTimer.current = setTimeout(() => setPhase("question"), 2500);
-      }
-    }
-  };
-
-  const reset = () => {
-    setPhase("setup"); setQuestions([]); setQueue([]); setQueuePos(0);
-    setSelected(null); setRevealed(false); setMastered(new Set());
-    firstPassRef.current = 0; setRound(1); setFinalScore(0);
-  };
-
-  // ── Setup / Loading ──
-  if (phase === "setup" || phase === "loading") return (
-    <div className="flex flex-col items-center gap-5 py-8">
-      <div className="text-center">
-        <p className="text-white font-bold text-lg mb-1">🧠 Adaptive Quiz</p>
-        <p className="text-gray-400 text-sm max-w-xs">One question at a time. Wrong answers come back until you master them.</p>
-      </div>
-      <div className="flex items-center gap-3 flex-wrap justify-center">
-        <span className="text-gray-400 text-sm">Questions:</span>
-        {[5, 10, 15, 20].map(n => (
-          <button key={n} onClick={() => setCount(n)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${count === n ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"}`}>{n}</button>
-        ))}
-      </div>
-      {error && <p className="text-red-400 text-sm">{error}</p>}
-      <button onClick={generate} disabled={phase === "loading"}
-        className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-xl text-white font-bold transition-all">
-        {phase === "loading" ? <><span className="animate-spin inline-block">⏳</span> Generating…</> : <><Brain size={16} /> Start Adaptive Quiz</>}
-      </button>
-    </div>
-  );
-
-  // ── Round Break ──
-  if (phase === "roundbreak") return (
-    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-      className="flex flex-col items-center gap-4 py-14 text-center">
-      <div className="text-5xl">🔄</div>
-      <p className="text-white font-bold text-xl">Round {round}</p>
-      <p className="text-gray-400 text-sm">Reviewing the ones you missed…</p>
-      <div className="flex items-center gap-3 text-sm mt-2">
-        <span className="text-green-400 font-medium">✓ {mastered.size} mastered</span>
-        <span className="text-gray-600">•</span>
-        <span className="text-yellow-400 font-medium">⟳ {queue.length} to review</span>
-      </div>
-    </motion.div>
-  );
-
-  // ── Done ──
-  if (phase === "done") return (
-    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-4">
-      <div className="text-6xl mb-4">{finalScore === questions.length ? "🏆" : finalScore >= questions.length * 0.7 ? "⭐" : "💪"}</div>
-      <p className="text-3xl font-bold text-white mb-1">{finalScore}/{questions.length}</p>
-      <p className="text-gray-400 text-sm mb-1">First-attempt correct · +{finalScore * 10} XP</p>
-      {round > 1 && <p className="text-green-400 text-sm mb-6">100% mastered after {round} rounds! 🎉</p>}
-      {round === 1 && <p className="text-gray-500 text-sm mb-6">Perfect first run!</p>}
-      <button onClick={reset}
-        className="inline-flex items-center gap-2 px-6 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-white font-semibold text-sm transition-all">
-        <RotateCcw size={14} /> Try Again
-      </button>
-    </motion.div>
-  );
-
-  // ── Question ──
-  const masteryPct = (mastered.size / questions.length) * 100;
-  return (
-    <div>
-      {/* Mastery bar */}
-      <div className="mb-5">
-        <div className="flex items-center justify-between mb-1.5 text-xs">
-          <span className="text-gray-500">Round {round} · Q {queuePos + 1}/{queue.length}</span>
-          <span className="text-green-400 font-semibold">{mastered.size}/{questions.length} mastered</span>
-        </div>
-        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-          <motion.div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full"
-            animate={{ width: `${masteryPct}%` }} transition={{ duration: 0.4 }} />
-        </div>
-      </div>
-
-      {/* Question card */}
-      <AnimatePresence mode="wait">
-        <motion.div key={`${round}-${queuePos}`}
-          initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-          className="border border-white/10 rounded-xl p-5 mb-4">
-          <p className="text-white font-semibold mb-4 leading-relaxed">{currentQ.question}</p>
-          <div className="space-y-2">
-            {currentQ.options.map((opt, oi) => {
-              const isSel  = selected === oi;
-              const isCorr = oi === currentQ.correctIndex;
-              let cls = "w-full text-left px-4 py-3 rounded-xl text-sm transition-all border ";
-              if (!revealed) {
-                cls += isSel ? "bg-indigo-600/30 border-indigo-500/60 text-indigo-200 font-medium"
-                             : "bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20";
-              } else {
-                if (isCorr)      cls += "bg-green-500/20 border-green-500/40 text-green-300 font-medium";
-                else if (isSel)  cls += "bg-red-500/20 border-red-500/40 text-red-300 line-through";
-                else             cls += "bg-white/3 border-white/8 text-gray-600";
-              }
-              return (
-                <button key={oi} onClick={() => handleSelect(oi)} disabled={revealed} className={cls}>
-                  <span className="text-gray-500 mr-2">{["A","B","C","D"][oi]}.</span>{opt}
-                  {revealed && isCorr && <span className="ml-2 text-green-400">✓</span>}
-                </button>
-              );
-            })}
-          </div>
-          {revealed && currentQ.explanation && (
-            <motion.p initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-              className="text-indigo-300 text-xs mt-3 italic">💡 {currentQ.explanation}</motion.p>
-          )}
-        </motion.div>
-      </AnimatePresence>
-
-      {revealed && (
-        <motion.button initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-          onClick={handleNext}
-          className="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-2">
-          {selected === currentQ.correctIndex
-            ? <><CheckCircle size={16} className="text-green-300" /> Correct — Next Question</>
-            : <><XCircle size={16} className="text-red-300" /> Noted — Next Question</>}
-        </motion.button>
-      )}
-    </div>
-  );
 }
 
 // ── Quiz History Sparkline ────────────────────────────────────────────────────
