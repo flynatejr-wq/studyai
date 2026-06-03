@@ -149,8 +149,17 @@ DIFFICULTY — ADVANCED: Write for someone with solid prior knowledge of the sub
 
 const STYLE_ADDENDUM = {
   // ── DETAILED (default) ───────────────────────────────────────────────────────
-  // Full comprehensive guide — no restrictions beyond the base scaling rules.
-  detailed: "",
+  // Full comprehensive guide — explicitly deeper than Brief at every level.
+  detailed: `
+
+FORMAT — DETAILED: The user wants a thorough, textbook-quality guide. Override the base scaling rules with these minimums:
+- Minimum 3 sections regardless of input length. Use more if the content warrants it.
+- overview: 2-3 sentences. Explain what the section covers AND why it matters.
+- content: Minimum 2 full paragraphs per section. Each paragraph should teach something — include explanations, context, and where relevant, examples or consequences.
+- keyPoints: 4-5 takeaways per section. Each should be a complete, meaningful insight — not a one-word label.
+- terms: 3-5 terms per section with precise, full-sentence definitions.
+- quiz: 2-3 questions per section that require real understanding to answer, not just recall.
+This format should feel like studying from a well-written textbook chapter, not a summary.`,
 
   // ── BRIEF ────────────────────────────────────────────────────────────────────
   // Fast-scan summary. Strict limits — the whole output should be readable in ~1 min.
