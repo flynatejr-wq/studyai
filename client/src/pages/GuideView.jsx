@@ -174,7 +174,7 @@ function FlashcardMode({ terms }) {
                 transition={{ duration: 0.45, ease: "easeInOut" }}
                 style={{ transformStyle: "preserve-3d", WebkitTransformStyle: "preserve-3d", position: "relative", minHeight: "clamp(180px, 40vw, 260px)" }}>
                 {/* Front */}
-                <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", position: "absolute", inset: 0, minHeight: "clamp(180px, 40vw, 260px)" }}
+                <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", willChange: "transform", position: "absolute", inset: 0, minHeight: "clamp(180px, 40vw, 260px)" }}
                   className="bg-gradient-to-br from-indigo-600/30 to-violet-600/20 border border-indigo-500/40 rounded-2xl flex flex-col items-center justify-center px-5 sm:px-8 py-6 sm:py-8 text-center">
                   <p className="text-indigo-400/70 text-[10px] uppercase tracking-widest mb-3 font-bold">Term</p>
                   <p className="text-white text-lg sm:text-2xl font-bold leading-snug">{card.term}</p>
@@ -185,7 +185,7 @@ function FlashcardMode({ terms }) {
                   </p>
                 </div>
                 {/* Back */}
-                <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)", WebkitTransform: "rotateY(180deg)", position: "absolute", inset: 0, minHeight: "clamp(180px, 40vw, 260px)" }}
+                <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", willChange: "transform", transform: "rotateY(180deg)", WebkitTransform: "rotateY(180deg)", position: "absolute", inset: 0, minHeight: "clamp(180px, 40vw, 260px)" }}
                   className="bg-gradient-to-br from-violet-600/30 to-indigo-600/20 border border-violet-500/40 rounded-2xl flex flex-col items-center justify-center px-5 sm:px-8 py-6 sm:py-8 text-center overflow-y-auto">
                   <p className="text-violet-400/70 text-[10px] uppercase tracking-widest mb-3 font-bold">Definition</p>
                   <p className="text-white text-sm sm:text-lg leading-relaxed">{card.definition}</p>
