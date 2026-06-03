@@ -270,6 +270,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_abuse_flags_target          ON abuse_flags(target_type, target_value);
 `);
 
+// Stripe webhook idempotency — stores processed event IDs to prevent double-processing on retries
+db.exec(`
+  CREATE TABLE IF NOT EXISTS stripe_events (
+    id TEXT PRIMARY KEY,
+    processed_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
 // Reminder tracking
 safeAlter("ALTER TABLE users ADD COLUMN streak_reminder_sent_date TEXT");
 

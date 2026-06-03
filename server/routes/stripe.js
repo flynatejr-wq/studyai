@@ -106,6 +106,15 @@ router.post("/webhook", (req, res) => {
     return res.status(400).json({ error: "Webhook signature verification failed." });
   }
 
+  // Idempotency — skip already-processed events
+  const alreadyProcessed = db.prepare("SELECT 1 FROM stripe_events WHERE id = ?").get(event.id);
+  if (alreadyProcessed) {
+    console.log(`[stripe] duplicate event skipped: ${event.id}`);
+    return res.json({ received: true });
+  }
+  // Mark as processed before handling (prevents double-processing on concurrent retries)
+  db.prepare("INSERT OR IGNORE INTO stripe_events (id) VALUES (?)").run(event.id);
+
   const data = event.data.object;
 
   try {
@@ -138,7 +147,7 @@ router.post("/webhook", (req, res) => {
         const subId  = data.id;
         const status = data.status;
         const priceId = data.items?.data?.[0]?.price?.id;
-        if (priceId !== process.env.PRICE_ID) {
+        if (priceId !== PRICE_ID) {
           console.log(`[stripe] subscription.updated skipped — unexpected price ${priceId}`);
           return res.json({ received: true });
         }
