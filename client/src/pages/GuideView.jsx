@@ -247,6 +247,96 @@ function FlashcardMode({ terms }) {
   );
 }
 
+// ── MCQ Question Renderer ─────────────────────────────────────────────────────
+function MCQQuestion({ q, answered, onAnswer }) {
+  return (
+    <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
+      <p className="text-white font-medium mb-4">{q.question}</p>
+      <div className="flex flex-col gap-2">
+        {q.options.map((opt, oi) => {
+          const isSelected = answered === oi;
+          const isCorrect  = answered != null && oi === q.correctIndex;
+          const isWrong    = answered != null && isSelected && oi !== q.correctIndex;
+          return (
+            <button key={oi}
+              onClick={() => answered == null && onAnswer && onAnswer(oi)}
+              className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all border
+                ${answered == null ? "bg-white/5 border-white/10 text-gray-300 hover:bg-indigo-600/20 hover:border-indigo-500 hover:text-white"
+                  : isCorrect ? "bg-green-500/20 border-green-500/50 text-green-400"
+                  : isWrong   ? "bg-red-500/20 border-red-500/50 text-red-400"
+                  : "bg-white/5 border-white/10 text-gray-500"}`}>
+              <span className="mr-2 font-bold">{["A","B","C","D"][oi]}.</span>{opt}
+            </button>
+          );
+        })}
+      </div>
+      {answered != null && q.explanation && (
+        <p className="text-gray-400 text-xs mt-3">{q.explanation}</p>
+      )}
+    </div>
+  );
+}
+
+// ── True/False Question Renderer ─────────────────────────────────────────────
+function TrueFalseQuestion({ q, answered, onAnswer }) {
+  return (
+    <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
+      <p className="text-white font-medium mb-4">{q.statement}</p>
+      {answered == null ? (
+        <div className="flex gap-3">
+          <button onClick={() => onAnswer(true)}
+            className="flex-1 py-2.5 rounded-xl font-semibold text-sm bg-green-600/20 text-green-400 hover:bg-green-600/40 border border-green-600/30 transition-all">
+            ✓ True
+          </button>
+          <button onClick={() => onAnswer(false)}
+            className="flex-1 py-2.5 rounded-xl font-semibold text-sm bg-red-600/20 text-red-400 hover:bg-red-600/40 border border-red-600/30 transition-all">
+            ✗ False
+          </button>
+        </div>
+      ) : (
+        <div className={`rounded-xl p-3 text-sm ${answered === q.answer ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+          {answered === q.answer ? "✓ Correct!" : `✗ Incorrect — answer is ${q.answer ? "True" : "False"}`}
+          {q.explanation && <p className="text-gray-400 mt-1 text-xs">{q.explanation}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Fill in the Blank Question Renderer ──────────────────────────────────────
+function FillBlankQuestion({ q, answered, onAnswer }) {
+  const [input, setInput] = useState("");
+  const isCorrect = answered != null && answered.trim().toLowerCase() === q.answer.toLowerCase();
+
+  return (
+    <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
+      <p className="text-white font-medium mb-1">
+        {q.sentence.replace("___", "________")}
+      </p>
+      <p className="text-gray-500 text-xs mb-4">Hint: {q.hint}</p>
+      {answered == null ? (
+        <div className="flex gap-2">
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && input.trim() && onAnswer(input.trim())}
+            placeholder="Type your answer..."
+            className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+          />
+          <button onClick={() => input.trim() && onAnswer(input.trim())}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white text-sm font-semibold transition-all">
+            Check
+          </button>
+        </div>
+      ) : (
+        <div className={`rounded-xl p-3 text-sm ${isCorrect ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+          {isCorrect ? "✓ Correct!" : `✗ The answer is: ${q.answer}`}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── MCQ Mode ──────────────────────────────────────────────────────────────────
 function MCQMode({ guideId, onXpEarned }) {
   const [count, setCount] = useState(10);
@@ -349,6 +439,197 @@ function MCQMode({ guideId, onXpEarned }) {
       )}
     </div>
   );
+}
+
+// ── Unified Quiz Mode ─────────────────────────────────────────────────────────
+const QUIZ_TYPES = [
+  { id: "mcq",            label: "🎯 Multiple Choice", desc: "4 options per question" },
+  { id: "true-false",     label: "✅ True / False",    desc: "Quick true or false" },
+  { id: "fill-blank",     label: "✏️ Fill in the Blank", desc: "Type the missing word" },
+  { id: "adaptive-mixed", label: "🧠 Adaptive",        desc: "Mixed types, repeats wrong answers" },
+];
+
+function UnifiedQuizMode({ guideId, onXpEarned }) {
+  const [quizType, setQuizType]     = useState("mcq");
+  const [count, setCount]           = useState(10);
+  const [phase, setPhase]           = useState("setup");
+  const [questions, setQuestions]   = useState([]);
+  const [answers, setAnswers]       = useState({});
+  const [submitted, setSubmitted]   = useState(false);
+  const [score, setScore]           = useState(0);
+  const [error, setError]           = useState("");
+  const [queue, setQueue]           = useState([]);
+  const [queuePos, setQueuePos]     = useState(0);
+  const [mastered, setMastered]     = useState(new Set());
+  const [round, setRound]           = useState(1);
+  const [finalScore, setFinalScore] = useState(0);
+  const firstPassRef                = useRef(0);
+  const roundBreakTimer             = useRef(null);
+  const { refreshUser }             = useAuth();
+
+  useEffect(() => () => { if (roundBreakTimer.current) clearTimeout(roundBreakTimer.current); }, []);
+
+  const isAdaptive   = quizType === "adaptive-mixed";
+  const countOptions = quizType === "true-false" ? [5, 10, 15, 20, 25, 30] : [5, 10, 15, 20];
+
+  const reset = () => {
+    setPhase("setup"); setQuestions([]); setAnswers({}); setSubmitted(false); setScore(0);
+    setQueue([]); setQueuePos(0); setMastered(new Set()); setRound(1); setFinalScore(0);
+    firstPassRef.current = 0;
+  };
+
+  const generate = async () => {
+    setPhase("loading"); setError("");
+    try {
+      const { questions: qs } = await api.guides.generateQuiz(guideId, count, quizType);
+      const allQs = Array.isArray(qs) ? qs : [];
+      setQuestions(allQs);
+      if (isAdaptive) {
+        setQueue(allQs.map((_, i) => i));
+        setQueuePos(0); setMastered(new Set()); firstPassRef.current = 0; setRound(1);
+      } else {
+        setAnswers({}); setSubmitted(false); setScore(0);
+      }
+      setPhase("question");
+    } catch (e) { setError(e.message); setPhase("setup"); }
+  };
+
+  const checkCorrect = (q, answer) => {
+    const type = isAdaptive ? q.type : quizType;
+    if (type === "mcq")        return answer === q.correctIndex;
+    if (type === "true-false") return answer === q.answer;
+    if (type === "fill-blank") return typeof answer === "string" && answer.trim().toLowerCase() === q.answer.toLowerCase();
+    return false;
+  };
+
+  const submit = async () => {
+    const correct = questions.filter((q, i) => checkCorrect(q, answers[i])).length;
+    setScore(correct); setSubmitted(true);
+    try { await api.guides.submitQuiz(guideId, correct, questions.length); await refreshUser(); onXpEarned(correct * 10); } catch (_) {}
+  };
+
+  const currentQIdx = phase === "question" && isAdaptive ? queue[queuePos] : null;
+  const currentQ    = currentQIdx != null ? questions[currentQIdx] : null;
+
+  const handleAdaptiveAnswer = async (answer) => {
+    if (!currentQ) return;
+    const correct = checkCorrect(currentQ, answer);
+    const newMastered = new Set(mastered);
+    if (correct) { newMastered.add(currentQIdx); if (round === 1) firstPassRef.current++; }
+    setMastered(newMastered);
+
+    if (queuePos < queue.length - 1) {
+      setQueuePos(p => p + 1);
+    } else {
+      const nextQueue = questions.map((_, i) => i).filter(i => !newMastered.has(i));
+      if (nextQueue.length === 0) {
+        const fp = firstPassRef.current;
+        setFinalScore(fp);
+        try { await api.guides.submitQuiz(guideId, fp, questions.length); await refreshUser(); onXpEarned(fp * 10); } catch (_) {}
+        setPhase("done");
+      } else {
+        setQueue(nextQueue); setQueuePos(0); setRound(r => r + 1); setPhase("roundbreak");
+        roundBreakTimer.current = setTimeout(() => setPhase("question"), 2500);
+      }
+    }
+  };
+
+  if (phase === "setup" || phase === "loading") return (
+    <div className="flex flex-col gap-6 py-6">
+      <div className="grid grid-cols-2 gap-3">
+        {QUIZ_TYPES.map(t => (
+          <button key={t.id} onClick={() => { setQuizType(t.id); reset(); }}
+            className={`p-3 rounded-xl text-left transition-all border ${quizType === t.id ? "bg-indigo-600/30 border-indigo-500 text-white" : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white"}`}>
+            <div className="font-semibold text-sm">{t.label}</div>
+            <div className="text-xs text-gray-500 mt-0.5">{t.desc}</div>
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-gray-400 text-sm">Questions:</span>
+        {countOptions.map(n => (
+          <button key={n} onClick={() => setCount(n)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${count === n ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"}`}>{n}</button>
+        ))}
+      </div>
+      {error && <p className="text-red-400 text-sm">{error}</p>}
+      <button onClick={generate} disabled={phase === "loading"}
+        className="flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-xl text-white font-bold transition-all">
+        {phase === "loading" ? <><span className="animate-spin inline-block">⏳</span> Generating…</> : <><Zap size={16} /> Start Quiz</>}
+      </button>
+    </div>
+  );
+
+  if (phase === "roundbreak") return (
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+      className="flex flex-col items-center gap-4 py-14 text-center">
+      <div className="text-5xl">🔄</div>
+      <p className="text-white font-bold text-xl">Round {round}</p>
+      <p className="text-gray-400 text-sm">Reviewing the ones you missed…</p>
+      <div className="flex items-center gap-3 text-sm mt-2">
+        <span className="text-green-400 font-medium">✓ {mastered.size} mastered</span>
+        <span className="text-gray-500">·</span>
+        <span className="text-orange-400 font-medium">{questions.length - mastered.size} remaining</span>
+      </div>
+    </motion.div>
+  );
+
+  if (phase === "question" && isAdaptive && currentQ) {
+    const type = currentQ.type;
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+          <span>Q {queuePos + 1} / {queue.length} · Round {round}</span>
+          <span>{mastered.size} mastered</span>
+        </div>
+        {type === "mcq"        && <MCQQuestion      q={currentQ} answered={null} onAnswer={handleAdaptiveAnswer} />}
+        {type === "true-false" && <TrueFalseQuestion q={currentQ} answered={null} onAnswer={handleAdaptiveAnswer} />}
+        {type === "fill-blank" && <FillBlankQuestion q={currentQ} answered={null} onAnswer={handleAdaptiveAnswer} />}
+      </div>
+    );
+  }
+
+  if (phase === "done") return (
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+      className="flex flex-col items-center gap-4 py-14 text-center">
+      <div className="text-5xl">🏁</div>
+      <p className="text-white font-bold text-2xl">All mastered!</p>
+      <p className="text-gray-400 text-sm">First-pass score: {finalScore} / {questions.length}</p>
+      <button onClick={reset} className="mt-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold text-sm transition-all">
+        Try Again
+      </button>
+    </motion.div>
+  );
+
+  if (phase === "question") return (
+    <div className="flex flex-col gap-4">
+      {submitted && (
+        <div className="bg-white/5 rounded-2xl p-4 text-center border border-white/10">
+          <p className="text-white font-bold text-xl">{score} / {questions.length}</p>
+          <p className="text-gray-400 text-sm">{Math.round(score / questions.length * 100)}% correct</p>
+          <button onClick={reset} className="mt-3 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white text-sm font-semibold transition-all">
+            New Quiz
+          </button>
+        </div>
+      )}
+      {questions.map((q, i) => (
+        <div key={i}>
+          {quizType === "mcq"        && <MCQQuestion      q={q} answered={submitted ? answers[i] ?? null : null} onAnswer={!submitted ? (v) => setAnswers(a => ({ ...a, [i]: v })) : undefined} />}
+          {quizType === "true-false" && <TrueFalseQuestion q={q} answered={submitted ? answers[i] ?? null : null} onAnswer={!submitted ? (v) => setAnswers(a => ({ ...a, [i]: v })) : undefined} />}
+          {quizType === "fill-blank" && <FillBlankQuestion q={q} answered={submitted ? answers[i] ?? null : null} onAnswer={!submitted ? (v) => setAnswers(a => ({ ...a, [i]: v })) : undefined} />}
+        </div>
+      ))}
+      {!submitted && (
+        <button onClick={submit}
+          disabled={Object.keys(answers).length < questions.length}
+          className="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 rounded-xl text-white font-bold transition-all">
+          Submit Quiz
+        </button>
+      )}
+    </div>
+  );
+
+  return null;
 }
 
 // ── Adaptive Quiz Mode ────────────────────────────────────────────────────────
@@ -1082,9 +1363,7 @@ export default function GuideView() {
     { id: "notes",      label: "📝 Notes",          desc: "Summary & key terms" },
     ...(terms.length > 0 ? [{ id: "flashcards", label: "🃏 Flashcards", desc: `${terms.length} key terms` }] : []),
     ...[
-      { id: "adaptive", label: "🧠 Adaptive",        desc: "Mastery-based quiz" },
-      { id: "mcq",      label: "🎯 Multiple Choice", desc: "AI-generated MCQ" },
-      { id: "quiz",     label: "✏️ Self-Grade",      desc: "Reveal & mark answers" },
+      { id: "unified-quiz", label: "🧩 Quiz", desc: "Multiple choice, T/F, fill in the blank, adaptive" },
     ],
   ];
 
@@ -1219,103 +1498,13 @@ export default function GuideView() {
             </section>
           )}
 
-          {/* ── ADAPTIVE QUIZ MODE ── */}
-          {studyMode === "adaptive" && (
-            <section className="bg-white/5 border border-white/10 rounded-2xl p-6 print:hidden">
-              <AdaptiveQuizMode guideId={id} onXpEarned={showXpToast} />
-            </section>
+          {/* ── UNIFIED QUIZ MODE ── */}
+          {studyMode === "unified-quiz" && (
+            <div className="px-1">
+              <UnifiedQuizMode guideId={id} onXpEarned={showXpToast} />
+            </div>
           )}
 
-          {/* ── MCQ MODE ── */}
-          {studyMode === "mcq" && (
-            <section className="bg-white/5 border border-white/10 rounded-2xl p-6 print:hidden">
-              <MCQMode guideId={id} onXpEarned={showXpToast} />
-            </section>
-          )}
-
-          {/* ── SELF-GRADE QUIZ MODE ── */}
-          {studyMode === "quiz" && (
-            <section className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-6 print:hidden">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-base font-bold text-white">✏️ Self-Grade Quiz</h2>
-                {quizSubmitted && (
-                  <button onClick={resetQuiz} className="flex items-center gap-1 text-gray-400 hover:text-white text-sm transition-colors">
-                    <RotateCcw size={13} /> Retry
-                  </button>
-                )}
-              </div>
-              {!quizSubmitted && (
-                <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 mb-5">
-                  <p className="text-indigo-300 text-sm font-semibold mb-3 flex items-center gap-2"><RefreshCw size={13} /> Generate Custom Quiz</p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-gray-400 text-sm">Questions:</span>
-                    {[5, 10, 15, 20].map(n => (
-                      <button key={n} onClick={() => setQuizCount(n)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${quizCount === n ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}>{n}</button>
-                    ))}
-                    <input type="number" min={3} max={30} value={quizCount}
-                      onChange={e => setQuizCount(Math.min(30, Math.max(3, parseInt(e.target.value) || 3)))}
-                      className="w-14 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-center focus:outline-none px-2 py-1.5" />
-                    <button onClick={generateQuiz} disabled={generatingQuiz}
-                      className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 rounded-lg text-white text-sm font-semibold transition-all">
-                      {generatingQuiz ? "Generating..." : <><Zap size={13} /> Generate</>}
-                    </button>
-                  </div>
-                  {quizError && <p className="text-red-400 text-xs mt-2">{quizError}</p>}
-                  {activeQuestions && <p className="text-green-400 text-xs mt-2">✓ {activeQuestions.length} fresh questions ready.</p>}
-                </div>
-              )}
-              {quizSubmitted && (
-                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                  className={`rounded-2xl p-5 mb-5 text-center ${score === questions.length ? "bg-green-500/10 border border-green-500/20" : score >= questions.length * 0.6 ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
-                  <div className="text-4xl mb-2">{score === questions.length ? "🏆" : score >= questions.length * 0.6 ? "⭐" : "💪"}</div>
-                  <p className="text-2xl font-bold text-white mb-1">{score}/{questions.length} correct</p>
-                  <p className="text-gray-400 text-sm">{score === questions.length ? "Perfect score!" : score >= questions.length * 0.6 ? "Great job!" : "Keep studying!"}</p>
-                </motion.div>
-              )}
-              <div className="space-y-4">
-                {questions.map((q, i) => (
-                  <div key={i} className="border border-white/10 rounded-xl p-4">
-                    <p className="text-white font-medium text-sm mb-3">{i + 1}. {q.question}</p>
-                    {!quizSubmitted ? (
-                      <div className="flex flex-col gap-2">
-                        <button onClick={() => setFlipped(f => ({ ...f, [i]: !f[i] }))} className="text-sm text-indigo-400 hover:text-indigo-300 underline underline-offset-2 w-fit transition-colors">
-                          {flipped[i] ? "Hide answer" : "Show answer"}
-                        </button>
-                        {flipped[i] && (
-                          <div>
-                            <div className="text-gray-300 text-sm mb-3 bg-white/5 rounded-lg px-3 py-2"><RichText html={q.answer} className="rich-text-sm" /></div>
-                            {!quizAnswers[i] ? (
-                              <div className="flex gap-2">
-                                <button onClick={() => setQuizAnswers(a => ({ ...a, [i]: "correct" }))}
-                                  className="px-3 py-1.5 bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/30 transition-colors">✓ Got it</button>
-                                <button onClick={() => setQuizAnswers(a => ({ ...a, [i]: "wrong" }))}
-                                  className="px-3 py-1.5 bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/30 transition-colors">✗ Missed it</button>
-                              </div>
-                            ) : (
-                              <span className={`text-xs font-medium px-2 py-1 rounded-lg ${quizAnswers[i] === "correct" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
-                                {quizAnswers[i] === "correct" ? "✓ Marked correct" : "✗ Marked wrong"}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <div className="text-gray-400 text-sm flex-1"><RichText html={q.answer} className="rich-text-sm" /></div>
-                        <span>{quizAnswers[i] === "correct" ? "✅" : "❌"}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {!quizSubmitted && questions.length > 0 && Object.keys(quizAnswers).length === questions.length && (
-                <button onClick={submitQuiz} className="w-full mt-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-white transition-all">
-                  Submit Quiz & Earn XP ⚡
-                </button>
-              )}
-            </section>
-          )}
 
           {/* iPhone home indicator clearance */}
           <div aria-hidden="true" style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
