@@ -446,7 +446,7 @@ router.post("/image", requireAuth, upload.single("image"), async (req, res) => {
       // MEDIUM-3: Use system: parameter so the guide-generation instructions can't be
       // overridden by content embedded in the uploaded image.
       const message = await client.messages.create({
-        model: "claude-opus-4-5",
+        model: "claude-haiku-4-5",
         max_tokens: 8000,
         system: `${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}`,
         messages: [{
@@ -597,7 +597,7 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
           // MEDIUM-3: Use system: parameter so instructions can't be overridden by
           // content embedded in the uploaded PDF document.
           const message = await client.messages.create({
-            model: "claude-opus-4-5",
+            model: "claude-haiku-4-5",
             max_tokens: 8000,
             system: `${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}`,
             messages: [{

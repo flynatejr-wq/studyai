@@ -403,7 +403,7 @@ router.post("/:id/generate-quiz", async (req, res) => {
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const message = await client.messages.create({
-      model: "claude-opus-4-5",
+      model: "claude-haiku-4-5",
       max_tokens: mode === "adaptive-mixed" ? 4000 : 2500,
       messages: [{ role: "user", content: prompt }],
     });
