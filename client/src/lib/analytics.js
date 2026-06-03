@@ -12,10 +12,9 @@ export async function initAnalytics() {
     const mixpanel = (await import("mixpanel-browser")).default;
     mixpanel.init(MIXPANEL_TOKEN, {
       track_pageview:         false,   // manual via analytics.page()
-      // "memory" = zero cookies, zero localStorage writes — eliminates all
-      // "rejected for invalid domain" cookie errors on Vercel subdomains.
-      // Trade-off: super-properties reset on page reload (acceptable for event tracking).
-      persistence:            "memory",
+      // "localStorage" avoids cookie domain issues on custom domains while
+      // persisting the device ID across page reloads for accurate funnel tracking.
+      persistence:            "localStorage",
       autocapture:            false,
       ignore_dnt:             false,
       batch_requests:         true,
