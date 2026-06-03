@@ -33,6 +33,11 @@ function safeUser(u) {
 // No auth required — used to create/manage admin accounts.
 // Protected only by the shared secret set in environment variables.
 router.post("/setup", (req, res) => {
+  const adminCount = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get();
+  if (adminCount.count > 0) {
+    return res.status(403).json({ error: "Setup already completed." });
+  }
+
   const secret = process.env.ADMIN_SETUP_SECRET;
   if (!secret) {
     return res.status(503).json({ error: "Admin setup is not configured on this server." });
