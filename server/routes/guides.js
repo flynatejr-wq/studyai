@@ -319,6 +319,8 @@ router.post("/:id/session", (req, res) => {
 
 // Get quiz history
 router.get("/:id/quiz-history", (req, res) => {
+  const guide = db.prepare("SELECT id FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+  if (!guide) return res.status(404).json({ error: "Guide not found." });
   const attempts = db.prepare(
     "SELECT score, total, created_at FROM quiz_attempts WHERE guide_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT 20"
   ).all(req.params.id, req.user.id);

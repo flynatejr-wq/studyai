@@ -373,8 +373,8 @@ router.post("/", requireAuth, async (req, res) => {
   if (transcript.length > MAX_TEXT_CHARS)
     return res.status(400).json({ error: `Transcript is too long. Please limit to ${MAX_TEXT_CHARS.toLocaleString()} characters.` });
   try {
-    const result = await withJsonRetry(() => generateFromText(transcript, difficulty, style));
     recordFreeGeneration(req, req.user.id);
+    const result = await withJsonRetry(() => generateFromText(transcript, difficulty, style));
     res.json(result);
   } catch (err) {
     console.error(err);
@@ -406,8 +406,8 @@ router.post("/youtube", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "The transcript is too short to generate a study guide." });
     }
     console.log(`[youtube] OK for ${videoId} (${text.length} chars)`);
-    const ytResult = await withJsonRetry(() => generateFromText(text.slice(0, 60000), difficulty, req.body?.style));
     recordFreeGeneration(req, req.user.id);
+    const ytResult = await withJsonRetry(() => generateFromText(text.slice(0, 60000), difficulty, req.body?.style));
     return res.json(ytResult);
   } catch (err) {
     console.error("[youtube] error:", err?.message);
@@ -440,6 +440,7 @@ router.post("/image", requireAuth, upload.single("image"), async (req, res) => {
     const mediaType = req.file.mimetype;
     const stripHtml = (s) => typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : s;
 
+    recordFreeGeneration(req, req.user.id);
     const result = await withJsonRetry(async () => {
       const client = makeAnthropicClient();
       // MEDIUM-3: Use system: parameter so the guide-generation instructions can't be
@@ -479,7 +480,6 @@ router.post("/image", requireAuth, upload.single("image"), async (req, res) => {
       };
     });
 
-    recordFreeGeneration(req, req.user.id);
     res.json(result);
   } catch (err) {
     console.error(err);
@@ -538,8 +538,8 @@ router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
     if (!transcription.text?.trim())
       return res.status(400).json({ error: "Could not transcribe audio. Make sure it contains clear speech." });
 
-    const audioResult = await withJsonRetry(() => generateFromText(transcription.text, difficulty, req.body?.style));
     recordFreeGeneration(req, req.user.id);
+    const audioResult = await withJsonRetry(() => generateFromText(transcription.text, difficulty, req.body?.style));
     res.json(audioResult);
   } catch (err) {
     console.error("[audio] transcription error:", err?.message || err);
@@ -665,8 +665,8 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
 
     // Trim to avoid token limits (roughly 15k words max)
     const trimmed = text.trim().slice(0, 60000);
-    const fileResult = await withJsonRetry(() => generateFromText(trimmed, difficulty, style));
     recordFreeGeneration(req, req.user.id);
+    const fileResult = await withJsonRetry(() => generateFromText(trimmed, difficulty, style));
     res.json(fileResult);
   } catch (err) {
     console.error("[file route error]", err?.message || err);

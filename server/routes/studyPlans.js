@@ -35,7 +35,7 @@ router.post("/", (req, res) => {
   if (title.trim().length > 120)
     return res.status(400).json({ error: "Title is too long." });
 
-  const goalMinutes = Math.min(Math.max(parseInt(daily_goal_minutes) || 30, 5), 480);
+  const goalMinutes = (daily_goal_minutes != null && daily_goal_minutes !== "") ? Math.max(5, Math.min(480, parseInt(daily_goal_minutes, 10))) : 30;
 
   // Validate guide_ids belong to this user
   const validatedGuideIds = [];
@@ -65,8 +65,8 @@ router.patch("/:id", (req, res) => {
 
   const newTitle = title?.trim() ?? plan.title;
   const newDate  = exam_date ?? plan.exam_date;
-  const newGoal  = daily_goal_minutes != null
-    ? Math.min(Math.max(parseInt(daily_goal_minutes) || 30, 5), 480)
+  const newGoal  = (daily_goal_minutes != null && daily_goal_minutes !== "")
+    ? Math.max(5, Math.min(480, parseInt(daily_goal_minutes, 10)))
     : plan.daily_goal_minutes;
   const newNotes = notes != null ? notes.slice(0, 1000) : plan.notes;
 

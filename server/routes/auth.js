@@ -141,17 +141,8 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // Update streak
-    const today = new Date().toISOString().split("T")[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-    let newStreak = user.streak;
-    if (user.last_study_date === yesterday) newStreak = user.streak + 1;
-    else if (user.last_study_date !== today) newStreak = 1;
-
-    db.prepare("UPDATE users SET streak = ?, last_study_date = ? WHERE id = ?")
-      .run(newStreak, today, user.id);
-
     // ── Reminder emails (fire-and-forget — never block login) ─────────────────
+    const today = new Date().toISOString().split("T")[0];
     if (isEmailConfigured()) {
       // Streak reminder: warn users with a meaningful streak who haven't studied today
       if (user.streak >= 2 && user.last_study_date !== today) {
