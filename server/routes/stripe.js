@@ -111,6 +111,10 @@ router.post("/webhook", (req, res) => {
   try {
     switch (event.type) {
       case "checkout.session.completed": {
+        if (data.payment_status !== "paid") {
+          console.log(`[stripe] checkout.session.completed skipped — payment_status=${data.payment_status}`);
+          return res.json({ received: true });
+        }
         const userId = data.metadata?.userId;
         const subId  = data.subscription;
         if (userId && subId) {
@@ -133,6 +137,11 @@ router.post("/webhook", (req, res) => {
       case "customer.subscription.updated": {
         const subId  = data.id;
         const status = data.status;
+        const priceId = data.items?.data?.[0]?.price?.id;
+        if (priceId !== process.env.PRICE_ID) {
+          console.log(`[stripe] subscription.updated skipped — unexpected price ${priceId}`);
+          return res.json({ received: true });
+        }
         if (status === "active" || status === "trialing") {
           db.prepare("UPDATE users SET plan = 'pro' WHERE stripe_subscription_id = ?").run(subId);
           console.log(`[stripe] Subscription ${subId} active (status: ${status})`);
