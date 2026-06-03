@@ -369,8 +369,15 @@ router.post("/:id/generate-quiz", async (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
   const isFreeTier = user && user.plan !== "pro" && user.plan !== "lifetime" && !user.is_whitelisted && user.role !== "admin";
   if (isFreeTier) {
-    const genCount = user.quiz_gen_date === today ? (user.quiz_gen_count || 0) : 0;
-    if (genCount >= 3) {
+    const result = db.prepare(`
+      UPDATE users
+      SET quiz_gen_count = CASE WHEN quiz_gen_date = ? THEN quiz_gen_count + 1 ELSE 1 END,
+          quiz_gen_date = ?
+      WHERE id = ?
+        AND (quiz_gen_date != ? OR quiz_gen_count < 3)
+    `).run(today, today, req.user.id, today);
+
+    if (result.changes === 0) {
       return res.status(403).json({
         error: "FREE_LIMIT_QUIZZES",
         message: "Free accounts are limited to 3 AI quiz generations per day. Upgrade to Pro for unlimited quizzes.",
@@ -443,18 +450,6 @@ router.post("/:id/generate-quiz", async (req, res) => {
           if (typeof q.answer !== "string") throw new Error("Adaptive fill-blank missing answer.");
         }
       }
-    }
-
-    // BUG-7: Increment quota atomically with a conditional UPDATE to prevent race conditions
-    // (two concurrent requests could both read genCount=2 and both pass the limit check)
-    if (isFreeTier) {
-      // Reset counter if date changed, otherwise increment — all in one atomic statement
-      db.prepare(`
-        UPDATE users
-        SET quiz_gen_count = CASE WHEN quiz_gen_date = ? THEN quiz_gen_count + 1 ELSE 1 END,
-            quiz_gen_date = ?
-        WHERE id = ?
-      `).run(today, today, req.user.id);
     }
 
     res.json({ questions, mode });
