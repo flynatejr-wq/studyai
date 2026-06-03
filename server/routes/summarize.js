@@ -164,14 +164,14 @@ Scale naturally with input size — don't pad short content to meet these number
   // Fast-scan summary. Strict limits — the whole output should be readable in ~1 min.
   brief: `
 
-FORMAT — BRIEF: The user wants a quick summary they can read in under a minute. Obey these rules exactly:
+FORMAT — BRIEF: A fast-scan summary readable in under a minute. This is NOT the Detailed format — keep everything short and surface-level. Obey these rules exactly:
 - Maximum 2 sections regardless of input length. If content only covers one topic, use 1 section.
-- overview: 1 sentence only. No HTML.
-- content: 1 short paragraph maximum (2-3 sentences). No lists.
-- keyPoints: exactly 3 bullet points — the three most important takeaways, nothing else.
-- terms: maximum 2 terms. Definitions must be one sentence each.
-- quiz: OMIT — set to empty array [].
-Do not add more sections because the input is long. Do not elaborate. Brevity is the entire point.`,
+- overview: 1 sentence only. No HTML. State what the section is about, nothing more.
+- content: 1 short paragraph, 2 sentences maximum. No lists, no elaboration.
+- keyPoints: exactly 3 bullet points — the three most important takeaways. One short sentence each.
+- terms: maximum 2 terms. One-sentence definitions only — no examples, no context.
+- quiz: exactly 1 question. Short answer only — no multi-part questions.
+Do not add more sections because the input is long. Do not explain or elaborate. If you are tempted to write more, write less.`,
 
   // ── BULLETS ──────────────────────────────────────────────────────────────────
   // Pure bullet-point guide. Zero prose anywhere.
