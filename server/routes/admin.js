@@ -95,33 +95,30 @@ const COST_PER_GUIDE = 0.002; // Haiku guide generation
 const COST_PER_QUIZ  = 0.006; // Haiku quiz generation
 
 router.get("/cost-stats", (req, res) => {
-  // Platform totals
   const totals = db.prepare(`
     SELECT
-      SUM(guides_created_ever) as total_guides,
-      SUM(total_quizzes)       as total_quizzes,
-      COUNT(*)                 as total_users,
-      SUM(CASE WHEN plan = 'pro' OR plan = 'lifetime' THEN 1 ELSE 0 END) as paid_users
+      COUNT(*) as total_users,
+      SUM(CASE WHEN plan IN ('pro', 'lifetime') THEN 1 ELSE 0 END) as paid_users,
+      SUM(COALESCE(guides_created_ever, 0)) as total_guides,
+      SUM(COALESCE(total_quizzes, 0))       as total_quizzes,
+      SUM(COALESCE(guides_created_ever, 0) * ? + COALESCE(total_quizzes, 0) * ?) as total_cost,
+      SUM(CASE WHEN plan IN ('pro', 'lifetime')
+            THEN COALESCE(guides_created_ever, 0) * ? + COALESCE(total_quizzes, 0) * ?
+            ELSE 0 END) as paid_cost
     FROM users
-  `).get();
+  `).get(COST_PER_GUIDE, COST_PER_QUIZ, COST_PER_GUIDE, COST_PER_QUIZ);
 
+  const totalCost      = totals.total_cost  || 0;
   const totalGuideCost = (totals.total_guides || 0) * COST_PER_GUIDE;
   const totalQuizCost  = (totals.total_quizzes || 0) * COST_PER_QUIZ;
-  const totalCost      = totalGuideCost + totalQuizCost;
   const avgCostPerUser = totals.total_users > 0 ? totalCost / totals.total_users : 0;
-  const avgCostPerPaid = totals.paid_users > 0
-    ? db.prepare(`
-        SELECT SUM(guides_created_ever * ? + total_quizzes * ?) as cost
-        FROM users WHERE plan IN ('pro', 'lifetime')
-      `).get(COST_PER_GUIDE, COST_PER_QUIZ).cost / totals.paid_users
-    : 0;
+  const avgCostPerPaid = totals.paid_users  > 0 ? (totals.paid_cost || 0) / totals.paid_users : 0;
 
-  // Top 25 users by estimated cost
   const topUsers = db.prepare(`
     SELECT id, name, email, plan,
-           guides_created_ever,
-           total_quizzes,
-           (guides_created_ever * ? + total_quizzes * ?) as estimated_cost
+           COALESCE(guides_created_ever, 0) as guides_created_ever,
+           COALESCE(total_quizzes, 0)       as total_quizzes,
+           (COALESCE(guides_created_ever, 0) * ? + COALESCE(total_quizzes, 0) * ?) as estimated_cost
     FROM users
     ORDER BY estimated_cost DESC
     LIMIT 25
