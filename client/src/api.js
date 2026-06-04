@@ -145,6 +145,7 @@ export const api = {
     updateUser:  (id, body)     => request(`/admin/users/${id}`,        { method: "PATCH", headers: headers(), body: JSON.stringify(body) }),
     resetLimits: (id)           => request(`/admin/users/${id}/reset-limits`, { method: "POST", headers: headers() }),
     auditLogs:   (params = {})  => request(`/admin/audit-logs?${new URLSearchParams(params)}`, { headers: headers() }),
+    costStats:   ()             => request("/admin/cost-stats",  { headers: headers() }),
     abuse: {
       stats:           ()               => request("/admin/abuse/stats",             { headers: headers() }),
       deletedAccounts: (params = {})    => request(`/admin/abuse/deleted-accounts?${new URLSearchParams(params)}`, { headers: headers() }),
