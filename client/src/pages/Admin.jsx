@@ -359,12 +359,16 @@ function CostTab() {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
+  const [fetchKey, setFetchKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true); setError(""); setData(null);
     api.admin.costStats()
-      .then(d => { setData(d); setLoading(false); })
-      .catch(e => { setError(e.message); setLoading(false); });
-  }, []);
+      .then(d  => { if (!cancelled) { setData(d);          setLoading(false); } })
+      .catch(e => { if (!cancelled) { setError(e.message); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [fetchKey]);
 
   const fmt      = (n) => `$${(n || 0).toFixed(4)}`;
   const fmtShort = (n) => `$${(n || 0).toFixed(2)}`;
@@ -379,10 +383,16 @@ function CostTab() {
   );
   if (!data) return null;
 
-  const { summary, topUsers } = data;
+  const { summary = {}, topUsers = [] } = data;
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <button onClick={() => setFetchKey(k => k + 1)}
+          className="flex items-center gap-1.5 text-gray-400 hover:text-white text-xs transition-colors">
+          <RefreshCw size={13} /> Refresh
+        </button>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: "Total API Spend (all time)", value: fmtShort(summary.totalCost), sub: `Guides: ${fmtShort(summary.totalGuideCost)} · Quizzes: ${fmtShort(summary.totalQuizCost)}` },
