@@ -4,7 +4,7 @@ import {
   Shield, Users, BarChart2, Search, RefreshCw, X, ChevronLeft,
   ChevronRight, Crown, Ban, Star, Zap, Clock, BookOpen, CheckCircle,
   AlertTriangle, Activity, Filter, RotateCcw, Save, ChevronDown,
-  Fingerprint, Trash2, Flag, Lock, Unlock, EyeOff,
+  Fingerprint, Trash2, Flag, Lock, Unlock, EyeOff, DollarSign,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { api } from "../api.js";
@@ -354,6 +354,89 @@ function UserDrawer({ user, onClose, onSaved }) {
   );
 }
 
+// ── Cost Analytics Tab ────────────────────────────────────────────────────────
+function CostTab() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState("");
+
+  useEffect(() => {
+    api.admin.costStats()
+      .then(d => { setData(d); setLoading(false); })
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, []);
+
+  const fmt      = (n) => `$${(n || 0).toFixed(4)}`;
+  const fmtShort = (n) => `$${(n || 0).toFixed(2)}`;
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20 text-gray-500 text-sm">
+      <RefreshCw size={16} className="animate-spin mr-2" /> Loading cost data…
+    </div>
+  );
+  if (error) return (
+    <div className="text-red-400 text-sm py-10 text-center">{error}</div>
+  );
+  if (!data) return null;
+
+  const { summary, topUsers } = data;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: "Total API Spend (all time)", value: fmtShort(summary.totalCost), sub: `Guides: ${fmtShort(summary.totalGuideCost)} · Quizzes: ${fmtShort(summary.totalQuizCost)}` },
+          { label: "Avg Cost / User",            value: fmt(summary.avgCostPerUser),  sub: `Across ${summary.totalUsers} users` },
+          { label: "Avg Cost / Paid User",       value: fmt(summary.avgCostPerPaid),  sub: `Across ${summary.paidUsers} paid users` },
+        ].map(card => (
+          <div key={card.label} className="bg-white/5 rounded-2xl p-5 border border-white/10">
+            <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">{card.label}</p>
+            <p className="text-white text-2xl font-bold">{card.value}</p>
+            <p className="text-gray-500 text-xs mt-1">{card.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2">
+          <DollarSign size={15} className="text-indigo-400" />
+          <p className="text-white font-semibold text-sm">Top 25 Users by Estimated Cost</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-gray-500 text-xs uppercase tracking-wider border-b border-white/10">
+                <th className="text-left px-5 py-3">User</th>
+                <th className="text-left px-4 py-3">Plan</th>
+                <th className="text-right px-4 py-3">Guides</th>
+                <th className="text-right px-4 py-3">Quizzes</th>
+                <th className="text-right px-5 py-3">Est. Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topUsers.map((u, i) => (
+                <tr key={u.id} className={`border-b border-white/5 ${i % 2 === 0 ? "" : "bg-white/[0.02]"}`}>
+                  <td className="px-5 py-3">
+                    <p className="text-white font-medium">{u.name || "—"}</p>
+                    <p className="text-gray-500 text-xs">{u.email}</p>
+                  </td>
+                  <td className="px-4 py-3"><PlanBadge plan={u.plan} /></td>
+                  <td className="px-4 py-3 text-right text-gray-300">{u.guides_created_ever}</td>
+                  <td className="px-4 py-3 text-right text-gray-300">{u.total_quizzes}</td>
+                  <td className="px-5 py-3 text-right font-mono text-indigo-300 font-semibold">{fmt(u.estimated_cost)}</td>
+                </tr>
+              ))}
+              {topUsers.length === 0 && (
+                <tr><td colSpan={5} className="text-center text-gray-500 py-8">No data yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Admin page ───────────────────────────────────────────────────────────
 export default function Admin() {
   const { user, logout } = useAuth();
@@ -524,6 +607,7 @@ export default function Admin() {
             { id: "users",  label: "Users",     icon: Users    },
             { id: "audit",  label: "Audit Log", icon: Activity },
             { id: "abuse",  label: "Abuse",     icon: Shield, badge: abuseStats?.activeFlags || null },
+            { id: "cost",   label: "Cost",      icon: DollarSign },
           ].map(t => (
             <button
               key={t.id}
@@ -987,6 +1071,8 @@ export default function Admin() {
             )}
           </div>
         )}
+
+        {activeTab === "cost" && <CostTab />}
       </main>
 
       {/* ── User Edit Drawer ── */}
