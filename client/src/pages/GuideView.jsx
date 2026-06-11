@@ -250,28 +250,32 @@ function FlashcardMode({ terms }) {
 // ── MCQ Question Renderer ─────────────────────────────────────────────────────
 function MCQQuestion({ q, answered, onAnswer }) {
   if (!q?.question || !Array.isArray(q?.options)) return null;
+  // onAnswer being undefined means the quiz is submitted (locked) — show correct/wrong colors.
+  // onAnswer being defined means still in progress — show selection highlight only.
+  const isLocked   = !onAnswer;
   return (
     <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
       <p className="text-white font-medium mb-4">{q.question}</p>
       <div className="flex flex-col gap-2">
         {q.options.map((opt, oi) => {
-          const isSelected = answered === oi;
-          const isCorrect  = answered != null && oi === q.correctIndex;
-          const isWrong    = answered != null && isSelected && oi !== q.correctIndex;
+          const isSelected    = answered === oi;
+          const isCorrect     = isLocked && oi === q.correctIndex;
+          const isWrong       = isLocked && isSelected && oi !== q.correctIndex;
+          const isPreSelected = !isLocked && isSelected;
           return (
             <button key={oi}
-              onClick={() => answered == null && onAnswer && onAnswer(oi)}
+              onClick={() => !isLocked && onAnswer && onAnswer(oi)}
               className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all border
-                ${answered == null ? "bg-white/5 border-white/10 text-gray-300 hover:bg-indigo-600/20 hover:border-indigo-500 hover:text-white"
-                  : isCorrect ? "bg-green-500/20 border-green-500/50 text-green-400"
-                  : isWrong   ? "bg-red-500/20 border-red-500/50 text-red-400"
-                  : "bg-white/5 border-white/10 text-gray-500"}`}>
+                ${isCorrect     ? "bg-green-500/20 border-green-500/50 text-green-400"
+                : isWrong       ? "bg-red-500/20 border-red-500/50 text-red-400"
+                : isPreSelected ? "bg-indigo-600/30 border-indigo-500 text-white"
+                : "bg-white/5 border-white/10 text-gray-300 hover:bg-indigo-600/20 hover:border-indigo-500 hover:text-white"}`}>
               <span className="mr-2 font-bold">{["A","B","C","D"][oi]}.</span>{opt}
             </button>
           );
         })}
       </div>
-      {answered != null && q.explanation && (
+      {isLocked && answered != null && q.explanation && (
         <p className="text-gray-400 text-xs mt-3">{q.explanation}</p>
       )}
     </div>
@@ -524,7 +528,7 @@ function UnifiedQuizMode({ guideId, onXpEarned }) {
       )}
       {questions.map((q, i) => (
         <div key={i}>
-          {quizType === "mcq"        && <MCQQuestion      q={q} answered={submitted ? answers[i] ?? null : null} onAnswer={!submitted ? (v) => setAnswers(a => ({ ...a, [i]: v })) : undefined} />}
+          {quizType === "mcq"        && <MCQQuestion      q={q} answered={answers[i] ?? null} onAnswer={!submitted ? (v) => setAnswers(a => ({ ...a, [i]: v })) : undefined} />}
           {quizType === "true-false" && <TrueFalseQuestion q={q} answered={submitted ? answers[i] ?? null : null} onAnswer={!submitted ? (v) => setAnswers(a => ({ ...a, [i]: v })) : undefined} />}
           {quizType === "fill-blank" && <FillBlankQuestion q={q} answered={submitted ? answers[i] ?? null : null} onAnswer={!submitted ? (v) => setAnswers(a => ({ ...a, [i]: v })) : undefined} />}
         </div>
