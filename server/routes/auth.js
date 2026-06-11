@@ -172,7 +172,7 @@ router.post("/login", async (req, res) => {
 
     const token = signToken({ id: user.id });
     const { password_hash, ...safeUser } = user;
-    res.json({ token, user: { ...safeUser, streak: newStreak } });
+    res.json({ token, user: safeUser });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong." });
