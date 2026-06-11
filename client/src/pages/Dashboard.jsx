@@ -8,6 +8,16 @@ import {
 } from "lucide-react";
 
 const TYPE_LABEL = { text: "📝 Notes", youtube: "🎥 YouTube", image: "🖼️ Photo", audio: "🎙️ Audio", file: "📄 File" };
+
+const CARD_COLORS = {
+  indigo:  { text: "text-indigo-400",  border: "hover:border-indigo-500/20",  glow: "group-hover:text-indigo-300" },
+  violet:  { text: "text-violet-400",  border: "hover:border-violet-500/20",  glow: "group-hover:text-violet-300" },
+  emerald: { text: "text-emerald-400", border: "hover:border-emerald-500/20", glow: "group-hover:text-emerald-300" },
+  amber:   { text: "text-amber-400",   border: "hover:border-amber-500/20",   glow: "group-hover:text-amber-300"  },
+  rose:    { text: "text-rose-400",    border: "hover:border-rose-500/20",    glow: "group-hover:text-rose-300"   },
+  sky:     { text: "text-sky-400",     border: "hover:border-sky-500/20",     glow: "group-hover:text-sky-300"    },
+  pink:    { text: "text-pink-400",    border: "hover:border-pink-500/20",    glow: "group-hover:text-pink-300"   },
+};
 const guideTypeLabel = (type) => TYPE_LABEL[type] || "📝 Notes";
 
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -303,8 +313,8 @@ export default function Dashboard() {
               { icon: Layers, label: "Folders", to: "/guides", color: "sky" },
             ].map(q => (
               <Link key={q.label} to={q.to}
-                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white/3 border border-white/6 hover:bg-white/6 hover:border-${q.color}-500/20 transition-all group`}>
-                <q.icon size={16} className={`text-${q.color}-400 group-hover:scale-110 transition-transform`} />
+                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white/3 border border-white/6 hover:bg-white/6 ${CARD_COLORS[q.color]?.border} transition-all group`}>
+                <q.icon size={16} className={`${CARD_COLORS[q.color]?.text} group-hover:scale-110 transition-transform`} />
                 <span className="text-xs text-gray-400 font-medium group-hover:text-white transition-colors">{q.label}</span>
               </Link>
             ))}

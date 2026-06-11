@@ -249,6 +249,7 @@ function FlashcardMode({ terms }) {
 
 // ── MCQ Question Renderer ─────────────────────────────────────────────────────
 function MCQQuestion({ q, answered, onAnswer }) {
+  if (!q?.question || !Array.isArray(q?.options)) return null;
   return (
     <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
       <p className="text-white font-medium mb-4">{q.question}</p>
@@ -279,6 +280,7 @@ function MCQQuestion({ q, answered, onAnswer }) {
 
 // ── True/False Question Renderer ─────────────────────────────────────────────
 function TrueFalseQuestion({ q, answered, onAnswer }) {
+  if (!q?.statement) return null;
   return (
     <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
       <p className="text-white font-medium mb-4">{q.statement}</p>
@@ -305,6 +307,7 @@ function TrueFalseQuestion({ q, answered, onAnswer }) {
 
 // ── Fill in the Blank Question Renderer ──────────────────────────────────────
 function FillBlankQuestion({ q, answered, onAnswer }) {
+  if (!q?.sentence || q?.answer == null) return null;
   const [input, setInput] = useState("");
   useEffect(() => { if (answered == null) setInput(""); }, [answered]);
   const isCorrect = answered != null && answered.trim().toLowerCase() === q.answer.toLowerCase();
@@ -381,6 +384,11 @@ function UnifiedQuizMode({ guideId, onXpEarned }) {
     try {
       const { questions: qs } = await api.guides.generateQuiz(guideId, count, quizType);
       const allQs = Array.isArray(qs) ? qs : [];
+      if (allQs.length === 0) {
+        setError("No questions could be generated. Please try again.");
+        setPhase("setup");
+        return;
+      }
       setQuestions(allQs);
       if (isAdaptive) {
         setQueue(allQs.map((_, i) => i));
@@ -508,7 +516,7 @@ function UnifiedQuizMode({ guideId, onXpEarned }) {
       {submitted && (
         <div className="bg-white/5 rounded-2xl p-4 text-center border border-white/10">
           <p className="text-white font-bold text-xl">{score} / {questions.length}</p>
-          <p className="text-gray-400 text-sm">{Math.round(score / questions.length * 100)}% correct</p>
+          <p className="text-gray-400 text-sm">{questions.length ? Math.round(score / questions.length * 100) : 0}% correct</p>
           <button onClick={reset} className="mt-3 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white text-sm font-semibold transition-all">
             New Quiz
           </button>

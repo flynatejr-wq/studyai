@@ -17,6 +17,16 @@ import UpgradeModal from "../components/UpgradeModal.jsx";
 
 const INPUT_CLS = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all text-sm";
 
+const FEATURE_COLORS = {
+  indigo:  "text-indigo-400",
+  violet:  "text-violet-400",
+  pink:    "text-pink-400",
+  sky:     "text-sky-400",
+  amber:   "text-amber-400",
+  emerald: "text-emerald-400",
+  rose:    "text-rose-400",
+};
+
 // Defined outside Settings so React sees a stable component reference across renders.
 // If defined inside, every keystroke re-creates the component type → unmount/remount → focus lost.
 function Section({ children, delay = 0 }) {
@@ -56,7 +66,7 @@ export default function Settings() {
   const [upgradeReason,   setUpgradeReason]   = useState("FREE_LIMIT_EXPORT");
 
   const { theme, setLight, setDark, isDark } = useTheme();
-  const isPro = user?.plan === "pro";
+  const isPro = user?.plan === "pro" || user?.plan === "lifetime" || user?.is_whitelisted || user?.role === "admin";
 
   useEffect(() => {
     api.referrals.get().then(setReferralData).catch(() => {});
@@ -245,7 +255,7 @@ export default function Settings() {
                     ["Priority support", "sky"],
                   ].map(([f, c]) => (
                     <div key={f} className="flex items-center gap-1.5 text-xs text-gray-400">
-                      <Sparkles size={11} className={`text-${c}-400 shrink-0`} />
+                      <Sparkles size={11} className={`${FEATURE_COLORS[c] ?? "text-indigo-400"} shrink-0`} />
                       {f}
                     </div>
                   ))}
