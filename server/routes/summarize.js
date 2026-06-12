@@ -9,7 +9,7 @@ import OpenAI from "openai";
 import multer from "multer";
 import mammoth from "mammoth";
 import { parseOffice } from "officeparser";
-import { YoutubeTranscript } from "youtube-transcript";
+import ytdl from "@distube/ytdl-core";
 import { requireAuth } from "../middleware/auth.js";
 import pool from "../db.js";
 import {
@@ -19,6 +19,33 @@ import {
 
 // ESM-native import of CJS pdf-parse — module.exports becomes .default
 const { default: pdfParse } = await import("pdf-parse/lib/pdf-parse.js");
+
+// ── YouTube transcript via ytdl-core ─────────────────────────────────────────
+// youtube-transcript package is abandoned and breaks on YouTube's current API.
+// ytdl-core fetches the caption track URL from the player response, then we
+// fetch the raw XML and strip tags — no external transcript service needed.
+async function fetchYouTubeTranscript(videoId) {
+  const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`);
+  const tracks = info.player_response?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+  if (!tracks?.length) throw new Error("no transcript available for this video");
+
+  // Prefer manual English captions, fall back to auto-generated, then first available
+  const track =
+    tracks.find(t => t.languageCode === "en" && !t.kind) ||
+    tracks.find(t => t.languageCode === "en") ||
+    tracks[0];
+
+  const xml = await fetch(track.baseUrl).then(r => r.text());
+  const text = xml
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!text) throw new Error("no transcript available for this video");
+  return text;
+}
 
 // ── Anthropic client factory ──────────────────────────────────────────────────
 // maxRetries: 3 — the SDK retries automatically on 429, 500, 529 (overloaded),
@@ -397,15 +424,10 @@ router.post("/youtube", requireAuth, async (req, res) => {
   const videoId = match[1];
 
   try {
-    // Retry the transcript fetch — YouTube's API has occasional network hiccups
-    const segments = await withRetry(
-      () => YoutubeTranscript.fetchTranscript(videoId),
+    const text = await withRetry(
+      () => fetchYouTubeTranscript(videoId),
       { label: "youtube" }
     );
-    if (!segments?.length) {
-      return res.status(400).json({ error: "No captions found for this video. Enable captions on the video, or download the audio and upload it using the Audio tab." });
-    }
-    const text = segments.map(s => s.text).join(" ").replace(/\s+/g, " ").trim();
     if (text.length < 50) {
       return res.status(400).json({ error: "The transcript is too short to generate a study guide." });
     }
@@ -416,8 +438,8 @@ router.post("/youtube", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("[youtube] error:", err?.message);
     const msg = (err?.message || "").toLowerCase();
-    if (msg.includes("disabled") || msg.includes("no transcript") || msg.includes("could not retrieve")) {
-      return res.status(400).json({ error: "This video has captions disabled. To generate a study guide: open the video on YouTube, download the audio (or use a tool like y2mate), then upload it using the 🎙️ Audio tab." });
+    if (msg.includes("no transcript") || msg.includes("no captions") || msg.includes("could not retrieve") || msg.includes("private") || msg.includes("unavailable")) {
+      return res.status(400).json({ error: "No captions found for this video. Try a TED Talk or Khan Academy video, or download the audio and upload it using the 🎙️ Audio tab." });
     }
     return res.status(500).json({ error: "Could not fetch the transcript. Make sure the video is public and try again." });
   }
