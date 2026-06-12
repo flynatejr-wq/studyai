@@ -420,8 +420,8 @@ router.post("/:id/generate-quiz", async (req, res) => {
     const message = await client.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: Math.min(8000, Math.max(
-        mode === "adaptive-mixed" ? 6000 : 3000,
-        count * (mode === "mcq" ? 200 : mode === "adaptive-mixed" ? 250 : 150)
+        mode === "adaptive-mixed" ? 7000 : mode === "mcq" ? 4500 : 3500,
+        count * (mode === "mcq" ? 250 : mode === "adaptive-mixed" ? 300 : 200)
       )),
       messages: [{ role: "user", content: prompt }],
     });
