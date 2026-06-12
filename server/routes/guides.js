@@ -7,6 +7,14 @@ import { requireAuth } from "../middleware/auth.js";
 const router = express.Router();
 router.use(requireAuth);
 
+function makeAnthropicClient() {
+  return new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    maxRetries: 3,
+    timeout: 120_000,
+  });
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function safeParse(str, fallback = []) {
@@ -408,7 +416,7 @@ router.post("/:id/generate-quiz", async (req, res) => {
   }
 
   try {
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const client = makeAnthropicClient();
     const message = await client.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: Math.min(8000, Math.max(
