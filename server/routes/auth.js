@@ -2,7 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
 import { v4 as uuid } from "uuid";
-import db from "../db.js";
+import pool from "../db.js";
 import { signToken, requireAuth } from "../middleware/auth.js";
 import { sendPasswordReset, sendVerificationEmail, sendWelcomeEmail, isEmailConfigured, sendStreakReminder, sendStudyPlanReminder } from "../utils/email.js";
 import {
@@ -38,7 +38,7 @@ router.post("/signup", async (req, res) => {
     return res.status(400).json({ error: "Password must be 72 characters or fewer." });
 
   try {
-    const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email.toLowerCase().trim());
+    const existing = (await pool.query("SELECT id FROM users WHERE email = $1", [email.toLowerCase().trim()])).rows[0] ?? null;
     if (existing) return res.status(400).json({ error: "An account with that email already exists." });
 
     const password_hash = await bcrypt.hash(password, 10);
@@ -49,18 +49,25 @@ router.post("/signup", async (req, res) => {
     const { ref } = req.body;
     let referredBy = null;
     if (ref) {
-      const referrer = db.prepare("SELECT id FROM users WHERE referral_code = ?").get(ref.toUpperCase().trim());
+      const referrer = (await pool.query("SELECT id FROM users WHERE referral_code = $1", [ref.toUpperCase().trim()])).rows[0] ?? null;
       if (referrer && referrer.id !== id) referredBy = referrer.id;
     }
 
-    db.prepare(
-      "INSERT INTO users (id, name, email, password_hash, referral_code, referred_by) VALUES (?, ?, ?, ?, ?, ?)"
-    ).run(id, name.trim(), email.toLowerCase().trim(), password_hash, referralCode, referredBy);
+    await pool.query(
+      "INSERT INTO users (id, name, email, password_hash, referral_code, referred_by) VALUES ($1, $2, $3, $4, $5, $6)",
+      [id, name.trim(), email.toLowerCase().trim(), password_hash, referralCode, referredBy]
+    );
 
     // Record the referral and award 1 free guide credit to the referrer
     if (referredBy) {
-      db.prepare("INSERT OR IGNORE INTO referrals (id, referrer_id, referred_id) VALUES (?, ?, ?)").run(uuid(), referredBy, id);
-      db.prepare("UPDATE users SET referral_credits = COALESCE(referral_credits, 0) + 1 WHERE id = ?").run(referredBy);
+      await pool.query(
+        "INSERT INTO referrals (id, referrer_id, referred_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+        [uuid(), referredBy, id]
+      );
+      await pool.query(
+        "UPDATE users SET referral_credits = COALESCE(referral_credits, 0) + 1 WHERE id = $1",
+        [referredBy]
+      );
     }
 
     // ── Abuse tracking: record signup signals ────────────────────────────────
@@ -69,7 +76,7 @@ router.post("/signup", async (req, res) => {
     const fp       = isValidFp(rawFp) ? rawFp : null;
     const normEmail = email.toLowerCase().trim();
     try {
-      recordSignup({
+      await recordSignup({
         userId:       id,
         emailHash:    hashValue(normEmail),
         emailDomain:  getEmailDomain(normEmail),
@@ -82,14 +89,17 @@ router.post("/signup", async (req, res) => {
       console.error("[abuse] recordSignup failed:", abuseErr.message);
     }
 
-    const user = db.prepare("SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, created_at FROM users WHERE id = ?").get(id);
+    const user = (await pool.query(
+      "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, created_at FROM users WHERE id = $1",
+      [id]
+    )).rows[0] ?? null;
     const token = signToken({ id });
 
     // Send verification + welcome emails (best-effort — never fail signup)
     if (isEmailConfigured()) {
       const verifyToken = uuid();
       const verifyTokenHash = hashVerifyToken(verifyToken);
-      db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyTokenHash, id);
+      await pool.query("UPDATE users SET email_verify_token = $1 WHERE id = $2", [verifyTokenHash, id]);
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
       const verifyLink = `${frontendUrl}/verify-email?token=${verifyToken}`;
       sendVerificationEmail(email.toLowerCase().trim(), verifyLink).catch(err =>
@@ -103,7 +113,6 @@ router.post("/signup", async (req, res) => {
     }
 
     // New accounts must verify email before accessing the app.
-    // Old accounts are back-filled to email_verified=1 at startup so they skip this.
     if (isEmailConfigured()) {
       res.json({ requiresVerification: true, email: email.toLowerCase().trim() });
     } else {
@@ -122,9 +131,10 @@ router.post("/login", async (req, res) => {
     return res.status(400).json({ error: "Email and password are required." });
 
   try {
-    const user = db.prepare(
-      "SELECT id, name, email, password_hash, streak, last_study_date, total_guides, total_quizzes, guides_created_ever, xp, level, plan, role, is_whitelisted, is_banned, total_study_time, email_verified FROM users WHERE email = ?"
-    ).get(email.toLowerCase().trim());
+    const user = (await pool.query(
+      "SELECT id, name, email, password_hash, streak, last_study_date, total_guides, total_quizzes, guides_created_ever, xp, level, plan, role, is_whitelisted, is_banned, total_study_time, email_verified FROM users WHERE email = $1",
+      [email.toLowerCase().trim()]
+    )).rows[0] ?? null;
     // Use a generic message for both cases to prevent email enumeration (LOW-1)
     if (!user) return res.status(400).json({ error: "Invalid email or password." });
 
@@ -132,7 +142,6 @@ router.post("/login", async (req, res) => {
     if (!valid) return res.status(400).json({ error: "Invalid email or password." });
 
     // Block login until email is verified (only when email service is configured).
-    // Old accounts are back-filled to email_verified=1 at startup so they pass through.
     if (isEmailConfigured() && !user.email_verified) {
       return res.status(403).json({
         error: "Please verify your email before logging in. Check your inbox for a verification link.",
@@ -146,9 +155,9 @@ router.post("/login", async (req, res) => {
     if (isEmailConfigured()) {
       // Streak reminder: warn users with a meaningful streak who haven't studied today
       if (user.streak >= 2 && user.last_study_date !== today) {
-        const freshUser = db.prepare("SELECT streak_reminder_sent_date FROM users WHERE id = ?").get(user.id);
-        if (freshUser?.streak_reminder_sent_date !== today) {
-          db.prepare("UPDATE users SET streak_reminder_sent_date = ? WHERE id = ?").run(today, user.id);
+        const freshUserRow = (await pool.query("SELECT streak_reminder_sent_date FROM users WHERE id = $1", [user.id])).rows[0] ?? null;
+        if (freshUserRow?.streak_reminder_sent_date !== today) {
+          await pool.query("UPDATE users SET streak_reminder_sent_date = $1 WHERE id = $2", [today, user.id]);
           sendStreakReminder(user.email, user.streak).catch(err =>
             console.error("[reminder] streak reminder failed:", err.message)
           );
@@ -157,9 +166,10 @@ router.post("/login", async (req, res) => {
 
       // Study plan reminder: warn about exams within the next 3 days
       const threeDaysOut = new Date(Date.now() + 3 * 86400000).toISOString().split("T")[0];
-      const upcomingPlans = db.prepare(
-        "SELECT * FROM study_plans WHERE user_id = ? AND exam_date >= ? AND exam_date <= ?"
-      ).all(user.id, today, threeDaysOut);
+      const upcomingPlans = (await pool.query(
+        "SELECT * FROM study_plans WHERE user_id = $1 AND exam_date >= $2 AND exam_date <= $3",
+        [user.id, today, threeDaysOut]
+      )).rows;
       for (const plan of upcomingPlans) {
         const examMs = new Date(plan.exam_date).getTime();
         const todayMs = new Date(today).getTime();
@@ -180,10 +190,11 @@ router.post("/login", async (req, res) => {
 });
 
 // ── Get current user ──────────────────────────────────────────────────────────
-router.get("/me", requireAuth, (req, res) => {
-  const user = db.prepare(
-    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, referral_code, referral_credits, last_study_date, created_at FROM users WHERE id = ?"
-  ).get(req.user.id);
+router.get("/me", requireAuth, async (req, res) => {
+  const user = (await pool.query(
+    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, referral_code, referral_credits, last_study_date, created_at FROM users WHERE id = $1",
+    [req.user.id]
+  )).rows[0] ?? null;
   if (!user) return res.status(404).json({ error: "User not found." });
   res.json(user);
 });
@@ -195,7 +206,7 @@ router.put("/profile", requireAuth, async (req, res) => {
   if (name.trim().length > 80) return res.status(400).json({ error: "Name is too long." });
 
   try {
-    const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.user.id);
+    const user = (await pool.query("SELECT * FROM users WHERE id = $1", [req.user.id])).rows[0] ?? null;
     if (!user) return res.status(404).json({ error: "User not found." });
 
     if (newPassword) {
@@ -205,14 +216,15 @@ router.put("/profile", requireAuth, async (req, res) => {
       const valid = await bcrypt.compare(currentPassword, user.password_hash);
       if (!valid) return res.status(400).json({ error: "Current password is incorrect." });
       const hash = await bcrypt.hash(newPassword, 10);
-      db.prepare("UPDATE users SET name = ?, password_hash = ? WHERE id = ?").run(name.trim(), hash, req.user.id);
+      await pool.query("UPDATE users SET name = $1, password_hash = $2 WHERE id = $3", [name.trim(), hash, req.user.id]);
     } else {
-      db.prepare("UPDATE users SET name = ? WHERE id = ?").run(name.trim(), req.user.id);
+      await pool.query("UPDATE users SET name = $1 WHERE id = $2", [name.trim(), req.user.id]);
     }
 
-    const updated = db.prepare(
-      "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, last_study_date, created_at FROM users WHERE id = ?"
-    ).get(req.user.id);
+    const updated = (await pool.query(
+      "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, last_study_date, created_at FROM users WHERE id = $1",
+      [req.user.id]
+    )).rows[0] ?? null;
     res.json(updated);
   } catch (err) {
     console.error(err);
@@ -227,7 +239,7 @@ router.put("/email", requireAuth, async (req, res) => {
   if (!EMAIL_RE.test(newEmail)) return res.status(400).json({ error: "Please enter a valid email address." });
 
   try {
-    const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.user.id);
+    const user = (await pool.query("SELECT * FROM users WHERE id = $1", [req.user.id])).rows[0] ?? null;
     if (!user) return res.status(404).json({ error: "User not found." });
 
     const valid = await bcrypt.compare(password, user.password_hash);
@@ -236,25 +248,27 @@ router.put("/email", requireAuth, async (req, res) => {
     const normalised = newEmail.toLowerCase().trim();
     if (normalised === user.email) return res.status(400).json({ error: "That's already your current email." });
 
-    const taken = db.prepare("SELECT id FROM users WHERE email = ?").get(normalised);
+    const taken = (await pool.query("SELECT id FROM users WHERE email = $1", [normalised])).rows[0] ?? null;
     if (taken) return res.status(400).json({ error: "An account with that email already exists." });
 
-    // BUG-3: Atomic update — set new email, clear verification, and store hashed token in one statement.
-    // Generate the verify token first so we can hash it before the DB write.
     let verifyLink = null;
     if (isEmailConfigured()) {
       const verifyToken = uuid();
       const verifyTokenHash = hashVerifyToken(verifyToken);
-      db.prepare("UPDATE users SET email = ?, email_verified = 0, email_verify_token = ? WHERE id = ?")
-        .run(normalised, verifyTokenHash, req.user.id);
+      await pool.query(
+        "UPDATE users SET email = $1, email_verified = 0, email_verify_token = $2 WHERE id = $3",
+        [normalised, verifyTokenHash, req.user.id]
+      );
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
       verifyLink = `${frontendUrl}/verify-email?token=${verifyToken}`;
       sendVerificationEmail(normalised, verifyLink).catch(err =>
         console.error("[email-change] verification email failed:", err.message)
       );
     } else {
-      db.prepare("UPDATE users SET email = ?, email_verified = 0, email_verify_token = NULL WHERE id = ?")
-        .run(normalised, req.user.id);
+      await pool.query(
+        "UPDATE users SET email = $1, email_verified = 0, email_verify_token = NULL WHERE id = $2",
+        [normalised, req.user.id]
+      );
     }
 
     res.json({ success: true, email: normalised });
@@ -270,16 +284,17 @@ router.post("/forgot-password", async (req, res) => {
   if (!email) return res.status(400).json({ error: "Email is required." });
 
   // Always return 200 to prevent email enumeration
-  const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email.toLowerCase().trim());
+  const user = (await pool.query("SELECT * FROM users WHERE email = $1", [email.toLowerCase().trim()])).rows[0] ?? null;
   if (!user) return res.json({ success: true });
 
   try {
     const token = uuid();
-    // H-7: Store only the SHA-256 hash so a DB read can't be used to reset any account
     const tokenHash = hashResetToken(token);
     const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
-    db.prepare("UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?")
-      .run(tokenHash, expires, user.id);
+    await pool.query(
+      "UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE id = $3",
+      [tokenHash, expires, user.id]
+    );
 
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
     const resetLink = `${frontendUrl}/reset-password?token=${token}`;
@@ -287,11 +302,9 @@ router.post("/forgot-password", async (req, res) => {
     if (isEmailConfigured()) {
       await sendPasswordReset(user.email, resetLink);
     } else {
-      // Dev fallback: log the link so it's usable without SMTP configured
       console.log(`[DEV] Password reset link for ${user.email}: ${resetLink}`);
     }
 
-    // M-6: Don't leak server config (emailConfigured) to the client
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -307,17 +320,18 @@ router.post("/reset-password", async (req, res) => {
   if (password.length > 72) return res.status(400).json({ error: "Password must be 72 characters or fewer." });
 
   try {
-    // H-7: Compare against stored hash, not the raw token
     const tokenHash = hashResetToken(token);
-    const user = db.prepare("SELECT * FROM users WHERE reset_token = ?").get(tokenHash);
+    const user = (await pool.query("SELECT * FROM users WHERE reset_token = $1", [tokenHash])).rows[0] ?? null;
     if (!user) return res.status(400).json({ error: "Invalid or expired reset link. Please request a new one." });
 
     const expired = new Date(user.reset_token_expires) < new Date();
     if (expired) return res.status(400).json({ error: "This reset link has expired. Please request a new one." });
 
     const hash = await bcrypt.hash(password, 10);
-    db.prepare("UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?")
-      .run(hash, user.id);
+    await pool.query(
+      "UPDATE users SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL WHERE id = $2",
+      [hash, user.id]
+    );
 
     res.json({ success: true });
   } catch (err) {
@@ -327,42 +341,41 @@ router.post("/reset-password", async (req, res) => {
 });
 
 // ── Verify email ─────────────────────────────────────────────────────────────
-router.get("/verify-email", (req, res) => {
+router.get("/verify-email", async (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).json({ error: "Verification token is required." });
 
-  // HIGH-2: Compare against stored hash, never plaintext
   const tokenHash = hashVerifyToken(token);
-  const found = db.prepare("SELECT id, email_verified FROM users WHERE email_verify_token = ?").get(tokenHash);
+  const found = (await pool.query("SELECT id, email_verified FROM users WHERE email_verify_token = $1", [tokenHash])).rows[0] ?? null;
   if (!found) return res.status(400).json({ error: "Invalid or already-used verification link." });
 
   if (found.email_verified) {
-    // Already verified — still return a token so they get logged in automatically
-    const user = db.prepare(
-      "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, referral_code, created_at FROM users WHERE id = ?"
-    ).get(found.id);
+    const user = (await pool.query(
+      "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, referral_code, created_at FROM users WHERE id = $1",
+      [found.id]
+    )).rows[0] ?? null;
     return res.json({ success: true, already: true, token: signToken({ id: found.id }), user });
   }
 
-  db.prepare("UPDATE users SET email_verified = 1, email_verify_token = NULL WHERE id = ?").run(found.id);
-  const user = db.prepare(
-    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, referral_code, created_at FROM users WHERE id = ?"
-  ).get(found.id);
+  await pool.query("UPDATE users SET email_verified = 1, email_verify_token = NULL WHERE id = $1", [found.id]);
+  const user = (await pool.query(
+    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, referral_code, created_at FROM users WHERE id = $1",
+    [found.id]
+  )).rows[0] ?? null;
   const authToken = signToken({ id: found.id });
   res.json({ success: true, token: authToken, user });
 });
 
 // ── Resend verification (public — for "check your email" screen, no auth) ────
-// Always returns success to avoid leaking whether an email exists.
 router.post("/resend-verification-public", async (req, res) => {
   const { email } = req.body;
   if (!email || !isEmailConfigured()) return res.json({ success: true });
   try {
-    const user = db.prepare("SELECT id, email, email_verified FROM users WHERE email = ?").get(email.toLowerCase().trim());
+    const user = (await pool.query("SELECT id, email, email_verified FROM users WHERE email = $1", [email.toLowerCase().trim()])).rows[0] ?? null;
     if (!user || user.email_verified) return res.json({ success: true });
     const verifyToken = uuid();
     const verifyTokenHash = hashVerifyToken(verifyToken);
-    db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyTokenHash, user.id);
+    await pool.query("UPDATE users SET email_verify_token = $1 WHERE id = $2", [verifyTokenHash, user.id]);
     const verifyLink = `${process.env.FRONTEND_URL || "http://localhost:5173"}/verify-email?token=${verifyToken}`;
     await sendVerificationEmail(user.email, verifyLink);
   } catch (err) {
@@ -373,7 +386,7 @@ router.post("/resend-verification-public", async (req, res) => {
 
 // ── Resend verification email ─────────────────────────────────────────────────
 router.post("/resend-verification", requireAuth, async (req, res) => {
-  const user = db.prepare("SELECT id, email, email_verified FROM users WHERE id = ?").get(req.user.id);
+  const user = (await pool.query("SELECT id, email, email_verified FROM users WHERE id = $1", [req.user.id])).rows[0] ?? null;
   if (!user) return res.status(404).json({ error: "User not found." });
   if (user.email_verified) return res.status(400).json({ error: "Your email is already verified." });
   if (!isEmailConfigured()) return res.status(503).json({ error: "Email service is not configured." });
@@ -381,7 +394,7 @@ router.post("/resend-verification", requireAuth, async (req, res) => {
   try {
     const verifyToken = uuid();
     const verifyTokenHash = hashVerifyToken(verifyToken);
-    db.prepare("UPDATE users SET email_verify_token = ? WHERE id = ?").run(verifyTokenHash, user.id);
+    await pool.query("UPDATE users SET email_verify_token = $1 WHERE id = $2", [verifyTokenHash, user.id]);
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
     const verifyLink = `${frontendUrl}/verify-email?token=${verifyToken}`;
     await sendVerificationEmail(user.email, verifyLink);
@@ -398,7 +411,7 @@ router.delete("/account", requireAuth, async (req, res) => {
   if (!password) return res.status(400).json({ error: "Password is required to delete your account." });
 
   try {
-    const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.user.id);
+    const user = (await pool.query("SELECT * FROM users WHERE id = $1", [req.user.id])).rows[0] ?? null;
     if (!user) return res.status(404).json({ error: "User not found." });
 
     const valid = await bcrypt.compare(password, user.password_hash);
@@ -409,7 +422,7 @@ router.delete("/account", requireAuth, async (req, res) => {
     const rawFp = req.headers["x-client-fp"];
     const fp    = isValidFp(rawFp) ? rawFp : null;
     try {
-      archiveDeletedAccount(user, {
+      await archiveDeletedAccount(user, {
         ipHash: hashValue(rawIp),
         fpHash: fp ? hashValue(fp) : null,
       });
@@ -419,15 +432,23 @@ router.delete("/account", requireAuth, async (req, res) => {
     }
 
     // Wrap all deletions in a transaction so it's atomic
-    db.transaction(() => {
-      db.prepare("DELETE FROM study_sessions WHERE user_id = ?").run(req.user.id);
-      db.prepare("DELETE FROM achievements WHERE user_id = ?").run(req.user.id);
-      db.prepare("DELETE FROM quiz_attempts WHERE user_id = ?").run(req.user.id);
-      db.prepare("DELETE FROM chat_messages WHERE user_id = ?").run(req.user.id);
-      db.prepare("DELETE FROM guides WHERE user_id = ?").run(req.user.id);
-      db.prepare("DELETE FROM folders WHERE user_id = ?").run(req.user.id);
-      db.prepare("DELETE FROM users WHERE id = ?").run(req.user.id);
-    })();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("DELETE FROM study_sessions WHERE user_id = $1", [req.user.id]);
+      await client.query("DELETE FROM achievements WHERE user_id = $1", [req.user.id]);
+      await client.query("DELETE FROM quiz_attempts WHERE user_id = $1", [req.user.id]);
+      await client.query("DELETE FROM chat_messages WHERE user_id = $1", [req.user.id]);
+      await client.query("DELETE FROM guides WHERE user_id = $1", [req.user.id]);
+      await client.query("DELETE FROM folders WHERE user_id = $1", [req.user.id]);
+      await client.query("DELETE FROM users WHERE id = $1", [req.user.id]);
+      await client.query("COMMIT");
+    } catch (txErr) {
+      await client.query("ROLLBACK");
+      throw txErr;
+    } finally {
+      client.release();
+    }
 
     res.json({ success: true });
   } catch (err) {
@@ -487,31 +508,29 @@ router.get("/google/callback", async (req, res) => {
     const profile = await profileRes.json();
     const { id: googleId, email, name: rawName } = profile;
     if (!email) throw new Error("Google did not return an email address");
-    // LOW-5: Cap name to DB/validation limit
     const name = (rawName || "User").slice(0, 80);
 
     const normEmail = email.toLowerCase().trim();
 
     // Find or create user
-    let user = db.prepare("SELECT * FROM users WHERE google_id = ?").get(googleId);
+    let user = (await pool.query("SELECT * FROM users WHERE google_id = $1", [googleId])).rows[0] ?? null;
 
     if (!user) {
-      user = db.prepare("SELECT * FROM users WHERE email = ?").get(normEmail);
+      user = (await pool.query("SELECT * FROM users WHERE email = $1", [normEmail])).rows[0] ?? null;
       if (user) {
         // Link Google to an existing password account
-        db.prepare("UPDATE users SET google_id = ?, email_verified = 1 WHERE id = ?").run(googleId, user.id);
-        user = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id);
+        await pool.query("UPDATE users SET google_id = $1, email_verified = 1 WHERE id = $2", [googleId, user.id]);
+        user = (await pool.query("SELECT * FROM users WHERE id = $1", [user.id])).rows[0] ?? null;
       } else {
         // Brand-new Google account — create it
         const newId = uuid();
         const referralCode = randomBytes(4).toString("hex").toUpperCase();
-        // Google accounts have no password; store an unusable random hash
         const fakeHash = await bcrypt.hash(randomBytes(32).toString("hex"), 10);
-        db.prepare(
-          "INSERT INTO users (id, name, email, password_hash, google_id, email_verified, referral_code) VALUES (?, ?, ?, ?, ?, 1, ?)"
-        ).run(newId, name, normEmail, fakeHash, googleId, referralCode);
-        user = db.prepare("SELECT * FROM users WHERE id = ?").get(newId);
-        // Send welcome email (best-effort)
+        await pool.query(
+          "INSERT INTO users (id, name, email, password_hash, google_id, email_verified, referral_code) VALUES ($1, $2, $3, $4, $5, 1, $6)",
+          [newId, name, normEmail, fakeHash, googleId, referralCode]
+        );
+        user = (await pool.query("SELECT * FROM users WHERE id = $1", [newId])).rows[0] ?? null;
         if (isEmailConfigured()) {
           sendWelcomeEmail(normEmail, name).catch(err =>
             console.error("[google/signup] welcome email failed:", err.message)

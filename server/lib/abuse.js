@@ -21,7 +21,7 @@
  */
 
 import { createHash } from "crypto";
-import db from "../db.js";
+import pool from "../db.js";
 
 // ─── Known disposable / temp-mail domains ─────────────────────────────────────
 const DISPOSABLE_DOMAINS = new Set([
@@ -89,13 +89,15 @@ export function isValidFp(fp) {
  * Returns null if OK, or { blocked: true, reason: string } if blocked.
  * Whitelisted users (is_whitelisted=1) bypass this check at the route level.
  */
-export function checkAbuseStatus({ emailHash, ipHash, fpHash }) {
+export async function checkAbuseStatus({ emailHash, ipHash, fpHash }) {
   // ── 1. Email previously associated with a deleted account that used a free guide
   if (emailHash) {
-    const prev = db.prepare(
+    const { rows } = await pool.query(
       `SELECT guides_generated FROM deleted_accounts
-       WHERE email_hash = ? ORDER BY deleted_at DESC LIMIT 1`
-    ).get(emailHash);
+       WHERE email_hash = $1 ORDER BY deleted_at DESC LIMIT 1`,
+      [emailHash]
+    );
+    const prev = rows[0] ?? null;
     if (prev && prev.guides_generated > 0) {
       return { blocked: true, reason: "email_reuse_after_deletion" };
     }
@@ -103,18 +105,22 @@ export function checkAbuseStatus({ emailHash, ipHash, fpHash }) {
 
   // ── 2. Browser fingerprint seen in a deleted account that used a free guide
   if (fpHash) {
-    const prevFp = db.prepare(
+    const { rows: fpRows } = await pool.query(
       `SELECT guides_generated FROM deleted_accounts
-       WHERE fp_hash = ? ORDER BY deleted_at DESC LIMIT 1`
-    ).get(fpHash);
+       WHERE fp_hash = $1 ORDER BY deleted_at DESC LIMIT 1`,
+      [fpHash]
+    );
+    const prevFp = fpRows[0] ?? null;
     if (prevFp && prevFp.guides_generated > 0) {
       return { blocked: true, reason: "fingerprint_reuse_after_deletion" };
     }
 
     // Explicitly blocked fingerprint (admin action)
-    const fpSig = db.prepare(
-      `SELECT is_blocked FROM abuse_signals WHERE signal_type = 'fp' AND signal_hash = ?`
-    ).get(fpHash);
+    const { rows: fpSigRows } = await pool.query(
+      `SELECT is_blocked FROM abuse_signals WHERE signal_type = 'fp' AND signal_hash = $1`,
+      [fpHash]
+    );
+    const fpSig = fpSigRows[0] ?? null;
     if (fpSig?.is_blocked) {
       return { blocked: true, reason: "fingerprint_blocked" };
     }
@@ -122,9 +128,11 @@ export function checkAbuseStatus({ emailHash, ipHash, fpHash }) {
 
   // ── 3. Explicitly blocked IP (admin action — not auto-blocked on IP alone)
   if (ipHash) {
-    const ipSig = db.prepare(
-      `SELECT is_blocked FROM abuse_signals WHERE signal_type = 'ip' AND signal_hash = ?`
-    ).get(ipHash);
+    const { rows: ipSigRows } = await pool.query(
+      `SELECT is_blocked FROM abuse_signals WHERE signal_type = 'ip' AND signal_hash = $1`,
+      [ipHash]
+    );
+    const ipSig = ipSigRows[0] ?? null;
     if (ipSig?.is_blocked) {
       return { blocked: true, reason: "ip_blocked" };
     }
@@ -135,53 +143,53 @@ export function checkAbuseStatus({ emailHash, ipHash, fpHash }) {
 
 // ─── Signal recording ──────────────────────────────────────────────────────────
 
-const UPSERT_SIGNAL = db.prepare(`
-  INSERT INTO abuse_signals (id, signal_type, signal_hash, accounts_created, guides_generated, first_seen_at, last_seen_at)
-  VALUES (lower(hex(randomblob(16))), ?, ?, ?, 0, ?, ?)
-  ON CONFLICT(signal_type, signal_hash) DO UPDATE SET
-    accounts_created = accounts_created + excluded.accounts_created,
-    last_seen_at     = excluded.last_seen_at
-`);
-
-const BUMP_GENERATION = db.prepare(`
-  UPDATE abuse_signals
-  SET guides_generated = guides_generated + 1, last_seen_at = ?
-  WHERE signal_type = ? AND signal_hash = ?
-`);
-
 /**
  * Called after a successful signup.
  * Upserts signal rows and raises automatic flags for suspicious patterns.
  */
-export function recordSignup({ userId, emailHash, emailDomain, ipHash, fpHash, isDisposable }) {
+export async function recordSignup({ userId, emailHash, emailDomain, ipHash, fpHash, isDisposable }) {
   const now = new Date().toISOString();
 
-  if (ipHash)    UPSERT_SIGNAL.run("ip",    ipHash,    1, now, now);
-  if (fpHash)    UPSERT_SIGNAL.run("fp",    fpHash,    1, now, now);
-  if (emailHash) UPSERT_SIGNAL.run("email", emailHash, 1, now, now);
+  const upsertSignal = async (type, hash) => {
+    await pool.query(`
+      INSERT INTO abuse_signals (id, signal_type, signal_hash, accounts_created, guides_generated, first_seen_at, last_seen_at)
+      VALUES (lower(encode(gen_random_bytes(16), 'hex')), $1, $2, 1, 0, $3, $3)
+      ON CONFLICT(signal_type, signal_hash) DO UPDATE SET
+        accounts_created = abuse_signals.accounts_created + 1,
+        last_seen_at     = EXCLUDED.last_seen_at
+    `, [type, hash, now]);
+  };
+
+  if (ipHash)    await upsertSignal("ip",    ipHash);
+  if (fpHash)    await upsertSignal("fp",    fpHash);
+  if (emailHash) await upsertSignal("email", emailHash);
 
   // Auto-flag: disposable email address
   if (isDisposable && emailHash) {
-    raiseFlag("email_hash", emailHash, "disposable_email", "medium", userId);
+    await raiseFlag("email_hash", emailHash, "disposable_email", "medium", userId);
   }
 
-  // Auto-flag: IP has created 5+ accounts (cumulative — catches slow rollers)
+  // Auto-flag: IP has created 5+ accounts
   if (ipHash) {
-    const ipSig = db.prepare(
-      `SELECT accounts_created FROM abuse_signals WHERE signal_type = 'ip' AND signal_hash = ?`
-    ).get(ipHash);
+    const { rows } = await pool.query(
+      `SELECT accounts_created FROM abuse_signals WHERE signal_type = 'ip' AND signal_hash = $1`,
+      [ipHash]
+    );
+    const ipSig = rows[0] ?? null;
     if (ipSig && ipSig.accounts_created >= 5) {
-      raiseFlag("ip_hash", ipHash, "rapid_account_creation", "high", userId);
+      await raiseFlag("ip_hash", ipHash, "rapid_account_creation", "high", userId);
     }
   }
 
   // Auto-flag: fingerprint has created 3+ accounts
   if (fpHash) {
-    const fpSig = db.prepare(
-      `SELECT accounts_created FROM abuse_signals WHERE signal_type = 'fp' AND signal_hash = ?`
-    ).get(fpHash);
+    const { rows } = await pool.query(
+      `SELECT accounts_created FROM abuse_signals WHERE signal_type = 'fp' AND signal_hash = $1`,
+      [fpHash]
+    );
+    const fpSig = rows[0] ?? null;
     if (fpSig && fpSig.accounts_created >= 3) {
-      raiseFlag("fp_hash", fpHash, "multiple_accounts_same_device", "high", userId);
+      await raiseFlag("fp_hash", fpHash, "multiple_accounts_same_device", "high", userId);
     }
   }
 }
@@ -190,29 +198,36 @@ export function recordSignup({ userId, emailHash, emailDomain, ipHash, fpHash, i
  * Called after a free guide is successfully generated.
  * Increments generation counters on all known signals for this user.
  */
-export function recordGeneration({ emailHash, ipHash, fpHash }) {
+export async function recordGeneration({ emailHash, ipHash, fpHash }) {
   const now = new Date().toISOString();
-  if (emailHash) BUMP_GENERATION.run(now, "email", emailHash);
-  if (ipHash)    BUMP_GENERATION.run(now, "ip",    ipHash);
-  if (fpHash)    BUMP_GENERATION.run(now, "fp",    fpHash);
+  const bump = async (type, hash) => {
+    await pool.query(
+      `UPDATE abuse_signals SET guides_generated = guides_generated + 1, last_seen_at = $1
+       WHERE signal_type = $2 AND signal_hash = $3`,
+      [now, type, hash]
+    );
+  };
+  if (emailHash) await bump("email", emailHash);
+  if (ipHash)    await bump("ip",    ipHash);
+  if (fpHash)    await bump("fp",    fpHash);
 }
 
 // ─── Account deletion archival ─────────────────────────────────────────────────
 
 /**
  * Archive anti-abuse metadata before deleting a user account.
- * Must be called INSIDE the deletion transaction, before the user row is removed.
+ * Must be called BEFORE the user row is removed.
  */
-export function archiveDeletedAccount(user, { ipHash = null, fpHash = null } = {}) {
+export async function archiveDeletedAccount(user, { ipHash = null, fpHash = null } = {}) {
   const emailHash = hashValue(user.email);
   const domain    = getEmailDomain(user.email);
 
-  db.prepare(`
+  await pool.query(`
     INSERT INTO deleted_accounts
       (id, original_user_id, email_hash, email_domain, ip_hash, fp_hash, guides_generated, was_pro, deleted_at)
     VALUES
-      (lower(hex(randomblob(16))), ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-  `).run(
+      (lower(encode(gen_random_bytes(16), 'hex')), $1, $2, $3, $4, $5, $6, $7, NOW())
+  `, [
     user.id,
     emailHash,
     domain,
@@ -220,7 +235,7 @@ export function archiveDeletedAccount(user, { ipHash = null, fpHash = null } = {
     fpHash  || null,
     user.guides_created_ever || 0,
     (user.plan === "pro" || user.plan === "lifetime") ? 1 : 0,
-  );
+  ]);
 }
 
 // ─── Flag helpers ──────────────────────────────────────────────────────────────
@@ -228,15 +243,16 @@ export function archiveDeletedAccount(user, { ipHash = null, fpHash = null } = {
 /**
  * Raise a flag — silently ignores if an identical unresolved flag already exists.
  */
-export function raiseFlag(targetType, targetValue, reason, severity = "low", relatedUserId = null) {
-  const existing = db.prepare(
+export async function raiseFlag(targetType, targetValue, reason, severity = "low", relatedUserId = null) {
+  const { rows } = await pool.query(
     `SELECT id FROM abuse_flags
-     WHERE target_type = ? AND target_value = ? AND reason = ? AND resolved_at IS NULL`
-  ).get(targetType, targetValue, reason);
-  if (existing) return; // don't spam duplicate flags
+     WHERE target_type = $1 AND target_value = $2 AND reason = $3 AND resolved_at IS NULL`,
+    [targetType, targetValue, reason]
+  );
+  if (rows.length > 0) return; // don't spam duplicate flags
 
-  db.prepare(`
+  await pool.query(`
     INSERT INTO abuse_flags (id, target_type, target_value, reason, severity, related_user_id, created_at)
-    VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?, ?, datetime('now'))
-  `).run(targetType, targetValue, reason, severity, relatedUserId || null);
+    VALUES (lower(encode(gen_random_bytes(16), 'hex')), $1, $2, $3, $4, $5, NOW())
+  `, [targetType, targetValue, reason, severity, relatedUserId || null]);
 }

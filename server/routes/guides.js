@@ -1,7 +1,7 @@
 import express from "express";
 import { v4 as uuid } from "uuid";
 import Anthropic from "@anthropic-ai/sdk";
-import db from "../db.js";
+import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -21,8 +21,6 @@ function safeParse(str, fallback = []) {
   try { return JSON.parse(str); } catch { return fallback; }
 }
 
-// Strip HTML tags from plain-text fields so raw tags never reach the client,
-// regardless of whether the guide was created before or after the server-side fix.
 function stripHtml(s) {
   return typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : s;
 }
@@ -31,7 +29,6 @@ function parseGuide(g) {
   const rawSections = safeParse(g.sections || "[]", []);
   const cleanSections = rawSections.map(s => ({
     ...s,
-    // overview keeps HTML — it is always rendered via RichText
     keyPoints: Array.isArray(s.keyPoints) ? s.keyPoints.map(stripHtml) : [],
     terms: Array.isArray(s.terms)
       ? s.terms.map(t => ({ term: stripHtml(t.term), definition: stripHtml(t.definition) }))
@@ -52,21 +49,25 @@ function parseGuide(g) {
   };
 }
 
-function updateLevel(userId) {
-  const user = db.prepare("SELECT xp FROM users WHERE id = ?").get(userId);
-  if (!user) return; // guard: user may have been deleted mid-request
-  const level = Math.min(Math.floor(Math.sqrt(user.xp / 100)) + 1, 50);
-  db.prepare("UPDATE users SET level = ? WHERE id = ?").run(level, userId);
+async function updateLevel(userId) {
+  const row = (await pool.query("SELECT xp FROM users WHERE id = $1", [userId])).rows[0] ?? null;
+  if (!row) return;
+  const level = Math.min(Math.floor(Math.sqrt(row.xp / 100)) + 1, 50);
+  await pool.query("UPDATE users SET level = $1 WHERE id = $2", [level, userId]);
 }
 
-function checkAchievements(userId) {
-  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
-  const studyTime = db.prepare(
-    "SELECT COALESCE(SUM(duration_seconds),0) as total FROM study_sessions WHERE user_id = ?"
-  ).get(userId)?.total || 0;
-  const perfectQuiz = db.prepare(
-    "SELECT 1 FROM quiz_attempts WHERE user_id = ? AND score = total AND total > 0 LIMIT 1"
-  ).get(userId);
+async function checkAchievements(userId) {
+  const user = (await pool.query("SELECT * FROM users WHERE id = $1", [userId])).rows[0] ?? null;
+  if (!user) return;
+  const studyTimeRow = (await pool.query(
+    "SELECT COALESCE(SUM(duration_seconds),0) as total FROM study_sessions WHERE user_id = $1",
+    [userId]
+  )).rows[0];
+  const studyTime = Number(studyTimeRow?.total) || 0;
+  const perfectQuiz = (await pool.query(
+    "SELECT 1 FROM quiz_attempts WHERE user_id = $1 AND score = total AND total > 0 LIMIT 1",
+    [userId]
+  )).rows[0] ?? null;
 
   const candidates = [];
   if (user.total_guides >= 1)  candidates.push("first_guide");
@@ -88,39 +89,44 @@ function checkAchievements(userId) {
   if (studyTime >= 3600)       candidates.push("study_time_60");
   if (studyTime >= 18000)      candidates.push("study_time_300");
 
-  const insert = db.prepare(
-    "INSERT OR IGNORE INTO achievements (id, user_id, type) VALUES (?, ?, ?)"
-  );
-  for (const type of candidates) insert.run(uuid(), userId, type);
+  for (const type of candidates) {
+    await pool.query(
+      "INSERT INTO achievements (id, user_id, type) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+      [uuid(), userId, type]
+    );
+  }
 }
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 
 // Get guides — supports ?folder_id for legacy, ?limit+?offset+?search for AllGuides
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   const { folder_id, limit, offset, search } = req.query;
 
   if (limit !== undefined) {
-    // Paginated + searchable response (used by AllGuides)
     const limitNum = Math.min(Math.max(parseInt(limit) || 24, 1), 100);
     const offsetNum = Math.max(parseInt(offset) || 0, 0);
     const searchTerm = search ? `%${search}%` : null;
 
     let guides, total;
     if (searchTerm) {
-      guides = db.prepare(
-        "SELECT * FROM guides WHERE user_id = ? AND title LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?"
-      ).all(req.user.id, searchTerm, limitNum, offsetNum);
-      total = db.prepare(
-        "SELECT COUNT(*) as c FROM guides WHERE user_id = ? AND title LIKE ?"
-      ).get(req.user.id, searchTerm).c;
+      guides = (await pool.query(
+        "SELECT * FROM guides WHERE user_id = $1 AND title LIKE $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4",
+        [req.user.id, searchTerm, limitNum, offsetNum]
+      )).rows;
+      total = Number((await pool.query(
+        "SELECT COUNT(*) as c FROM guides WHERE user_id = $1 AND title LIKE $2",
+        [req.user.id, searchTerm]
+      )).rows[0].c);
     } else {
-      guides = db.prepare(
-        "SELECT * FROM guides WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?"
-      ).all(req.user.id, limitNum, offsetNum);
-      total = db.prepare(
-        "SELECT COUNT(*) as c FROM guides WHERE user_id = ?"
-      ).get(req.user.id).c;
+      guides = (await pool.query(
+        "SELECT * FROM guides WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+        [req.user.id, limitNum, offsetNum]
+      )).rows;
+      total = Number((await pool.query(
+        "SELECT COUNT(*) as c FROM guides WHERE user_id = $1",
+        [req.user.id]
+      )).rows[0].c);
     }
 
     return res.json({
@@ -130,16 +136,25 @@ router.get("/", (req, res) => {
     });
   }
 
-  // Legacy: return plain array (used by Dashboard, FolderView)
+  // Legacy: return plain array
   const guides = folder_id
-    ? db.prepare("SELECT * FROM guides WHERE user_id = ? AND folder_id = ? ORDER BY created_at DESC").all(req.user.id, folder_id)
-    : db.prepare("SELECT * FROM guides WHERE user_id = ? ORDER BY created_at DESC").all(req.user.id);
+    ? (await pool.query(
+        "SELECT * FROM guides WHERE user_id = $1 AND folder_id = $2 ORDER BY created_at DESC",
+        [req.user.id, folder_id]
+      )).rows
+    : (await pool.query(
+        "SELECT * FROM guides WHERE user_id = $1 ORDER BY created_at DESC",
+        [req.user.id]
+      )).rows;
   res.json(guides.map(parseGuide));
 });
 
 // Get single guide
-router.get("/:id", (req, res) => {
-  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+router.get("/:id", async (req, res) => {
+  const guide = (await pool.query(
+    "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id]
+  )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
   res.json(parseGuide(guide));
 });
@@ -147,19 +162,19 @@ router.get("/:id", (req, res) => {
 // Save a guide
 const FREE_GUIDE_LIMIT = 1;
 
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   const { title, folder_id, type, format, summary, key_terms, quiz_questions, sections, idempotency_key } = req.body;
   if (!title?.trim() || !summary || !key_terms || !quiz_questions)
     return res.status(400).json({ error: "Missing required fields." });
   if (title.trim().length > 200)
     return res.status(400).json({ error: "Title is too long." });
 
-  // ── Idempotency: if this exact generation was already saved, return it ─────
-  // Prevents duplicate guides from spam-clicking the Save button or API retries.
+  // ── Idempotency ──────────────────────────────────────────────────────────────
   if (idempotency_key) {
-    const existing = db.prepare(
-      "SELECT * FROM guides WHERE user_id = ? AND idempotency_key = ?"
-    ).get(req.user.id, idempotency_key);
+    const existing = (await pool.query(
+      "SELECT * FROM guides WHERE user_id = $1 AND idempotency_key = $2",
+      [req.user.id, idempotency_key]
+    )).rows[0] ?? null;
     if (existing) return res.json(parseGuide(existing));
   }
 
@@ -168,108 +183,139 @@ router.post("/", (req, res) => {
   const sectionsArr = Array.isArray(sections) ? sections : [];
   const initialProgress = sectionsArr.map(() => false);
 
-  // ── Atomic limit check + insert (BEGIN IMMEDIATE prevents race conditions) ──
-  // Two concurrent save requests would both pass a plain SELECT check before
-  // either insert runs. IMMEDIATE acquires a reserved lock upfront so only one
-  // writer proceeds at a time, making the check+insert atomic.
-  const saveTxn = db.transaction(() => {
-    const user = db.prepare("SELECT plan, role, is_whitelisted, guides_created_ever FROM users WHERE id = ?").get(req.user.id);
-    if (!user) throw Object.assign(new Error("User not found."), { status: 404 });
+  // ── Atomic limit check + insert ──────────────────────────────────────────────
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const user = (await client.query(
+      "SELECT plan, role, is_whitelisted, guides_created_ever FROM users WHERE id = $1",
+      [req.user.id]
+    )).rows[0] ?? null;
+    if (!user) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "User not found." });
+    }
 
     const isUnrestricted = user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin";
     if (!isUnrestricted && (user.guides_created_ever || 0) >= FREE_GUIDE_LIMIT) {
+      await client.query("ROLLBACK");
       console.log(`[free-limit] user ${req.user.id} blocked at save step (guides_created_ever=${user.guides_created_ever})`);
-      throw Object.assign(new Error("FREE_LIMIT_GUIDES"), { status: 403 });
-    }
-
-    db.prepare(
-      `INSERT INTO guides (id, user_id, folder_id, title, type, format, summary, key_terms, quiz_questions, sections, section_progress, idempotency_key)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(id, req.user.id, folder_id || null, title.trim(), type || "text", format || "detailed",
-      JSON.stringify(summary), JSON.stringify(key_terms), JSON.stringify(quiz_questions),
-      JSON.stringify(sectionsArr), JSON.stringify(initialProgress),
-      idempotency_key || null);
-
-    // Increment both the mutable counter (for stats) and the permanent counter (for limit enforcement)
-    db.prepare(
-      "UPDATE users SET total_guides = total_guides + 1, guides_created_ever = guides_created_ever + 1, xp = xp + 50, last_study_date = ? WHERE id = ?"
-    ).run(today, req.user.id);
-  });
-
-  try {
-    saveTxn.immediate();
-  } catch (err) {
-    if (err.status === 403) {
       return res.status(403).json({
         error: "FREE_LIMIT_GUIDES",
         message: `Free accounts are limited to ${FREE_GUIDE_LIMIT} saved guide. Upgrade to Pro for unlimited guides.`,
       });
     }
-    if (err.status === 404) return res.status(404).json({ error: err.message });
+
+    await client.query(
+      `INSERT INTO guides (id, user_id, folder_id, title, type, format, summary, key_terms, quiz_questions, sections, section_progress, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [id, req.user.id, folder_id || null, title.trim(), type || "text", format || "detailed",
+       JSON.stringify(summary), JSON.stringify(key_terms), JSON.stringify(quiz_questions),
+       JSON.stringify(sectionsArr), JSON.stringify(initialProgress),
+       idempotency_key || null]
+    );
+
+    await client.query(
+      "UPDATE users SET total_guides = total_guides + 1, guides_created_ever = guides_created_ever + 1, xp = xp + 50, last_study_date = $1 WHERE id = $2",
+      [today, req.user.id]
+    );
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
     console.error("[guides POST] unexpected error:", err);
     return res.status(500).json({ error: "Something went wrong saving your guide." });
+  } finally {
+    client.release();
   }
 
-  updateLevel(req.user.id);
-  checkAchievements(req.user.id);
+  await updateLevel(req.user.id);
+  await checkAchievements(req.user.id);
 
-  res.json(parseGuide(db.prepare("SELECT * FROM guides WHERE id = ?").get(id)));
+  const saved = (await pool.query("SELECT * FROM guides WHERE id = $1", [id])).rows[0] ?? null;
+  res.json(parseGuide(saved));
 });
 
 // Update section progress
-router.patch("/:id/section-progress", (req, res) => {
-  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+router.patch("/:id/section-progress", async (req, res) => {
+  const guide = (await pool.query(
+    "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id]
+  )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
   const { progress } = req.body;
   if (!Array.isArray(progress)) return res.status(400).json({ error: "Invalid progress data." });
 
-  // Validate: must be array of booleans, length must match stored sections
   const sections = safeParse(guide.sections, []);
   if (progress.length !== sections.length)
     return res.status(400).json({ error: "Progress length mismatch." });
   if (!progress.every(v => typeof v === "boolean"))
     return res.status(400).json({ error: "Progress entries must be booleans." });
 
-  db.prepare("UPDATE guides SET section_progress = ? WHERE id = ?")
-    .run(JSON.stringify(progress), guide.id);
+  await pool.query(
+    "UPDATE guides SET section_progress = $1 WHERE id = $2",
+    [JSON.stringify(progress), guide.id]
+  );
   res.json({ success: true });
 });
 
 // Move guide to folder
-router.patch("/:id/move", (req, res) => {
-  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+router.patch("/:id/move", async (req, res) => {
+  const guide = (await pool.query(
+    "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id]
+  )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
-  // L-4: Validate that the target folder belongs to this user (prevents cross-user folder assignment)
   const targetFolderId = req.body.folder_id || null;
   if (targetFolderId) {
-    const folder = db.prepare("SELECT id FROM folders WHERE id = ? AND user_id = ?").get(targetFolderId, req.user.id);
+    const folder = (await pool.query(
+      "SELECT id FROM folders WHERE id = $1 AND user_id = $2",
+      [targetFolderId, req.user.id]
+    )).rows[0] ?? null;
     if (!folder) return res.status(400).json({ error: "Invalid folder." });
   }
 
-  db.prepare("UPDATE guides SET folder_id = ? WHERE id = ?").run(targetFolderId, guide.id);
+  await pool.query("UPDATE guides SET folder_id = $1 WHERE id = $2", [targetFolderId, guide.id]);
   res.json({ success: true });
 });
 
 // Delete guide
-router.delete("/:id", (req, res) => {
-  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+router.delete("/:id", async (req, res) => {
+  const guide = (await pool.query(
+    "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id]
+  )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
-  db.transaction(() => {
-    db.prepare("DELETE FROM guides WHERE id = ?").run(guide.id);
-    // L-6: Keep total_guides in sync so stat cards and achievement thresholds stay accurate
-    db.prepare("UPDATE users SET total_guides = MAX(0, total_guides - 1) WHERE id = ?").run(req.user.id);
-  })();
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("DELETE FROM guides WHERE id = $1", [guide.id]);
+    await client.query(
+      "UPDATE users SET total_guides = GREATEST(0, total_guides - 1) WHERE id = $1",
+      [req.user.id]
+    );
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
   res.json({ success: true });
 });
 
 // Submit quiz attempt — with server-side score validation
-router.post("/:id/quiz", (req, res) => {
-  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+router.post("/:id/quiz", async (req, res) => {
+  const guide = (await pool.query(
+    "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id]
+  )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
-  // M-3: Use the authoritative question count from the DB — never trust the client's total
   const actualQuestions = safeParse(guide.quiz_questions, []);
   if (!actualQuestions.length)
     return res.status(500).json({ error: "Guide quiz data is unavailable." });
@@ -278,115 +324,159 @@ router.post("/:id/quiz", (req, res) => {
   if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > totalNum || totalNum < 1)
     return res.status(400).json({ error: "Invalid quiz score." });
 
-  // Only award XP when the score strictly improves over the previous best (includes first attempt where best is 0)
   const xpGained = scoreNum > (guide.best_quiz_score || 0) ? scoreNum * 10 : 0;
 
-  db.transaction(() => {
-    db.prepare("INSERT INTO quiz_attempts (id, guide_id, user_id, score, total) VALUES (?, ?, ?, ?, ?)")
-      .run(uuid(), guide.id, req.user.id, scoreNum, totalNum);
-    // BUG-12: Use >= so a tied score still updates best_quiz_score (records the latest attempt)
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      "INSERT INTO quiz_attempts (id, guide_id, user_id, score, total) VALUES ($1, $2, $3, $4, $5)",
+      [uuid(), guide.id, req.user.id, scoreNum, totalNum]
+    );
     if (scoreNum >= guide.best_quiz_score) {
-      db.prepare("UPDATE guides SET best_quiz_score = ?, quiz_attempts = quiz_attempts + 1 WHERE id = ?")
-        .run(scoreNum, guide.id);
+      await client.query(
+        "UPDATE guides SET best_quiz_score = $1, quiz_attempts = quiz_attempts + 1 WHERE id = $2",
+        [scoreNum, guide.id]
+      );
     } else {
-      db.prepare("UPDATE guides SET quiz_attempts = quiz_attempts + 1 WHERE id = ?").run(guide.id);
+      await client.query(
+        "UPDATE guides SET quiz_attempts = quiz_attempts + 1 WHERE id = $1",
+        [guide.id]
+      );
     }
     if (xpGained > 0) {
-      db.prepare("UPDATE users SET xp = xp + ?, total_quizzes = total_quizzes + 1 WHERE id = ?")
-        .run(xpGained, req.user.id);
+      await client.query(
+        "UPDATE users SET xp = xp + $1, total_quizzes = total_quizzes + 1 WHERE id = $2",
+        [xpGained, req.user.id]
+      );
     } else {
-      db.prepare("UPDATE users SET total_quizzes = total_quizzes + 1 WHERE id = ?")
-        .run(req.user.id);
+      await client.query(
+        "UPDATE users SET total_quizzes = total_quizzes + 1 WHERE id = $1",
+        [req.user.id]
+      );
     }
-  })();
-  updateLevel(req.user.id);
-  checkAchievements(req.user.id);
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  await updateLevel(req.user.id);
+  await checkAchievements(req.user.id);
 
   res.json({ success: true, xpGained });
 });
 
 // Log a study session
-router.post("/:id/session", (req, res) => {
-  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+router.post("/:id/session", async (req, res) => {
+  const guide = (await pool.query(
+    "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id]
+  )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
   const duration = Math.max(0, Math.min(parseInt(req.body.duration_seconds) || 0, 7200));
   if (duration < 10) return res.json({ success: true });
 
-  db.prepare("INSERT INTO study_sessions (id, guide_id, user_id, duration_seconds) VALUES (?, ?, ?, ?)")
-    .run(uuid(), guide.id, req.user.id, duration);
+  await pool.query(
+    "INSERT INTO study_sessions (id, guide_id, user_id, duration_seconds) VALUES ($1, $2, $3, $4)",
+    [uuid(), guide.id, req.user.id, duration]
+  );
 
   const now = new Date().toISOString();
-  db.prepare("UPDATE guides SET last_studied_at = ? WHERE id = ?").run(now, guide.id);
-  db.prepare("UPDATE users SET total_study_time = COALESCE(total_study_time, 0) + ? WHERE id = ?")
-    .run(duration, req.user.id);
+  await pool.query("UPDATE guides SET last_studied_at = $1 WHERE id = $2", [now, guide.id]);
+  await pool.query(
+    "UPDATE users SET total_study_time = COALESCE(total_study_time, 0) + $1 WHERE id = $2",
+    [duration, req.user.id]
+  );
 
-  checkAchievements(req.user.id);
+  await checkAchievements(req.user.id);
   res.json({ success: true });
 });
 
 // Get quiz history
-router.get("/:id/quiz-history", (req, res) => {
-  const guide = db.prepare("SELECT id FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+router.get("/:id/quiz-history", async (req, res) => {
+  const guide = (await pool.query(
+    "SELECT id FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id]
+  )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
-  const attempts = db.prepare(
-    "SELECT score, total, created_at FROM quiz_attempts WHERE guide_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT 20"
-  ).all(req.params.id, req.user.id);
+  const attempts = (await pool.query(
+    "SELECT score, total, created_at FROM quiz_attempts WHERE guide_id = $1 AND user_id = $2 ORDER BY created_at DESC LIMIT 20",
+    [req.params.id, req.user.id]
+  )).rows;
   res.json(attempts);
 });
 
 // Get or create a public share link
-router.post("/:id/share", (req, res) => {
-  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+router.post("/:id/share", async (req, res) => {
+  const guide = (await pool.query(
+    "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id]
+  )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
   let token = guide.share_token;
   if (!token) {
     token = uuid();
-    db.prepare("UPDATE guides SET share_token = ? WHERE id = ?").run(token, guide.id);
+    await pool.query("UPDATE guides SET share_token = $1 WHERE id = $2", [token, guide.id]);
   }
 
   res.json({ token });
 });
 
 // Toggle favorite
-router.patch("/:id/favorite", (req, res) => {
-  const guide = db.prepare("SELECT id, is_favorite FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+router.patch("/:id/favorite", async (req, res) => {
+  const guide = (await pool.query(
+    "SELECT id, is_favorite FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id]
+  )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
   const newVal = guide.is_favorite ? 0 : 1;
-  db.prepare("UPDATE guides SET is_favorite = ? WHERE id = ?").run(newVal, guide.id);
+  await pool.query("UPDATE guides SET is_favorite = $1 WHERE id = $2", [newVal, guide.id]);
   res.json({ is_favorite: newVal });
 });
 
 // Revoke share link
-router.delete("/:id/share", (req, res) => {
-  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+router.delete("/:id/share", async (req, res) => {
+  const guide = (await pool.query(
+    "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id]
+  )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
-  db.prepare("UPDATE guides SET share_token = NULL WHERE id = ?").run(guide.id);
+  await pool.query("UPDATE guides SET share_token = NULL WHERE id = $1", [guide.id]);
   res.json({ success: true });
 });
 
 // Generate quiz
 router.post("/:id/generate-quiz", async (req, res) => {
   console.log(`[quiz] POST /guides/${req.params.id}/generate-quiz - count=${req.body.count}, mode=${req.body.mode}`);
-  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
+  const guide = (await pool.query(
+    "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id]
+  )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
   // Free-tier limit: 3 quiz generations per day
-  // BUG-1: Include lifetime, whitelisted, and admin as unrestricted (not just "pro")
-  const user = db.prepare("SELECT plan, role, is_whitelisted, quiz_gen_count, quiz_gen_date FROM users WHERE id = ?").get(req.user.id);
+  const user = (await pool.query(
+    "SELECT plan, role, is_whitelisted, quiz_gen_count, quiz_gen_date FROM users WHERE id = $1",
+    [req.user.id]
+  )).rows[0] ?? null;
   const today = new Date().toISOString().slice(0, 10);
   const isFreeTier = user && user.plan !== "pro" && user.plan !== "lifetime" && !user.is_whitelisted && user.role !== "admin";
   if (isFreeTier) {
-    const result = db.prepare(`
+    // Atomically increment the counter if under the daily limit
+    const result = await pool.query(`
       UPDATE users
-      SET quiz_gen_count = CASE WHEN quiz_gen_date = ? THEN quiz_gen_count + 1 ELSE 1 END,
-          quiz_gen_date = ?
-      WHERE id = ?
-        AND (quiz_gen_date != ? OR quiz_gen_count < 3)
-    `).run(today, today, req.user.id, today);
+      SET quiz_gen_count = CASE WHEN quiz_gen_date = $1 THEN quiz_gen_count + 1 ELSE 1 END,
+          quiz_gen_date = $1
+      WHERE id = $2
+        AND (quiz_gen_date != $1 OR quiz_gen_count < 3)
+    `, [today, req.user.id]);
 
-    if (result.changes === 0) {
+    if (result.rowCount === 0) {
       return res.status(403).json({
         error: "FREE_LIMIT_QUIZZES",
         message: "Free accounts are limited to 3 AI quiz generations per day. Upgrade to Pro for unlimited quizzes.",
@@ -458,7 +548,6 @@ router.post("/:id/generate-quiz", async (req, res) => {
 
     const questions = JSON.parse(raw.slice(start, end + 1));
 
-    // Bug 19: Validate that we got a proper array of question objects before returning
     if (!Array.isArray(questions) || questions.length === 0)
       throw new Error("AI returned no questions.");
     for (const q of questions) {

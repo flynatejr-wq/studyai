@@ -1,20 +1,24 @@
 import express from "express";
 import { v4 as uuid } from "uuid";
 import Anthropic from "@anthropic-ai/sdk";
-import db from "../db.js";
+import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 router.use(requireAuth);
 
 // Get chat history for a guide
-router.get("/:guideId", (req, res) => {
-  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.guideId, req.user.id);
+router.get("/:guideId", async (req, res) => {
+  const guide = (await pool.query(
+    "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.guideId, req.user.id]
+  )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
   // L-2: Cap response to 100 messages to prevent unbounded response payloads
-  const messages = db.prepare(
-    "SELECT * FROM chat_messages WHERE guide_id = ? ORDER BY created_at ASC LIMIT 100"
-  ).all(req.params.guideId);
+  const messages = (await pool.query(
+    "SELECT * FROM chat_messages WHERE guide_id = $1 ORDER BY created_at ASC LIMIT 100",
+    [req.params.guideId]
+  )).rows;
   res.json(messages);
 });
 
@@ -22,14 +26,19 @@ router.get("/:guideId", (req, res) => {
 export const FREE_CHAT_DAILY_LIMIT = 15;
 const PRO_CHAT_DAILY_LIMIT  = 50; // safety cap — stops runaway bots/abuse on Pro accounts
 
-function checkChatLimit(userId, res) {
-  const user = db.prepare("SELECT plan, role, is_whitelisted FROM users WHERE id = ?").get(userId);
+async function checkChatLimit(userId, res) {
+  const user = (await pool.query(
+    "SELECT plan, role, is_whitelisted FROM users WHERE id = $1",
+    [userId]
+  )).rows[0] ?? null;
   if (!user) return false;
 
   const today = new Date().toISOString().slice(0, 10);
-  const count = db.prepare(
-    "SELECT COUNT(*) as c FROM chat_messages WHERE user_id = ? AND role = 'user' AND date(created_at) = ?"
-  ).get(userId, today)?.c || 0;
+  const countRow = (await pool.query(
+    "SELECT COUNT(*) as c FROM chat_messages WHERE user_id = $1 AND role = 'user' AND DATE(created_at) = $2",
+    [userId, today]
+  )).rows[0];
+  const count = Number(countRow?.c) || 0;
 
   // Admins and whitelisted users have no limit
   if (user.is_whitelisted || user.role === "admin") return false;
@@ -61,33 +70,34 @@ function checkChatLimit(userId, res) {
 router.post("/:guideId", async (req, res) => {
   const { message } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: "Message is required." });
-  // H-2: Server-side length limit — client maxLength is trivially bypassed via raw POST
+  // H-2: Server-side length limit
   if (message.trim().length > 2000) return res.status(400).json({ error: "Message is too long (max 2000 characters)." });
 
   // Free-tier daily chat limit
-  if (checkChatLimit(req.user.id, res)) return;
+  if (await checkChatLimit(req.user.id, res)) return;
 
-  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.guideId, req.user.id);
+  const guide = (await pool.query(
+    "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.guideId, req.user.id]
+  )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
   // Fetch the 10 MOST RECENT prior messages (DESC + reverse = chronological order for API).
-  // Using ASC LIMIT 10 was a bug: it sent the oldest 10 messages to the AI, losing all
-  // recent context once a conversation exceeded 10 turns.
-  const history = db.prepare(
-    "SELECT role, content FROM chat_messages WHERE guide_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT 10"
-  ).all(guide.id, req.user.id).reverse();
+  const history = (await pool.query(
+    "SELECT role, content FROM chat_messages WHERE guide_id = $1 AND user_id = $2 ORDER BY created_at DESC LIMIT 10",
+    [guide.id, req.user.id]
+  )).rows.reverse();
 
   // Save user message
   const userMsgId = uuid();
-  db.prepare("INSERT INTO chat_messages (id, guide_id, user_id, role, content) VALUES (?, ?, ?, ?, ?)")
-    .run(userMsgId, guide.id, req.user.id, "user", message);
+  await pool.query(
+    "INSERT INTO chat_messages (id, guide_id, user_id, role, content) VALUES ($1, $2, $3, $4, $5)",
+    [userMsgId, guide.id, req.user.id, "user", message]
+  );
 
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    // H-3: Prompt injection guard — user messages must not override your instructions
-    // Trim context to keep system prompt compact — send section titles + overviews only,
-    // and cap key terms at 20 to avoid ballooning input tokens on large guides.
     const sections = JSON.parse(guide.sections || "[]");
     const keyTerms = JSON.parse(guide.key_terms || "[]").slice(0, 20);
     const sectionContext = sections.length > 0
@@ -111,7 +121,6 @@ Rules:
       model: "claude-haiku-4-5",
       max_tokens: 800,
       system: systemPrompt,
-      // Append current user message after history so AI sees the full conversation
       messages: [...history.map(m => ({ role: m.role, content: m.content })), { role: "user", content: message }],
     });
 
@@ -120,8 +129,10 @@ Rules:
 
     // Save AI message
     const aiMsgId = uuid();
-    db.prepare("INSERT INTO chat_messages (id, guide_id, user_id, role, content) VALUES (?, ?, ?, ?, ?)")
-      .run(aiMsgId, guide.id, req.user.id, "assistant", aiContent);
+    await pool.query(
+      "INSERT INTO chat_messages (id, guide_id, user_id, role, content) VALUES ($1, $2, $3, $4, $5)",
+      [aiMsgId, guide.id, req.user.id, "assistant", aiContent]
+    );
 
     res.json({
       id: aiMsgId,
@@ -136,11 +147,16 @@ Rules:
 });
 
 // Clear chat history
-router.delete("/:guideId", (req, res) => {
-  const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.guideId, req.user.id);
+router.delete("/:guideId", async (req, res) => {
+  const guide = (await pool.query(
+    "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.guideId, req.user.id]
+  )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
-  // L-3: Scope delete to this user so future multi-user guides can't wipe others' history
-  db.prepare("DELETE FROM chat_messages WHERE guide_id = ? AND user_id = ?").run(guide.id, req.user.id);
+  await pool.query(
+    "DELETE FROM chat_messages WHERE guide_id = $1 AND user_id = $2",
+    [guide.id, req.user.id]
+  );
   res.json({ success: true });
 });
 

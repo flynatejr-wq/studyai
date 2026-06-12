@@ -8,6 +8,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import jwt from "jsonwebtoken";
+import { initDb } from "./db.js";
 import summarizeRoute from "./routes/summarize.js";
 import authRoute from "./routes/auth.js";
 import foldersRoute from "./routes/folders.js";
@@ -218,7 +219,14 @@ app.use((err, req, res, next) => {
 export default app;
 
 if (process.env.NODE_ENV !== "test") {
-  app.listen(PORT, () => {
-    console.log(`✅ Server running on http://localhost:${PORT}`);
-  });
+  initDb()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`✅ Server running on http://localhost:${PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.error("❌ Database initialisation failed:", err);
+      process.exit(1);
+    });
 }

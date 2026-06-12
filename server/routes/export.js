@@ -1,23 +1,18 @@
 import express from "express";
-import db from "../db.js";
+import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 router.use(requireAuth);
 
 // ── GET /api/export — download all user data as JSON ─────────────────────────
-// Produces a single JSON file containing guides, quiz history, study sessions,
-// folders, and a summary of account stats. No PII beyond what the user already
-// has access to in the UI.
-// Export is a Pro-only feature.
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   const userId = req.user.id;
 
-  // IMPORTANT: req.user only contains {id, iat, exp} from the JWT.
-  // plan and role are NOT in the token — always query the DB for access checks.
-  const user = db.prepare(
-    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, total_study_time, plan, role, created_at FROM users WHERE id = ?"
-  ).get(userId);
+  const user = (await pool.query(
+    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, total_study_time, plan, role, created_at FROM users WHERE id = $1",
+    [userId]
+  )).rows[0] ?? null;
   if (!user) return res.status(404).json({ error: "User not found." });
 
   const isProUser = ["pro", "lifetime"].includes(user.plan) || user.role === "admin";
@@ -29,28 +24,30 @@ router.get("/", (req, res) => {
   }
 
   try {
+    const folders = (await pool.query(
+      "SELECT id, name, icon, color, created_at FROM folders WHERE user_id = $1 ORDER BY created_at",
+      [userId]
+    )).rows;
 
-    const folders = db.prepare(
-      "SELECT id, name, icon, color, created_at FROM folders WHERE user_id = ? ORDER BY created_at"
-    ).all(userId);
+    const guides = (await pool.query(
+      "SELECT id, folder_id, title, type, summary, key_terms, quiz_questions, sections, best_quiz_score, quiz_attempts, is_favorite, created_at, last_studied_at FROM guides WHERE user_id = $1 ORDER BY created_at",
+      [userId]
+    )).rows;
 
-    // LOW-4: Exclude share_token — it's a security-sensitive value that would let anyone
-    // who receives the export JSON view the guide publicly without the owner's intent.
-    const guides = db.prepare(
-      "SELECT id, folder_id, title, type, summary, key_terms, quiz_questions, sections, best_quiz_score, quiz_attempts, is_favorite, created_at, last_studied_at FROM guides WHERE user_id = ? ORDER BY created_at"
-    ).all(userId);
+    const quizHistory = (await pool.query(
+      "SELECT qa.guide_id, g.title as guide_title, qa.score, qa.total, qa.created_at FROM quiz_attempts qa LEFT JOIN guides g ON g.id = qa.guide_id WHERE qa.user_id = $1 ORDER BY qa.created_at",
+      [userId]
+    )).rows;
 
-    const quizHistory = db.prepare(
-      "SELECT qa.guide_id, g.title as guide_title, qa.score, qa.total, qa.created_at FROM quiz_attempts qa LEFT JOIN guides g ON g.id = qa.guide_id WHERE qa.user_id = ? ORDER BY qa.created_at"
-    ).all(userId);
+    const studySessions = (await pool.query(
+      "SELECT ss.guide_id, g.title as guide_title, ss.duration_seconds, ss.created_at FROM study_sessions ss LEFT JOIN guides g ON g.id = ss.guide_id WHERE ss.user_id = $1 ORDER BY ss.created_at",
+      [userId]
+    )).rows;
 
-    const studySessions = db.prepare(
-      "SELECT ss.guide_id, g.title as guide_title, ss.duration_seconds, ss.created_at FROM study_sessions ss LEFT JOIN guides g ON g.id = ss.guide_id WHERE ss.user_id = ? ORDER BY ss.created_at"
-    ).all(userId);
-
-    const achievements = db.prepare(
-      "SELECT type, earned_at FROM achievements WHERE user_id = ? ORDER BY earned_at"
-    ).all(userId);
+    const achievements = (await pool.query(
+      "SELECT type, earned_at FROM achievements WHERE user_id = $1 ORDER BY earned_at",
+      [userId]
+    )).rows;
 
     const exportData = {
       exported_at: new Date().toISOString(),

@@ -11,7 +11,7 @@ import mammoth from "mammoth";
 import { parseOffice } from "officeparser";
 import { YoutubeTranscript } from "youtube-transcript";
 import { requireAuth } from "../middleware/auth.js";
-import db from "../db.js";
+import pool from "../db.js";
 import {
   hashValue, getClientIp, isValidFp,
   checkAbuseStatus, recordGeneration,
@@ -311,10 +311,12 @@ const FREE_GUIDE_LIMIT = 1;
 //   1. guides_created_ever counter (unchanged — covers same-account guide deletions)
 //   2. Anti-abuse signals (catches delete-account-and-recreate loops)
 // Bypassed for: pro, lifetime, whitelisted users, and admins.
-function checkFreeGuideLimit(req, res) {
-  const user = db.prepare("SELECT plan, role, is_whitelisted, guides_created_ever, email FROM users WHERE id = ?").get(req.user.id);
+async function checkFreeGuideLimit(req, res) {
+  const user = (await pool.query(
+    "SELECT plan, role, is_whitelisted, guides_created_ever, email FROM users WHERE id = $1",
+    [req.user.id]
+  )).rows[0] ?? null;
   if (!user) return false;
-  // Bypass: pro plan, lifetime plan, whitelisted, or admin role
   if (user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin") return false;
 
   // Layer 1: standard counter
@@ -329,7 +331,7 @@ function checkFreeGuideLimit(req, res) {
   const rawFp = req.headers["x-client-fp"];
   const fp    = isValidFp(rawFp) ? rawFp : null;
   try {
-    const abuse = checkAbuseStatus({
+    const abuse = await checkAbuseStatus({
       emailHash: hashValue(user.email),
       ipHash:    hashValue(rawIp),
       fpHash:    fp ? hashValue(fp) : null,
@@ -340,7 +342,6 @@ function checkFreeGuideLimit(req, res) {
       return true;
     }
   } catch (err) {
-    // Abuse check failure must never block a legitimate generation
     console.error("[abuse] checkAbuseStatus error:", err.message);
   }
 
@@ -348,14 +349,17 @@ function checkFreeGuideLimit(req, res) {
 }
 
 /** Record a completed free-tier generation against all abuse signals */
-function recordFreeGeneration(req, userId) {
-  const user = db.prepare("SELECT email, plan, is_whitelisted, role FROM users WHERE id = ?").get(userId);
+async function recordFreeGeneration(req, userId) {
+  const user = (await pool.query(
+    "SELECT email, plan, is_whitelisted, role FROM users WHERE id = $1",
+    [userId]
+  )).rows[0] ?? null;
   if (!user || user.plan !== "free" || user.is_whitelisted || user.role === "admin") return;
   const rawIp = getClientIp(req);
   const rawFp = req.headers["x-client-fp"];
   const fp    = isValidFp(rawFp) ? rawFp : null;
   try {
-    recordGeneration({
+    await recordGeneration({
       emailHash: hashValue(user.email),
       ipHash:    hashValue(rawIp),
       fpHash:    fp ? hashValue(fp) : null,
@@ -367,13 +371,13 @@ function recordFreeGeneration(req, userId) {
 
 // ── POST /api/summarize — paste text ────────────────────────────────────────
 router.post("/", requireAuth, async (req, res) => {
-  if (checkFreeGuideLimit(req, res)) return;
+  if (await checkFreeGuideLimit(req, res)) return;
   const { transcript, difficulty, style } = req.body;
   if (!transcript?.trim()) return res.status(400).json({ error: "No transcript provided." });
   if (transcript.length > MAX_TEXT_CHARS)
     return res.status(400).json({ error: `Transcript is too long. Please limit to ${MAX_TEXT_CHARS.toLocaleString()} characters.` });
   try {
-    recordFreeGeneration(req, req.user.id);
+    await recordFreeGeneration(req, req.user.id);
     const result = await withJsonRetry(() => generateFromText(transcript, difficulty, style));
     res.json(result);
   } catch (err) {
@@ -384,7 +388,7 @@ router.post("/", requireAuth, async (req, res) => {
 
 // ── POST /api/summarize/youtube — YouTube URL ─────────────────────────────────
 router.post("/youtube", requireAuth, async (req, res) => {
-  if (checkFreeGuideLimit(req, res)) return;
+  if (await checkFreeGuideLimit(req, res)) return;
   const { url, difficulty } = req.body;
   if (!url?.trim()) return res.status(400).json({ error: "No YouTube URL provided." });
 
@@ -406,7 +410,7 @@ router.post("/youtube", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "The transcript is too short to generate a study guide." });
     }
     console.log(`[youtube] OK for ${videoId} (${text.length} chars)`);
-    recordFreeGeneration(req, req.user.id);
+    await recordFreeGeneration(req, req.user.id);
     const ytResult = await withJsonRetry(() => generateFromText(text.slice(0, 60000), difficulty, req.body?.style));
     return res.json(ytResult);
   } catch (err) {
@@ -424,7 +428,7 @@ router.post("/youtube", requireAuth, async (req, res) => {
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 
 router.post("/image", requireAuth, upload.single("image"), async (req, res) => {
-  if (checkFreeGuideLimit(req, res)) return;
+  if (await checkFreeGuideLimit(req, res)) return;
   if (!req.file) return res.status(400).json({ error: "No image provided." });
   // M-1: Reject unsupported MIME types server-side (client Content-Type is not trustworthy on its own,
   // but this prevents accidental misuse and limits the attack surface)
@@ -497,7 +501,7 @@ const ALLOWED_AUDIO_TYPES = new Set([
 const ALLOWED_AUDIO_EXTS = new Set(["mp3","mp4","m4a","wav","webm","ogg","flac","aac"]);
 
 router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
-  if (checkFreeGuideLimit(req, res)) return;
+  if (await checkFreeGuideLimit(req, res)) return;
   if (!req.file) return res.status(400).json({ error: "No audio provided." });
 
   const ext = req.file.originalname.split(".").pop().toLowerCase();
@@ -538,7 +542,7 @@ router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
     if (!transcription.text?.trim())
       return res.status(400).json({ error: "Could not transcribe audio. Make sure it contains clear speech." });
 
-    recordFreeGeneration(req, req.user.id);
+    await recordFreeGeneration(req, req.user.id);
     const audioResult = await withJsonRetry(() => generateFromText(transcription.text, difficulty, req.body?.style));
     res.json(audioResult);
   } catch (err) {
@@ -555,7 +559,7 @@ router.post("/audio", requireAuth, upload.single("audio"), async (req, res) => {
 
 // ── POST /api/summarize/file — PDF, DOCX, PPTX, TXT, CSV, MD ────────────────
 router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
-  if (checkFreeGuideLimit(req, res)) return;
+  if (await checkFreeGuideLimit(req, res)) return;
   if (!req.file) return res.status(400).json({ error: "No file provided." });
 
   const difficulty = req.body?.difficulty;
@@ -631,7 +635,7 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
           };
         });
 
-        recordFreeGeneration(req, req.user.id);
+        await recordFreeGeneration(req, req.user.id);
         return res.json(pdfResult);
       }
     }
@@ -665,7 +669,7 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
 
     // Trim to avoid token limits (roughly 15k words max)
     const trimmed = text.trim().slice(0, 60000);
-    recordFreeGeneration(req, req.user.id);
+    await recordFreeGeneration(req, req.user.id);
     const fileResult = await withJsonRetry(() => generateFromText(trimmed, difficulty, style));
     res.json(fileResult);
   } catch (err) {

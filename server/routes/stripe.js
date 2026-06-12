@@ -1,6 +1,6 @@
 import express from "express";
 import Stripe from "stripe";
-import db from "../db.js";
+import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 import { markReferralConverted } from "./referrals.js";
 
@@ -8,9 +8,9 @@ const router = express.Router();
 
 // Stripe is optional — gracefully disabled if STRIPE_SECRET_KEY is not set
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
-const PRICE_ID      = process.env.STRIPE_PRICE_ID      || null; // monthly Pro price ID from Stripe dashboard
-const SSU_COUPON_ID = process.env.STRIPE_SSU_COUPON_ID || null; // $3 off coupon for @savannahstate.edu students
-const SSU_DOMAIN    = "savannahstate.edu"; // matches both @savannahstate.edu and @student.savannahstate.edu
+const PRICE_ID      = process.env.STRIPE_PRICE_ID      || null;
+const SSU_COUPON_ID = process.env.STRIPE_SSU_COUPON_ID || null;
+const SSU_DOMAIN    = "savannahstate.edu";
 
 // ── POST /api/stripe/checkout — create a Checkout Session ────────────────────
 router.post("/checkout", requireAuth, async (req, res) => {
@@ -18,17 +18,15 @@ router.post("/checkout", requireAuth, async (req, res) => {
     return res.status(503).json({ error: "Payments are not configured yet." });
   }
 
-  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.user.id);
+  const user = (await pool.query("SELECT * FROM users WHERE id = $1", [req.user.id])).rows[0] ?? null;
   if (!user) return res.status(404).json({ error: "User not found." });
   if (user.plan === "pro") return res.status(400).json({ error: "You already have a Pro plan." });
 
-  // CRITICAL-2: Check exact domain, not suffix, to prevent fakesavannahstate.edu bypass
   const emailDomain = user.email.toLowerCase().split("@")[1] || "";
   const isSSU = SSU_COUPON_ID &&
     (emailDomain === SSU_DOMAIN || emailDomain.endsWith(`.${SSU_DOMAIN}`));
 
   try {
-    // Reuse existing Stripe customer or create one
     let customerId = user.stripe_customer_id;
     if (!customerId) {
       const customer = await stripe.customers.create({
@@ -37,10 +35,9 @@ router.post("/checkout", requireAuth, async (req, res) => {
         metadata: { userId: user.id },
       });
       customerId = customer.id;
-      db.prepare("UPDATE users SET stripe_customer_id = ? WHERE id = ?").run(customerId, user.id);
+      await pool.query("UPDATE users SET stripe_customer_id = $1 WHERE id = $2", [customerId, user.id]);
     }
 
-    // If SSU coupon applies, use discounts[] (can't combine with allow_promotion_codes)
     const discountOptions = isSSU
       ? { discounts: [{ coupon: SSU_COUPON_ID }] }
       : { allow_promotion_codes: true };
@@ -69,7 +66,7 @@ router.post("/checkout", requireAuth, async (req, res) => {
 router.post("/portal", requireAuth, async (req, res) => {
   if (!stripe) return res.status(503).json({ error: "Payments are not configured yet." });
 
-  const user = db.prepare("SELECT stripe_customer_id FROM users WHERE id = ?").get(req.user.id);
+  const user = (await pool.query("SELECT stripe_customer_id FROM users WHERE id = $1", [req.user.id])).rows[0] ?? null;
   if (!user?.stripe_customer_id) return res.status(400).json({ error: "No billing account found." });
 
   try {
@@ -86,7 +83,7 @@ router.post("/portal", requireAuth, async (req, res) => {
 
 // ── POST /api/stripe/webhook — handle subscription events ─────────────────────
 // Raw body is preserved via the express.json verify() function in index.js (req.rawBody).
-router.post("/webhook", (req, res) => {
+router.post("/webhook", async (req, res) => {
   if (!stripe) return res.status(503).json({ error: "Payments not configured." });
 
   const sig = req.headers["stripe-signature"];
@@ -95,8 +92,6 @@ router.post("/webhook", (req, res) => {
 
   let event;
   try {
-    // LOW-6: req.rawBody must be present — if it's missing the signature check will fail anyway,
-    // but throw early with a clear message rather than silently falling back to the parsed body.
     if (!req.rawBody) {
       throw new Error("Raw body not available — ensure express.json verify() is configured");
     }
@@ -107,13 +102,19 @@ router.post("/webhook", (req, res) => {
   }
 
   // Idempotency — skip already-processed events
-  const alreadyProcessed = db.prepare("SELECT 1 FROM stripe_events WHERE id = ?").get(event.id);
+  const alreadyProcessed = (await pool.query(
+    "SELECT 1 FROM stripe_events WHERE id = $1",
+    [event.id]
+  )).rows[0] ?? null;
   if (alreadyProcessed) {
     console.log(`[stripe] duplicate event skipped: ${event.id}`);
     return res.json({ received: true });
   }
-  // Mark as processed before handling (prevents double-processing on concurrent retries)
-  db.prepare("INSERT OR IGNORE INTO stripe_events (id) VALUES (?)").run(event.id);
+  // Mark as processed before handling
+  await pool.query(
+    "INSERT INTO stripe_events (id) VALUES ($1) ON CONFLICT DO NOTHING",
+    [event.id]
+  );
 
   const data = event.data.object;
 
@@ -127,19 +128,22 @@ router.post("/webhook", (req, res) => {
         const userId = data.metadata?.userId;
         const subId  = data.subscription;
         if (userId && subId) {
-          db.prepare("UPDATE users SET plan = 'pro', stripe_subscription_id = ? WHERE id = ?")
-            .run(subId, userId);
+          await pool.query(
+            "UPDATE users SET plan = 'pro', stripe_subscription_id = $1 WHERE id = $2",
+            [subId, userId]
+          );
           console.log(`[stripe] User ${userId} upgraded to Pro (sub: ${subId})`);
-          // Mark referral as converted (no-op if user wasn't referred)
-          markReferralConverted(userId);
+          await markReferralConverted(userId);
         }
         break;
       }
       case "customer.subscription.deleted":
       case "customer.subscription.paused": {
         const subId = data.id;
-        db.prepare("UPDATE users SET plan = 'free', stripe_subscription_id = NULL WHERE stripe_subscription_id = ?")
-          .run(subId);
+        await pool.query(
+          "UPDATE users SET plan = 'free', stripe_subscription_id = NULL WHERE stripe_subscription_id = $1",
+          [subId]
+        );
         console.log(`[stripe] Subscription ${subId} ended — user downgraded to free`);
         break;
       }
@@ -152,19 +156,27 @@ router.post("/webhook", (req, res) => {
           return res.json({ received: true });
         }
         if (status === "active" || status === "trialing") {
-          db.prepare("UPDATE users SET plan = 'pro' WHERE stripe_subscription_id = ?").run(subId);
+          await pool.query(
+            "UPDATE users SET plan = 'pro' WHERE stripe_subscription_id = $1",
+            [subId]
+          );
           console.log(`[stripe] Subscription ${subId} active (status: ${status})`);
         } else if (status === "past_due" || status === "unpaid" || status === "canceled") {
-          db.prepare("UPDATE users SET plan = 'free' WHERE stripe_subscription_id = ?").run(subId);
+          await pool.query(
+            "UPDATE users SET plan = 'free' WHERE stripe_subscription_id = $1",
+            [subId]
+          );
           console.log(`[stripe] Subscription ${subId} downgraded (status: ${status})`);
         }
         break;
       }
       case "invoice.payment_succeeded": {
-        // Ensure plan is restored to pro when payment recovers (e.g. after past_due)
         const subId = data.subscription;
         if (subId) {
-          db.prepare("UPDATE users SET plan = 'pro' WHERE stripe_subscription_id = ?").run(subId);
+          await pool.query(
+            "UPDATE users SET plan = 'pro' WHERE stripe_subscription_id = $1",
+            [subId]
+          );
           console.log(`[stripe] Payment succeeded for subscription ${subId} — plan restored to pro`);
         }
         break;
@@ -175,17 +187,13 @@ router.post("/webhook", (req, res) => {
         const subId        = data.subscription;
         const amountDue    = (data.amount_due / 100).toFixed(2);
         console.warn(`[stripe] ⚠️  Payment failed — customer: ${customerId}, sub: ${subId}, attempt: ${attemptCount}, amount: $${amountDue}`);
-        // Stripe will retry automatically and fire customer.subscription.deleted after max retries.
-        // We log here for visibility; admins can see the customer ID in Railway logs and look up in Stripe.
         break;
       }
       case "customer.subscription.trial_will_end": {
-        // Trial ending in 3 days — logged for future email reminder implementation
         console.log(`[stripe] Trial ending soon for subscription ${data.id}`);
         break;
       }
       default:
-        // Unhandled event types — log for debugging
         console.log(`[stripe] Unhandled event: ${event.type}`);
     }
   } catch (err) {
