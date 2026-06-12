@@ -368,6 +368,7 @@ router.delete("/:id/share", (req, res) => {
 
 // Generate quiz
 router.post("/:id/generate-quiz", async (req, res) => {
+  console.log(`[quiz] POST /guides/${req.params.id}/generate-quiz - count=${req.body.count}, mode=${req.body.mode}`);
   const guide = db.prepare("SELECT * FROM guides WHERE id = ? AND user_id = ?").get(req.params.id, req.user.id);
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
@@ -465,8 +466,8 @@ router.post("/:id/generate-quiz", async (req, res) => {
 
     res.json({ questions, mode });
   } catch (err) {
-    console.error("[generate-quiz error]", err?.message);
-    res.status(500).json({ error: "Could not generate quiz. Please try again." });
+    console.error("[generate-quiz error]", err?.message, err?.stack?.split('\n').slice(0, 3).join(' | '));
+    res.status(500).json({ error: err?.message || "Could not generate quiz. Please try again." });
   }
 });
 
