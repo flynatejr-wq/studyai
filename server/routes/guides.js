@@ -398,10 +398,33 @@ router.post("/:id/generate-quiz", async (req, res) => {
   const VALID_MODES = ["mcq", "self-grade", "true-false", "fill-blank", "adaptive-mixed"];
   const mode = VALID_MODES.includes(req.body.mode) ? req.body.mode : "mcq";
 
-  const summary  = safeParse(guide.summary,   []);
-  const keyTerms = safeParse(guide.key_terms, []);
+  const stripTags = (s) => (typeof s === "string" ? s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : "");
 
-  const context = `Title: ${guide.title}\n\nSummary:\n${summary.map((s, i) => `${i + 1}. ${s}`).join("\n")}\n\nKey Terms:\n${keyTerms.map((t) => `- ${t.term}: ${t.definition}`).join("\n")}`;
+  const rawSections = safeParse(guide.sections || "[]", []);
+  let contextParts = [`Title: ${guide.title}`];
+
+  if (rawSections.length > 0) {
+    rawSections.forEach((s, i) => {
+      contextParts.push(`\nSection ${i + 1}${s.title ? `: ${s.title}` : ""}`);
+      if (s.overview) {
+        const ov = stripTags(s.overview);
+        if (ov) contextParts.push(`Overview: ${ov}`);
+      }
+      if (Array.isArray(s.keyPoints) && s.keyPoints.length)
+        contextParts.push(`Key Points:\n${s.keyPoints.map(p => `- ${stripTags(p)}`).join("\n")}`);
+      if (Array.isArray(s.terms) && s.terms.length)
+        contextParts.push(`Terms:\n${s.terms.map(t => `- ${t.term}: ${t.definition}`).join("\n")}`);
+    });
+  } else {
+    const summary  = safeParse(guide.summary,   []);
+    const keyTerms = safeParse(guide.key_terms, []);
+    if (summary.length)
+      contextParts.push(`\nSummary:\n${summary.map((s, i) => `${i + 1}. ${stripTags(s)}`).join("\n")}`);
+    if (keyTerms.length)
+      contextParts.push(`\nKey Terms:\n${keyTerms.map(t => `- ${t.term}: ${t.definition}`).join("\n")}`);
+  }
+
+  const context = contextParts.join("\n");
 
   let prompt;
   if (mode === "mcq") {
@@ -420,6 +443,7 @@ router.post("/:id/generate-quiz", async (req, res) => {
     const client = makeAnthropicClient();
     const message = await client.messages.create({
       model: "claude-haiku-4-5",
+      system: "You are an educational quiz generator. Respond with ONLY a valid JSON array — no markdown, no code fences, no explanation. Start your response with [ and end with ].",
       max_tokens: Math.min(8000, Math.max(
         mode === "adaptive-mixed" ? 7000 : mode === "mcq" ? 4500 : 3500,
         count * (mode === "mcq" ? 250 : mode === "adaptive-mixed" ? 300 : 200)
@@ -466,8 +490,9 @@ router.post("/:id/generate-quiz", async (req, res) => {
 
     res.json({ questions, mode });
   } catch (err) {
-    console.error("[generate-quiz error]", err?.message, err?.stack?.split('\n').slice(0, 3).join(' | '));
-    res.status(500).json({ error: err?.message || "Could not generate quiz. Please try again." });
+    const msg = err?.message || err?.toString() || "unknown";
+    console.error("[generate-quiz error]", msg, "status=", err?.status, "stack=", err?.stack?.split("\n").slice(0, 3).join(" | "));
+    res.status(500).json({ error: msg || "Could not generate quiz. Please try again." });
   }
 });
 
