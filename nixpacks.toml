@@ -2,7 +2,7 @@
 nixPkgs = ["nodejs_20", "python3", "gcc", "gnumake"]
 
 [phases.build]
-cmds = ["cd server && npm install --build-from-source"]
+cmds = ["cd server && npm install"]
 
 [start]
 cmd = "node server/index.js"
