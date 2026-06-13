@@ -577,7 +577,19 @@ router.post("/:id/generate-quiz", async (req, res) => {
       }
     }
 
-    res.json({ questions, mode });
+    // Shuffle MCQ options so the correct answer isn't always first
+    const shuffled = questions.map(q => {
+      if (!Array.isArray(q.options) || typeof q.correctIndex !== "number") return q;
+      const correct = q.options[q.correctIndex];
+      const opts = [...q.options];
+      for (let i = opts.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [opts[i], opts[j]] = [opts[j], opts[i]];
+      }
+      return { ...q, options: opts, correctIndex: opts.indexOf(correct) };
+    });
+
+    res.json({ questions: shuffled, mode });
   } catch (err) {
     const msg = err?.message || err?.toString() || "unknown";
     console.error("[generate-quiz error]", msg, "status=", err?.status, "stack=", err?.stack?.split("\n").slice(0, 3).join(" | "));
