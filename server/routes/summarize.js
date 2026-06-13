@@ -243,8 +243,8 @@ The output should look and function like a vocabulary study sheet.`,
 function outputTokensForInput(textLength, style = "detailed") {
   const isRich = style === "detailed" || style === "guide";
   if (textLength < 500)   return isRich ? 3000 : 1500;
-  if (textLength < 3000)  return isRich ? 4000 : 2500;
-  if (textLength < 10000) return isRich ? 6000 : 4000;
+  if (textLength < 3000)  return isRich ? 5000 : 2500;
+  if (textLength < 10000) return isRich ? 8000 : 5000;
   return 8000;
 }
 
