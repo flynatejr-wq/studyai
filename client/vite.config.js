@@ -14,6 +14,8 @@ export default defineConfig({
         enabled: false,
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
         // Fall back to index.html for all non-API client-side routes
         navigateFallback: "/index.html",

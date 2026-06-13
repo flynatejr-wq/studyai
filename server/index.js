@@ -8,6 +8,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import jwt from "jsonwebtoken";
+import OpenAI from "openai";
 import { initDb } from "./db.js";
 import summarizeRoute from "./routes/summarize.js";
 import authRoute from "./routes/auth.js";
@@ -157,6 +158,48 @@ app.use("/api/admin", adminRoute);
 app.use("/api/export", exportRoute);
 app.use("/api/study-plans", studyPlansRoute);
 app.use("/api/referrals", referralsRoute);
+
+// ── Text-to-Speech (OpenAI) ───────────────────────────────────────────────────
+const ttsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: IS_TEST ? 100_000 : 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many TTS requests. Please wait a moment." },
+});
+
+const VALID_TTS_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+
+app.post("/api/tts", ttsLimiter, async (req, res) => {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized." });
+  try {
+    const jwt_ = await import("jsonwebtoken");
+    jwt_.default.verify(header.split(" ")[1], process.env.JWT_SECRET, { algorithms: ["HS256"] });
+  } catch { return res.status(401).json({ error: "Invalid token." }); }
+
+  const { text, voice = "nova" } = req.body;
+  if (!text || typeof text !== "string") return res.status(400).json({ error: "Missing text." });
+  if (!VALID_TTS_VOICES.includes(voice)) return res.status(400).json({ error: "Invalid voice." });
+
+  const safeText = text.slice(0, 4096);
+
+  try {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const mp3 = await openai.audio.speech.create({
+      model: "tts-1",
+      voice,
+      input: safeText,
+      response_format: "mp3",
+    });
+    const buffer = Buffer.from(await mp3.arrayBuffer());
+    res.set({ "Content-Type": "audio/mpeg", "Content-Length": buffer.length, "Cache-Control": "no-store" });
+    res.send(buffer);
+  } catch (err) {
+    console.error("[tts error]", err?.message);
+    res.status(500).json({ error: "TTS failed. Please try again." });
+  }
+});
 
 app.get("/health", (_, res) => res.json({ status: "ok" }));
 

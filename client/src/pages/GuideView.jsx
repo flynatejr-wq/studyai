@@ -375,9 +375,33 @@ function MindMapMode({ guide }) {
 }
 
 // ── Read Aloud Button ─────────────────────────────────────────────────────────
+const TTS_VOICES = [
+  { id: "nova",    label: "Nova",    desc: "Warm, friendly female" },
+  { id: "alloy",   label: "Alloy",   desc: "Neutral, balanced" },
+  { id: "echo",    label: "Echo",    desc: "Deep, clear male" },
+  { id: "fable",   label: "Fable",   desc: "Expressive, storytelling" },
+  { id: "onyx",    label: "Onyx",    desc: "Rich, authoritative male" },
+  { id: "shimmer", label: "Shimmer", desc: "Soft, gentle female" },
+];
+
 function ReadAloudButton({ guide, studyMode }) {
   const [speaking, setSpeaking] = useState(false);
-  const [supported] = useState(() => typeof window !== "undefined" && "speechSynthesis" in window);
+  const [loading, setLoading] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState(() => localStorage.getItem("tts-voice-ai") || "nova");
+  const [showPicker, setShowPicker] = useState(false);
+  const pickerRef = useRef(null);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    if (!showPicker) return;
+    const handler = (e) => { if (pickerRef.current && !pickerRef.current.contains(e.target)) setShowPicker(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPicker]);
+
+  useEffect(() => { stop(); }, [studyMode]); // eslint-disable-line
+
+  useEffect(() => () => stop(), []);
 
   const getText = () => {
     if (studyMode === "notes") {
@@ -394,41 +418,102 @@ function ReadAloudButton({ guide, studyMode }) {
     return `${guide.title}. ${(guide.summary || []).join(" ")}`;
   };
 
-  const stop = () => { window.speechSynthesis.cancel(); setSpeaking(false); };
-
-  const toggle = () => {
-    if (!supported) return;
-    if (speaking) { stop(); return; }
-    const text = getText();
-    if (!text) return;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.88;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-    setSpeaking(true);
+  const stop = () => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    setSpeaking(false); setLoading(false);
   };
 
-  useEffect(() => {
-    return () => { if (supported) window.speechSynthesis.cancel(); };
-  }, [supported]);
+  const toggle = async () => {
+    if (speaking || loading) { stop(); return; }
+    const text = getText().slice(0, 4000);
+    if (!text) return;
+    setLoading(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_BASE}/tts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ text, voice: selectedVoice }),
+      });
+      if (!res.ok) throw new Error("TTS failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => { URL.revokeObjectURL(url); stop(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); stop(); };
+      await audio.play();
+      setSpeaking(true);
+    } catch { stop(); }
+    finally { setLoading(false); }
+  };
 
-  useEffect(() => {
-    if (speaking) stop();
-  }, [studyMode]); // eslint-disable-line
+  const pickVoice = async (id) => {
+    setSelectedVoice(id);
+    localStorage.setItem("tts-voice-ai", id);
+    setShowPicker(false);
+    // Quick preview
+    stop();
+    setLoading(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_BASE}/tts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ text: "Hi, I'm your StudyBuddi voice. How does this sound?", voice: id }),
+      });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => { URL.revokeObjectURL(url); stop(); };
+      audio.onerror = () => stop();
+      await audio.play();
+      setSpeaking(true);
+    } catch { stop(); }
+    finally { setLoading(false); }
+  };
 
-  if (!supported) return null;
+  const active = speaking || loading;
 
   return (
-    <button onClick={toggle}
-      title={speaking ? "Stop reading" : "Read aloud (text-to-speech)"}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all print:hidden ${
-        speaking ? "bg-indigo-600 text-white" : "bg-white/5 border border-white/10 text-gray-300 hover:border-indigo-500/40"
-      }`}>
-      {speaking ? <VolumeX size={13} /> : <Volume2 size={13} />}
-      <span className="hidden sm:inline">{speaking ? "Stop" : "Listen"}</span>
-    </button>
+    <div className="relative print:hidden" ref={pickerRef}>
+      <div className="flex items-center">
+        <button onClick={toggle}
+          title={active ? "Stop" : "Listen with AI voice"}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-l-lg font-medium text-xs transition-all ${
+            active ? "bg-indigo-600 text-white border border-indigo-500" : "bg-white/5 border border-white/10 text-gray-300 hover:border-indigo-500/40"
+          }`}>
+          {loading ? <span className="animate-spin inline-block text-[11px]">⏳</span> : active ? <VolumeX size={13} /> : <Volume2 size={13} />}
+          <span className="hidden sm:inline">{loading ? "Loading…" : active ? "Stop" : "Listen"}</span>
+        </button>
+        <button onClick={() => setShowPicker(p => !p)} title="Choose voice"
+          className={`flex items-center px-1.5 py-1.5 rounded-r-lg text-xs transition-all ${
+            showPicker ? "bg-indigo-600/40 border border-indigo-500 text-indigo-300" : "bg-white/5 border border-white/10 text-gray-500 hover:text-white hover:border-indigo-500/40"
+          }`}>
+          <ChevronDown size={12} />
+        </button>
+      </div>
+
+      {showPicker && (
+        <div className="absolute right-0 top-9 z-50 bg-[#1a1830] border border-white/15 rounded-xl shadow-2xl p-2 w-64">
+          <p className="text-gray-500 text-[10px] uppercase tracking-wider px-2 pb-2">AI Voice — click to preview</p>
+          {TTS_VOICES.map(v => (
+            <button key={v.id} onClick={() => pickVoice(v.id)}
+              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all flex items-center justify-between gap-2 ${
+                selectedVoice === v.id ? "bg-indigo-600/30 text-white" : "text-gray-300 hover:bg-white/8 hover:text-white"
+              }`}>
+              <div>
+                <span className="font-semibold">{v.label}</span>
+                <span className="text-gray-500 ml-2">{v.desc}</span>
+              </div>
+              {selectedVoice === v.id && <Check size={12} className="text-indigo-400 shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
