@@ -329,7 +329,7 @@ async function generateFromText(text, difficulty = "standard", style = "detailed
   };
 }
 
-const MAX_TEXT_CHARS = 20000;
+const MAX_TEXT_CHARS = 40000;
 const FREE_GUIDE_LIMIT = 1;
 
 // ── Free-tier guard ───────────────────────────────────────────────────────────
