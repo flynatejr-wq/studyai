@@ -585,4 +585,116 @@ router.post("/:id/generate-quiz", async (req, res) => {
   }
 });
 
+// Writing prompts generator
+router.post("/:id/writing-prompts", async (req, res) => {
+  const guide = (await pool.query(
+    "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id]
+  )).rows[0] ?? null;
+  if (!guide) return res.status(404).json({ error: "Guide not found." });
+
+  const stripTags = (s) => (typeof s === "string" ? s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : "");
+  const rawSections = safeParse(guide.sections || "[]", []);
+  let contextParts = [`Title: ${guide.title}`];
+
+  if (rawSections.length > 0) {
+    rawSections.slice(0, 5).forEach((s, i) => {
+      contextParts.push(`\nSection ${i + 1}${s.title ? `: ${s.title}` : ""}`);
+      if (s.overview) contextParts.push(`Overview: ${stripTags(s.overview).slice(0, 200)}`);
+      if (Array.isArray(s.keyPoints) && s.keyPoints.length)
+        contextParts.push(`Key Points: ${s.keyPoints.slice(0, 3).map(p => stripTags(p)).join("; ")}`);
+    });
+  } else {
+    const summary = safeParse(guide.summary, []);
+    if (summary.length) contextParts.push(`\nSummary:\n${summary.slice(0, 5).map((s, i) => `${i + 1}. ${stripTags(s)}`).join("\n")}`);
+  }
+
+  const context = contextParts.join("\n");
+  const prompt = `Based on this study guide, generate 5 analytical essay and writing prompts.\n\n${context}\n\nReturn ONLY a JSON array of 5 strings. Each string is a 1-2 sentence writing prompt requiring analysis, comparison, or argument — not just factual recall. Vary difficulty.\nReturn ONLY the JSON array.`;
+
+  try {
+    const client = makeAnthropicClient();
+    const message = await client.messages.create({
+      model: "claude-haiku-4-5",
+      system: "You are an educational writing prompt generator. Return ONLY a valid JSON array of strings. No markdown, no code fences.",
+      max_tokens: 1000,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const raw = message.content[0].text.trim();
+    const start = raw.indexOf("["); const end = raw.lastIndexOf("]");
+    if (start === -1 || end === -1) throw new Error("Invalid AI response");
+    const prompts = JSON.parse(raw.slice(start, end + 1));
+    if (!Array.isArray(prompts)) throw new Error("Expected array");
+    res.json({ prompts: prompts.slice(0, 5) });
+  } catch {
+    res.status(500).json({ error: "Could not generate prompts. Please try again." });
+  }
+});
+
+// Teach-it-back evaluator
+router.post("/:id/teach-back", async (req, res) => {
+  const guide = (await pool.query(
+    "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
+    [req.params.id, req.user.id]
+  )).rows[0] ?? null;
+  if (!guide) return res.status(404).json({ error: "Guide not found." });
+
+  const { explanation } = req.body;
+  if (!explanation || typeof explanation !== "string" || explanation.trim().length < 20)
+    return res.status(400).json({ error: "Explanation is too short." });
+
+  const stripTags = (s) => (typeof s === "string" ? s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : "");
+  const rawSections = safeParse(guide.sections || "[]", []);
+  const summary = safeParse(guide.summary, []);
+  const keyTerms = safeParse(guide.key_terms, []);
+
+  let contextParts = [`Title: ${guide.title}`];
+  if (rawSections.length > 0) {
+    rawSections.slice(0, 4).forEach((s, i) => {
+      contextParts.push(`Section ${i + 1}: ${s.title}`);
+      if (s.overview) contextParts.push(`  ${stripTags(s.overview).slice(0, 200)}`);
+      if (Array.isArray(s.keyPoints) && s.keyPoints.length)
+        contextParts.push(`  Key points: ${s.keyPoints.slice(0, 3).map(p => stripTags(p)).join("; ")}`);
+    });
+  } else {
+    if (summary.length) contextParts.push(`Summary: ${summary.slice(0, 5).map(stripTags).join(" ")}`);
+    if (keyTerms.length) contextParts.push(`Key terms: ${keyTerms.slice(0, 8).map(t => t.term).join(", ")}`);
+  }
+
+  const context = contextParts.join("\n");
+  const prompt = `A student studied this guide and explained what they learned in their own words.
+
+Study guide:
+${context}
+
+Student's explanation:
+${explanation.trim().slice(0, 2000)}
+
+Evaluate their understanding. Return ONLY a JSON object with:
+- "score": integer 1-10
+- "grade": one of "Excellent", "Good", "Needs Work", or "Try Again"
+- "strengths": array of 1-3 strings (what they got right, be specific)
+- "gaps": array of 1-3 strings (key concepts missed or wrong, be specific and actionable)
+- "encouragement": one short encouraging sentence
+
+Return ONLY the JSON object.`;
+
+  try {
+    const client = makeAnthropicClient();
+    const message = await client.messages.create({
+      model: "claude-haiku-4-5",
+      system: "You are an educational evaluator. Return ONLY a valid JSON object. No markdown, no code fences.",
+      max_tokens: 600,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const raw = message.content[0].text.trim();
+    const start = raw.indexOf("{"); const end = raw.lastIndexOf("}");
+    if (start === -1 || end === -1) throw new Error("Invalid AI response");
+    const result = JSON.parse(raw.slice(start, end + 1));
+    res.json(result);
+  } catch {
+    res.status(500).json({ error: "Could not evaluate explanation. Please try again." });
+  }
+});
+
 export default router;

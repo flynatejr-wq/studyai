@@ -7,6 +7,7 @@ import {
   ChevronRight, CheckCircle, XCircle, Clock, BarChart2,
   Share2, Printer, Check, Link2Off, BookOpen, List,
   Star, Target, Eye, EyeOff, Circle, CheckSquare, Brain, Crown,
+  Volume2, VolumeX, Timer, PenLine,
 } from "lucide-react";
 import { api, getToken } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -243,6 +244,432 @@ function FlashcardMode({ terms }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ── Mind Map Mode ─────────────────────────────────────────────────────────────
+function MindMapMode({ guide }) {
+  const [tooltip, setTooltip] = useState(null);
+  const title = guide.title || "Guide";
+  const sections = (guide.sections || []).slice(0, 8);
+  const flatTerms = guide.key_terms || [];
+  const hasSections = sections.length > 0;
+
+  const W = 860, H = 580;
+  const cx = W / 2, cy = H / 2;
+  const sectionR = sections.length <= 3 ? 165 : 195;
+  const termR = 88;
+
+  const nodes = hasSections
+    ? sections.map((s, i) => {
+        const angle = -Math.PI / 2 + (2 * Math.PI * i) / sections.length;
+        return {
+          x: cx + sectionR * Math.cos(angle),
+          y: cy + sectionR * Math.sin(angle),
+          angle,
+          label: s.title,
+          terms: (s.terms || []).slice(0, 3).map(t => t.term),
+          overview: s.overview,
+        };
+      })
+    : flatTerms.slice(0, 10).map((t, i) => {
+        const angle = -Math.PI / 2 + (2 * Math.PI * i) / Math.min(flatTerms.length, 10);
+        return {
+          x: cx + sectionR * Math.cos(angle),
+          y: cy + sectionR * Math.sin(angle),
+          angle,
+          label: t.term,
+          terms: [],
+          overview: t.definition,
+        };
+      });
+
+  const short = (s, max) => (!s ? "" : s.length > max ? s.slice(0, max - 1) + "…" : s);
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 overflow-hidden">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-base font-bold text-white">🗺️ Mind Map</h2>
+        <p className="text-gray-500 text-xs">{hasSections ? `${sections.length} sections` : `${flatTerms.length} concepts`} — hover to preview</p>
+      </div>
+      <div className="overflow-auto -mx-4 px-4">
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", minWidth: 560, minHeight: 360 }} className="select-none">
+          {/* Lines: center → section */}
+          {nodes.map((n, i) => (
+            <line key={`cl-${i}`} x1={cx} y1={cy} x2={n.x} y2={n.y}
+              stroke="#6366f1" strokeWidth="1.5" strokeOpacity="0.4" />
+          ))}
+          {/* Lines + nodes: section → terms */}
+          {nodes.map((n, i) =>
+            n.terms.map((term, j) => {
+              const count = n.terms.length;
+              const ta = n.angle + (j - (count - 1) / 2) * 0.45;
+              const tx = n.x + termR * Math.cos(ta);
+              const ty = n.y + termR * Math.sin(ta);
+              return (
+                <g key={`t-${i}-${j}`}>
+                  <line x1={n.x} y1={n.y} x2={tx} y2={ty} stroke="#888" strokeWidth="1" strokeOpacity="0.3" />
+                  <rect x={tx - 36} y={ty - 11} width="72" height="22" rx="5"
+                    fill="white" fillOpacity="0.05" stroke="white" strokeOpacity="0.1" />
+                  <text x={tx} y={ty} textAnchor="middle" dominantBaseline="middle"
+                    fill="#9ca3af" fontSize="9.5" fontFamily="Helvetica,Arial,sans-serif">
+                    {short(term, 13)}
+                  </text>
+                </g>
+              );
+            })
+          )}
+          {/* Section nodes */}
+          {nodes.map((n, i) => (
+            <g key={`n-${i}`} style={{ cursor: "default" }}
+              onMouseEnter={() => setTooltip({ x: n.x, y: n.y, text: n.label, sub: n.overview })}
+              onMouseLeave={() => setTooltip(null)}>
+              <circle cx={n.x} cy={n.y} r={42} fill="#4f46e5" fillOpacity="0.22" stroke="#6366f1" strokeWidth="1.5" />
+              <text x={n.x} y={n.y - (n.terms.length > 0 ? 6 : 0)} textAnchor="middle" dominantBaseline="middle"
+                fill="white" fontSize="11" fontWeight="bold" fontFamily="Helvetica,Arial,sans-serif">
+                {short(n.label, 14)}
+              </text>
+              {n.terms.length > 0 && (
+                <text x={n.x} y={n.y + 11} textAnchor="middle" dominantBaseline="middle"
+                  fill="#a5b4fc" fontSize="9" fontFamily="Helvetica,Arial,sans-serif">
+                  {n.terms.length} term{n.terms.length !== 1 ? "s" : ""}
+                </text>
+              )}
+            </g>
+          ))}
+          {/* Center node */}
+          <circle cx={cx} cy={cy} r={68} fill="#6366f1" fillOpacity="0.3" stroke="#818cf8" strokeWidth="2" />
+          <text x={cx} y={cy - 9} textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Helvetica,Arial,sans-serif">
+            {short(title, 18)}
+          </text>
+          <text x={cx} y={cy + 11} textAnchor="middle" fill="rgba(255,255,255,0.55)" fontSize="9.5" fontFamily="Helvetica,Arial,sans-serif">
+            {hasSections ? `${sections.length} sections` : `${flatTerms.length} concepts`}
+          </text>
+          {/* Hover tooltip */}
+          {tooltip && (() => {
+            const tx = Math.min(Math.max(tooltip.x - 80, 4), W - 164);
+            const ty = Math.min(tooltip.y - 70, H - 80);
+            const sub = tooltip.sub?.replace(/<[^>]+>/g, "").slice(0, 60);
+            return (
+              <g>
+                <rect x={tx} y={ty} width="160" height={sub ? 58 : 36} rx="8" fill="#1e1b4b" stroke="#6366f1" strokeWidth="1" />
+                <text x={tx + 80} y={ty + (sub ? 20 : 20)} textAnchor="middle" fill="white" fontSize="11" fontWeight="bold" fontFamily="Helvetica,Arial,sans-serif">
+                  {short(tooltip.text, 22)}
+                </text>
+                {sub && (
+                  <text x={tx + 80} y={ty + 38} textAnchor="middle" fill="#9ca3af" fontSize="9" fontFamily="Helvetica,Arial,sans-serif">
+                    {short(sub, 35)}…
+                  </text>
+                )}
+              </g>
+            );
+          })()}
+        </svg>
+      </div>
+      {!hasSections && (
+        <p className="text-gray-600 text-xs text-center mt-1">Generate a guide with "Detailed" format to see richer section branches</p>
+      )}
+    </div>
+  );
+}
+
+// ── Read Aloud Button ─────────────────────────────────────────────────────────
+function ReadAloudButton({ guide, studyMode }) {
+  const [speaking, setSpeaking] = useState(false);
+  const [supported] = useState(() => typeof window !== "undefined" && "speechSynthesis" in window);
+
+  const getText = () => {
+    if (studyMode === "notes") {
+      const summary = (guide.summary || []).join(" ");
+      const terms = (guide.key_terms || []).slice(0, 10).map(t => `${t.term}: ${t.definition}`).join(". ");
+      return `${guide.title}. ${summary}. Key terms: ${terms}`;
+    }
+    if (studyMode === "sections" && guide.sections?.length > 0) {
+      return guide.sections.map(s => {
+        const parts = [s.title, s.overview?.replace(/<[^>]+>/g, "") || "", (s.keyPoints || []).slice(0, 3).join(". ")];
+        return parts.filter(Boolean).join(". ");
+      }).join(". Next section: ");
+    }
+    return `${guide.title}. ${(guide.summary || []).join(" ")}`;
+  };
+
+  const stop = () => { window.speechSynthesis.cancel(); setSpeaking(false); };
+
+  const toggle = () => {
+    if (!supported) return;
+    if (speaking) { stop(); return; }
+    const text = getText();
+    if (!text) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.88;
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+    setSpeaking(true);
+  };
+
+  useEffect(() => {
+    return () => { if (supported) window.speechSynthesis.cancel(); };
+  }, [supported]);
+
+  useEffect(() => {
+    if (speaking) stop();
+  }, [studyMode]); // eslint-disable-line
+
+  if (!supported) return null;
+
+  return (
+    <button onClick={toggle}
+      title={speaking ? "Stop reading" : "Read aloud (text-to-speech)"}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all print:hidden ${
+        speaking ? "bg-indigo-600 text-white" : "bg-white/5 border border-white/10 text-gray-300 hover:border-indigo-500/40"
+      }`}>
+      {speaking ? <VolumeX size={13} /> : <Volume2 size={13} />}
+      <span className="hidden sm:inline">{speaking ? "Stop" : "Listen"}</span>
+    </button>
+  );
+}
+
+// ── Pomodoro Timer ────────────────────────────────────────────────────────────
+function PomodoroTimer() {
+  const FOCUS = 25 * 60, BREAK = 5 * 60;
+  const [remaining, setRemaining] = useState(FOCUS);
+  const [running, setRunning] = useState(false);
+  const [phase, setPhase] = useState("focus");
+  const [cycles, setCycles] = useState(0);
+  const [collapsed, setCollapsed] = useState(false);
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    if (!running) return;
+    intervalRef.current = setInterval(() => {
+      setRemaining(r => {
+        if (r > 1) return r - 1;
+        clearInterval(intervalRef.current);
+        setRunning(false);
+        if (phase === "focus") { setCycles(c => c + 1); setPhase("break"); return BREAK; }
+        setPhase("focus"); return FOCUS;
+      });
+    }, 1000);
+    return () => clearInterval(intervalRef.current);
+  }, [running, phase]);
+
+  const reset = () => { clearInterval(intervalRef.current); setRunning(false); setPhase("focus"); setCycles(0); setRemaining(FOCUS); };
+
+  const total = phase === "focus" ? FOCUS : BREAK;
+  const pct = Math.round(((total - remaining) / total) * 100);
+  const m = Math.floor(remaining / 60), s = remaining % 60;
+  const display = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+
+  const focusColor = "#6366f1", breakColor = "#10b981";
+  const color = phase === "focus" ? focusColor : breakColor;
+
+  if (collapsed) return (
+    <button onClick={() => setCollapsed(false)}
+      className="fixed bottom-6 right-4 md:right-6 z-40 print:hidden flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold border shadow-lg transition-all"
+      style={{ background: `${color}22`, borderColor: `${color}66`, color: "white" }}>
+      <Timer size={13} style={{ color }} />
+      {display}
+      {running && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: color }} />}
+    </button>
+  );
+
+  return (
+    <div className="fixed bottom-6 right-4 md:right-6 z-40 print:hidden shadow-2xl shadow-black/50">
+      <div className="bg-[#13111f] border border-white/10 rounded-2xl p-4 w-52">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-1.5">
+            <Timer size={13} style={{ color }} />
+            <span className="text-xs font-bold" style={{ color }}>{phase === "focus" ? "Focus" : "Break"}</span>
+            {cycles > 0 && <span className="text-gray-600 text-xs">#{cycles}</span>}
+          </div>
+          <button onClick={() => setCollapsed(true)} className="text-gray-600 hover:text-white transition-colors text-sm leading-none">–</button>
+        </div>
+        <div className="flex items-center justify-center my-2">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <circle cx="45" cy="45" r="38" fill="none" stroke="white" strokeOpacity="0.06" strokeWidth="6" />
+            <circle cx="45" cy="45" r="38" fill="none" stroke={color} strokeWidth="6"
+              strokeDasharray={`${2 * Math.PI * 38}`}
+              strokeDashoffset={`${2 * Math.PI * 38 * (1 - pct / 100)}`}
+              strokeLinecap="round" transform="rotate(-90 45 45)"
+              style={{ transition: "stroke-dashoffset 1s linear" }} />
+            <text x="45" y="40" textAnchor="middle" fill="white" fontSize="17" fontWeight="bold" fontFamily="monospace">{display}</text>
+            <text x="45" y="56" textAnchor="middle" fill="#6b7280" fontSize="9" fontFamily="Helvetica,Arial,sans-serif">
+              {phase === "focus" ? "stay focused" : "take a break"}
+            </text>
+          </svg>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setRunning(r => !r)}
+            className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+            style={running ? { background: "rgba(255,255,255,0.08)", color: "#d1d5db" } : { background: color, color: "white" }}>
+            {running ? "Pause" : "Start"}
+          </button>
+          <button onClick={reset} className="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-white hover:bg-white/10 transition-all">
+            <RotateCcw size={13} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Writing Prompts Mode ──────────────────────────────────────────────────────
+function WritingPromptsMode({ guideId }) {
+  const [prompts, setPrompts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(null);
+
+  const generate = async () => {
+    setLoading(true); setError("");
+    try {
+      const { prompts: ps } = await api.guides.writingPrompts(guideId);
+      setPrompts(ps || []);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  const copy = async (text, i) => {
+    try { await navigator.clipboard.writeText(text); } catch { return; }
+    setCopied(i); setTimeout(() => setCopied(null), 1500);
+  };
+
+  return (
+    <div className="flex flex-col gap-5 py-2">
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+        <h3 className="text-white font-bold mb-1">✍️ Writing Prompts</h3>
+        <p className="text-gray-400 text-sm mb-4">
+          AI-generated essay prompts to deepen your understanding. Writing about what you learned is one of the most powerful retention techniques.
+        </p>
+        {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
+        <button onClick={generate} disabled={loading}
+          className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl text-white font-semibold text-sm transition-all">
+          {loading ? <><span className="animate-spin inline-block">⏳</span> Generating…</> : <><PenLine size={15} /> Generate Prompts</>}
+        </button>
+      </div>
+
+      {prompts.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {prompts.map((p, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
+              className="bg-white/5 border border-white/10 rounded-2xl p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/40 border border-indigo-500/40 flex items-center justify-center text-indigo-300 text-xs font-bold mt-0.5">{i + 1}</span>
+                  <p className="text-gray-200 text-sm leading-relaxed">{p}</p>
+                </div>
+                <button onClick={() => copy(p, i)} title="Copy prompt"
+                  className="shrink-0 p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors">
+                  {copied === i ? <Check size={13} className="text-green-400" /> : <CheckSquare size={13} />}
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Teach-It-Back Mode ────────────────────────────────────────────────────────
+function TeachBackMode({ guideId }) {
+  const [input, setInput] = useState("");
+  const [feedback, setFeedback] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    if (input.trim().length < 30) { setError("Write at least a few sentences to get meaningful feedback."); return; }
+    setLoading(true); setError("");
+    try {
+      const result = await api.guides.teachBack(guideId, input.trim());
+      setFeedback(result);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  const score = feedback?.score ?? 0;
+  const gradeColor = score >= 8 ? "text-green-400" : score >= 6 ? "text-yellow-400" : score >= 4 ? "text-orange-400" : "text-red-400";
+  const gradeBg = score >= 8 ? "bg-green-500/10 border-green-500/20" : score >= 6 ? "bg-yellow-500/10 border-yellow-500/20" : score >= 4 ? "bg-orange-500/10 border-orange-500/20" : "bg-red-500/10 border-red-500/20";
+  const barColor = score >= 8 ? "bg-green-500" : score >= 6 ? "bg-yellow-500" : score >= 4 ? "bg-orange-500" : "bg-red-500";
+
+  return (
+    <div className="flex flex-col gap-5 py-2">
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+        <h3 className="text-white font-bold mb-1">🧠 Teach It Back</h3>
+        <p className="text-gray-400 text-sm mb-4">
+          The best way to learn is to teach. Explain what you learned from this guide in your own words — as if teaching it to a friend who knows nothing about it. AI will evaluate your understanding.
+        </p>
+        <textarea
+          value={input} onChange={e => setInput(e.target.value)}
+          placeholder="Start explaining what you learned… (aim for 3–5 sentences covering the main concepts)"
+          rows={6}
+          className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none leading-relaxed" />
+        <div className="flex items-center justify-between mt-3">
+          <p className={`text-xs ${input.length < 30 ? "text-gray-600" : "text-gray-400"}`}>
+            {input.length} chars{input.length < 30 && input.length > 0 ? " — write a bit more" : ""}
+          </p>
+          <button onClick={submit} disabled={loading || input.trim().length < 30}
+            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 rounded-xl text-white font-semibold text-sm transition-all">
+            {loading ? <><span className="animate-spin inline-block">⏳</span> Evaluating…</> : <><Brain size={15} /> Get Feedback</>}
+          </button>
+        </div>
+        {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+      </div>
+
+      <AnimatePresence>
+        {feedback && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-3">
+            <div className={`border rounded-2xl p-5 ${gradeBg}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className={`text-2xl font-black ${gradeColor}`}>{feedback.grade}</p>
+                  <p className="text-gray-400 text-sm mt-0.5">{feedback.encouragement}</p>
+                </div>
+                <div className={`text-4xl font-black ${gradeColor}`}>{feedback.score}/10</div>
+              </div>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${barColor}`} style={{ width: `${score * 10}%`, transition: "width 1s ease" }} />
+              </div>
+            </div>
+
+            {feedback.strengths?.length > 0 && (
+              <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-5">
+                <p className="text-green-400 font-bold text-sm mb-3">✓ What you got right</p>
+                <ul className="space-y-2">
+                  {feedback.strengths.map((s, i) => (
+                    <li key={i} className="flex items-start gap-2 text-gray-300 text-sm">
+                      <CheckCircle size={14} className="text-green-400 shrink-0 mt-0.5" /> {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {feedback.gaps?.length > 0 && (
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-5">
+                <p className="text-orange-400 font-bold text-sm mb-3">⚡ What to review</p>
+                <ul className="space-y-2">
+                  {feedback.gaps.map((g, i) => (
+                    <li key={i} className="flex items-start gap-2 text-gray-300 text-sm">
+                      <Target size={14} className="text-orange-400 shrink-0 mt-0.5" /> {g}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <button onClick={() => { setFeedback(null); setInput(""); }}
+              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-gray-300 text-sm transition-all">
+              <RotateCcw size={14} /> Try Again
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1092,9 +1519,10 @@ export default function GuideView() {
     ...(hasSections ? [{ id: "sections", label: "📚 Sections", desc: `${guide.sections.length} sections` }] : []),
     { id: "notes",      label: "📝 Notes",          desc: "Summary & key terms" },
     ...(terms.length > 0 ? [{ id: "flashcards", label: "🃏 Flashcards", desc: `${terms.length} key terms` }] : []),
-    ...[
-      { id: "unified-quiz", label: "🧩 Quiz", desc: "Multiple choice, T/F, fill in the blank, adaptive" },
-    ],
+    { id: "unified-quiz",    label: "🧩 Quiz",           desc: "Multiple choice, T/F, fill in the blank, adaptive" },
+    { id: "mind-map",        label: "🗺️ Mind Map",       desc: "Visual concept map" },
+    { id: "writing-prompts", label: "✍️ Write",          desc: "AI-generated essay prompts" },
+    { id: "teach-back",      label: "🧠 Teach It Back",  desc: "Explain what you learned, get AI feedback" },
   ];
 
   return (
@@ -1132,6 +1560,7 @@ export default function GuideView() {
               <div className="flex-1" />
 
               <ShareButton guideId={id} initialToken={guide.share_token} />
+              <ReadAloudButton guide={guide} studyMode={studyMode} />
               <button
                 onClick={() => {
                   if (!isPro) { setUpgradeReason("FREE_LIMIT_EXPORT"); setUpgradeOpen(true); return; }
@@ -1235,11 +1664,28 @@ export default function GuideView() {
             </div>
           )}
 
+          {/* ── MIND MAP MODE ── */}
+          {studyMode === "mind-map" && (
+            <MindMapMode guide={guide} />
+          )}
+
+          {/* ── WRITING PROMPTS MODE ── */}
+          {studyMode === "writing-prompts" && (
+            <WritingPromptsMode guideId={id} />
+          )}
+
+          {/* ── TEACH IT BACK MODE ── */}
+          {studyMode === "teach-back" && (
+            <TeachBackMode guideId={id} />
+          )}
 
           {/* iPhone home indicator clearance */}
           <div aria-hidden="true" style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
         </div>
       </main>
+
+      {/* Pomodoro Timer */}
+      <PomodoroTimer />
 
       {/* Chat Clear Confirmation */}
       <ConfirmModal

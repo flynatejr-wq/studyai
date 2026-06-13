@@ -102,6 +102,8 @@ export const api = {
     revokeShare:          (id)              => request(`/guides/${id}/share`,             { method: "DELETE", headers: headers() }),
     updateSectionProgress:(id, progress)   => request(`/guides/${id}/section-progress`,  { method: "PATCH",  headers: headers(), body: JSON.stringify({ progress }) }),
     toggleFavorite:       (id)             => request(`/guides/${id}/favorite`,           { method: "PATCH",  headers: headers() }),
+    writingPrompts:       (id)             => request(`/guides/${id}/writing-prompts`,    { method: "POST",   headers: headers() }),
+    teachBack:            (id, explanation)=> request(`/guides/${id}/teach-back`,         { method: "POST",   headers: headers(), body: JSON.stringify({ explanation }) }),
   },
   chat: {
     history: (guideId)          => request(`/chat/${guideId}`, { headers: headers() }),
