@@ -350,11 +350,9 @@ router.get("/verify-email", async (req, res) => {
   if (!found) return res.status(400).json({ error: "Invalid or already-used verification link." });
 
   if (found.email_verified) {
-    const user = (await pool.query(
-      "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, guides_created_ever, plan, role, is_whitelisted, is_banned, email_verified, referral_code, created_at FROM users WHERE id = $1",
-      [found.id]
-    )).rows[0] ?? null;
-    return res.json({ success: true, already: true, token: signToken({ id: found.id }), user });
+    // Null the token even on the already-verified path so it can't be replayed
+    await pool.query("UPDATE users SET email_verify_token = NULL WHERE id = $1", [found.id]);
+    return res.json({ success: true, already: true, requiresLogin: true });
   }
 
   await pool.query("UPDATE users SET email_verified = 1, email_verify_token = NULL WHERE id = $1", [found.id]);
@@ -460,11 +458,15 @@ router.delete("/account", requireAuth, async (req, res) => {
 // ── Google OAuth ──────────────────────────────────────────────────────────────
 const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const BACKEND_URL          = process.env.BACKEND_URL || "https://studyai-backend-production-2f6b.up.railway.app";
+const BACKEND_URL = process.env.BACKEND_URL;
 
 // Step 1 — redirect browser to Google's consent screen
 router.get("/google", (req, res) => {
   if (!GOOGLE_CLIENT_ID) return res.status(503).json({ error: "Google login is not configured." });
+  if (!BACKEND_URL)      return res.status(503).json({ error: "Google login is not configured." });
+  // State nonce prevents CSRF on the OAuth callback
+  const state = randomBytes(16).toString("hex");
+  res.cookie("oauth_state", state, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 10 * 60 * 1000 });
   const params = new URLSearchParams({
     client_id:     GOOGLE_CLIENT_ID,
     redirect_uri:  `${BACKEND_URL}/api/auth/google/callback`,
@@ -472,17 +474,25 @@ router.get("/google", (req, res) => {
     scope:         "email profile",
     access_type:   "offline",
     prompt:        "select_account",
+    state,
   });
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
 });
 
 // Step 2 — Google redirects here with a code
 router.get("/google/callback", async (req, res) => {
-  const { code, error } = req.query;
+  const { code, error, state } = req.query;
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
   if (error || !code) {
     return res.redirect(`${frontendUrl}/login?error=google_cancelled`);
+  }
+
+  // Verify CSRF state nonce
+  const expectedState = req.cookies?.oauth_state;
+  res.clearCookie("oauth_state");
+  if (!expectedState || state !== expectedState) {
+    return res.redirect(`${frontendUrl}/login?error=google_failed`);
   }
 
   try {
@@ -544,7 +554,8 @@ router.get("/google/callback", async (req, res) => {
     }
 
     const token = signToken({ id: user.id });
-    res.redirect(`${frontendUrl}/auth/google/callback?token=${token}`);
+    // Use hash fragment (#) so the token is never sent to servers or appear in referrer headers
+    res.redirect(`${frontendUrl}/auth/google/callback#token=${token}`);
   } catch (err) {
     console.error("[google/callback]", err.message);
     res.redirect(`${frontendUrl}/login?error=google_failed`);

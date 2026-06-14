@@ -3,18 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { api } from "../api.js";
 
-/**
- * /auth/google/callback
- * Landing page after Google OAuth. The backend redirects here with ?token=JWT
- * or ?error=reason. We read the token, fetch the user, and log them in.
- */
 export default function GoogleCallback() {
   const { loginWithToken } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Token arrives in the hash fragment (#token=...) so it never hits server logs or browser history
+    const hash   = new URLSearchParams(window.location.hash.slice(1));
+    const token  = hash.get("token");
+    // Errors redirect to /login, but keep query-param fallback for legacy paths
     const params = new URLSearchParams(window.location.search);
-    const token  = params.get("token");
     const error  = params.get("error");
 
     if (!token) {

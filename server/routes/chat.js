@@ -98,8 +98,9 @@ router.post("/:guideId", async (req, res) => {
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const sections = JSON.parse(guide.sections || "[]");
-    const keyTerms = JSON.parse(guide.key_terms || "[]").slice(0, 20);
+    const safeParse = (v, fallback) => { try { return JSON.parse(v || "null") ?? fallback; } catch { return fallback; } };
+    const sections = safeParse(guide.sections, []);
+    const keyTerms = safeParse(guide.key_terms, []).slice(0, 20);
     const sectionContext = sections.length > 0
       ? `\n\nSections:\n${sections.map((s, i) => `${i + 1}. **${s.title}** — ${s.overview}`).join("\n")}`
       : "";

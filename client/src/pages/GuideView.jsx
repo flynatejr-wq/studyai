@@ -256,10 +256,10 @@ function MindMapMode({ guide }) {
   const flatTerms = guide.key_terms || [];
   const hasSections = sections.length > 0;
 
-  const W = 860, H = 580;
-  const cx = W / 2, cy = H / 2;
-  const sectionR = sections.length <= 3 ? 165 : 195;
-  const termR = 88;
+  const cx = 450, cy = 340;
+  const sectionR = sections.length <= 3 ? 160 : 178;
+  const termR = 72;
+  const PAD = 90;
 
   const nodes = hasSections
     ? sections.map((s, i) => {
@@ -285,81 +285,143 @@ function MindMapMode({ guide }) {
         };
       });
 
+  // Compute tight viewBox so nothing clips
+  let minX = cx - 68, maxX = cx + 68, minY = cy - 68, maxY = cy + 68;
+  nodes.forEach(n => {
+    minX = Math.min(minX, n.x - 48); maxX = Math.max(maxX, n.x + 48);
+    minY = Math.min(minY, n.y - 48); maxY = Math.max(maxY, n.y + 48);
+    const count = n.terms.length;
+    n.terms.forEach((_, j) => {
+      const ta = n.angle + (j - (count - 1) / 2) * 0.42;
+      const tx = n.x + termR * Math.cos(ta);
+      const ty = n.y + termR * Math.sin(ta);
+      minX = Math.min(minX, tx - 42); maxX = Math.max(maxX, tx + 42);
+      minY = Math.min(minY, ty - 14); maxY = Math.max(maxY, ty + 14);
+    });
+  });
+  const vx = minX - PAD, vy = minY - PAD;
+  const vw = maxX - minX + PAD * 2, vh = maxY - minY + PAD * 2;
+
   const short = (s, max) => (!s ? "" : s.length > max ? s.slice(0, max - 1) + "…" : s);
 
+  // Split label into up to 2 lines for section nodes
+  const splitLabel = (s, maxChars = 12) => {
+    if (!s) return [""];
+    if (s.length <= maxChars) return [s];
+    const mid = s.lastIndexOf(" ", maxChars);
+    if (mid > 0) return [s.slice(0, mid), short(s.slice(mid + 1), maxChars)];
+    return [short(s, maxChars)];
+  };
+
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 overflow-hidden">
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-bold text-white">🗺️ Mind Map</h2>
         <p className="text-gray-500 text-xs">{hasSections ? `${sections.length} sections` : `${flatTerms.length} concepts`} — hover to preview</p>
       </div>
-      <div className="overflow-auto -mx-4 px-4">
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", minWidth: 560, minHeight: 360 }} className="select-none">
+      <div className="overflow-auto">
+        <svg viewBox={`${vx} ${vy} ${vw} ${vh}`} style={{ width: "100%", minWidth: 480, minHeight: 320 }} className="select-none">
           {/* Lines: center → section */}
           {nodes.map((n, i) => (
             <line key={`cl-${i}`} x1={cx} y1={cy} x2={n.x} y2={n.y}
-              stroke="#6366f1" strokeWidth="1.5" strokeOpacity="0.4" />
+              stroke="#6366f1" strokeWidth="1.5" strokeOpacity="0.35" />
           ))}
-          {/* Lines + nodes: section → terms */}
+          {/* Lines + term chips: section → terms */}
           {nodes.map((n, i) =>
             n.terms.map((term, j) => {
               const count = n.terms.length;
-              const ta = n.angle + (j - (count - 1) / 2) * 0.45;
+              const ta = n.angle + (j - (count - 1) / 2) * 0.42;
               const tx = n.x + termR * Math.cos(ta);
               const ty = n.y + termR * Math.sin(ta);
               return (
                 <g key={`t-${i}-${j}`}>
-                  <line x1={n.x} y1={n.y} x2={tx} y2={ty} stroke="#888" strokeWidth="1" strokeOpacity="0.3" />
-                  <rect x={tx - 36} y={ty - 11} width="72" height="22" rx="5"
-                    fill="white" fillOpacity="0.05" stroke="white" strokeOpacity="0.1" />
+                  <line x1={n.x} y1={n.y} x2={tx} y2={ty} stroke="#818cf8" strokeWidth="1" strokeOpacity="0.25" />
+                  <rect x={tx - 38} y={ty - 12} width="76" height="24" rx="6"
+                    fill="#312e81" fillOpacity="0.6" stroke="#6366f1" strokeOpacity="0.3" strokeWidth="1" />
                   <text x={tx} y={ty} textAnchor="middle" dominantBaseline="middle"
-                    fill="#9ca3af" fontSize="9.5" fontFamily="Helvetica,Arial,sans-serif">
-                    {short(term, 13)}
+                    fill="#c7d2fe" fontSize="10" fontFamily="Helvetica,Arial,sans-serif">
+                    {short(term, 14)}
                   </text>
                 </g>
               );
             })
           )}
           {/* Section nodes */}
-          {nodes.map((n, i) => (
-            <g key={`n-${i}`} style={{ cursor: "default" }}
-              onMouseEnter={() => setTooltip({ x: n.x, y: n.y, text: n.label, sub: n.overview })}
-              onMouseLeave={() => setTooltip(null)}>
-              <circle cx={n.x} cy={n.y} r={42} fill="#4f46e5" fillOpacity="0.22" stroke="#6366f1" strokeWidth="1.5" />
-              <text x={n.x} y={n.y - (n.terms.length > 0 ? 6 : 0)} textAnchor="middle" dominantBaseline="middle"
-                fill="white" fontSize="11" fontWeight="bold" fontFamily="Helvetica,Arial,sans-serif">
-                {short(n.label, 14)}
-              </text>
-              {n.terms.length > 0 && (
-                <text x={n.x} y={n.y + 11} textAnchor="middle" dominantBaseline="middle"
-                  fill="#a5b4fc" fontSize="9" fontFamily="Helvetica,Arial,sans-serif">
-                  {n.terms.length} term{n.terms.length !== 1 ? "s" : ""}
-                </text>
-              )}
-            </g>
-          ))}
+          {nodes.map((n, i) => {
+            const lines = splitLabel(n.label);
+            const lineH = 13;
+            const totalH = lines.length * lineH;
+            const hasTermCount = n.terms.length > 0;
+            const labelStartY = n.y - totalH / 2 - (hasTermCount ? 5 : 0);
+            return (
+              <g key={`n-${i}`} style={{ cursor: "pointer" }}
+                onMouseEnter={() => setTooltip({ x: n.x, y: n.y, text: n.label, sub: n.overview })}
+                onMouseLeave={() => setTooltip(null)}>
+                <circle cx={n.x} cy={n.y} r={44} fill="#4338ca" fillOpacity="0.25" stroke="#6366f1" strokeWidth="1.5" />
+                {lines.map((line, li) => (
+                  <text key={li} x={n.x} y={labelStartY + li * lineH + lineH / 2}
+                    textAnchor="middle" dominantBaseline="middle"
+                    fill="white" fontSize="11" fontWeight="600" fontFamily="Helvetica,Arial,sans-serif">
+                    {line}
+                  </text>
+                ))}
+                {hasTermCount && (
+                  <text x={n.x} y={n.y + totalH / 2 + (hasTermCount ? 8 : 0)}
+                    textAnchor="middle" dominantBaseline="middle"
+                    fill="#a5b4fc" fontSize="9" fontFamily="Helvetica,Arial,sans-serif">
+                    {n.terms.length} term{n.terms.length !== 1 ? "s" : ""}
+                  </text>
+                )}
+              </g>
+            );
+          })}
           {/* Center node */}
-          <circle cx={cx} cy={cy} r={68} fill="#6366f1" fillOpacity="0.3" stroke="#818cf8" strokeWidth="2" />
-          <text x={cx} y={cy - 9} textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" fontFamily="Helvetica,Arial,sans-serif">
-            {short(title, 18)}
-          </text>
-          <text x={cx} y={cy + 11} textAnchor="middle" fill="rgba(255,255,255,0.55)" fontSize="9.5" fontFamily="Helvetica,Arial,sans-serif">
-            {hasSections ? `${sections.length} sections` : `${flatTerms.length} concepts`}
-          </text>
+          <circle cx={cx} cy={cy} r={70} fill="#4f46e5" fillOpacity="0.35" stroke="#818cf8" strokeWidth="2" />
+          {(() => {
+            const words = title.split(" ");
+            const lines = [];
+            let cur = "";
+            words.forEach(w => {
+              if ((cur + " " + w).trim().length > 14) { lines.push(cur.trim()); cur = w; }
+              else cur = (cur + " " + w).trim();
+            });
+            if (cur) lines.push(cur);
+            const display = lines.slice(0, 3);
+            const lineH = 15;
+            const startY = cy - ((display.length - 1) * lineH) / 2 - (hasSections ? 8 : 0);
+            return (
+              <>
+                {display.map((l, i) => (
+                  <text key={i} x={cx} y={startY + i * lineH} textAnchor="middle" dominantBaseline="middle"
+                    fill="white" fontSize="12" fontWeight="bold" fontFamily="Helvetica,Arial,sans-serif">
+                    {l}
+                  </text>
+                ))}
+                <text x={cx} y={startY + display.length * lineH} textAnchor="middle" dominantBaseline="middle"
+                  fill="rgba(255,255,255,0.5)" fontSize="9.5" fontFamily="Helvetica,Arial,sans-serif">
+                  {hasSections ? `${sections.length} sections` : `${flatTerms.length} concepts`}
+                </text>
+              </>
+            );
+          })()}
           {/* Hover tooltip */}
           {tooltip && (() => {
-            const tx = Math.min(Math.max(tooltip.x - 80, 4), W - 164);
-            const ty = Math.min(tooltip.y - 70, H - 80);
-            const sub = tooltip.sub?.replace(/<[^>]+>/g, "").slice(0, 60);
+            const ttW = 180, ttH = 64;
+            const tx = Math.min(Math.max(tooltip.x - ttW / 2, vx + 4), vx + vw - ttW - 4);
+            const ty = tooltip.y - 52 > vy ? tooltip.y - ttH - 8 : tooltip.y + 52;
+            const sub = tooltip.sub?.replace(/<[^>]+>/g, "").slice(0, 70);
             return (
-              <g>
-                <rect x={tx} y={ty} width="160" height={sub ? 58 : 36} rx="8" fill="#1e1b4b" stroke="#6366f1" strokeWidth="1" />
-                <text x={tx + 80} y={ty + (sub ? 20 : 20)} textAnchor="middle" fill="white" fontSize="11" fontWeight="bold" fontFamily="Helvetica,Arial,sans-serif">
-                  {short(tooltip.text, 22)}
+              <g style={{ pointerEvents: "none" }}>
+                <rect x={tx} y={ty} width={ttW} height={sub ? ttH : 38} rx="8"
+                  fill="#1e1b4b" stroke="#6366f1" strokeWidth="1" fillOpacity="0.97" />
+                <text x={tx + ttW / 2} y={ty + (sub ? 18 : 20)} textAnchor="middle"
+                  fill="white" fontSize="11" fontWeight="bold" fontFamily="Helvetica,Arial,sans-serif">
+                  {short(tooltip.text, 24)}
                 </text>
                 {sub && (
-                  <text x={tx + 80} y={ty + 38} textAnchor="middle" fill="#9ca3af" fontSize="9" fontFamily="Helvetica,Arial,sans-serif">
-                    {short(sub, 35)}…
+                  <text x={tx + ttW / 2} y={ty + 40} textAnchor="middle"
+                    fill="#9ca3af" fontSize="9.5" fontFamily="Helvetica,Arial,sans-serif">
+                    {short(sub, 40)}
                   </text>
                 )}
               </g>
@@ -514,6 +576,65 @@ function ReadAloudButton({ guide, studyMode }) {
         </div>
       )}
     </div>
+  );
+}
+
+// ── Per-Section Listen Button ─────────────────────────────────────────────────
+function SectionListenButton({ section }) {
+  const [speaking, setSpeaking] = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const audioRef = useRef(null);
+
+  useEffect(() => () => { audioRef.current?.pause(); }, []);
+
+  const stop = () => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    setSpeaking(false); setLoading(false);
+  };
+
+  const toggle = async () => {
+    if (speaking || loading) { stop(); return; }
+    const strip = (s) => (s || "").replace(/<[^>]+>/g, "");
+    const parts = [
+      section.title,
+      strip(section.overview),
+      (section.content || []).map(strip).join(" "),
+      (section.keyPoints || []).length > 0 ? "Key points: " + section.keyPoints.map(p => strip(p)).join(". ") : "",
+    ].filter(Boolean);
+    const text = parts.join(". ").slice(0, 4096);
+    if (!text) return;
+    setLoading(true);
+    try {
+      const voice = localStorage.getItem("tts-voice-ai") || "nova";
+      const token = getToken();
+      const res = await fetch(`${API_BASE}/tts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ text, voice }),
+      });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => { URL.revokeObjectURL(url); stop(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); stop(); };
+      await audio.play();
+      setSpeaking(true);
+    } catch { stop(); }
+    finally { setLoading(false); }
+  };
+
+  const active = speaking || loading;
+  return (
+    <button onClick={toggle}
+      title={active ? "Stop" : "Listen to this section"}
+      className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all print:hidden ${
+        active ? "bg-indigo-600 text-white border border-indigo-500" : "bg-white/5 border border-white/10 text-gray-400 hover:border-indigo-500/40 hover:text-white"
+      }`}>
+      {loading ? <span className="animate-spin text-[11px]">⏳</span> : active ? <VolumeX size={13} /> : <Volume2 size={13} />}
+      <span>{loading ? "Loading…" : active ? "Stop" : "Listen"}</span>
+    </button>
   );
 }
 
@@ -1231,7 +1352,10 @@ function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPr
             </span>
           )}
         </div>
-        <h2 className="text-xl md:text-2xl font-bold text-white leading-tight">{section.title}</h2>
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-xl md:text-2xl font-bold text-white leading-tight">{section.title}</h2>
+          <SectionListenButton section={section} />
+        </div>
       </div>
 
       {/* Overview */}

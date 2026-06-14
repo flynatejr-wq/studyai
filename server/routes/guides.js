@@ -593,7 +593,7 @@ router.post("/:id/generate-quiz", async (req, res) => {
   } catch (err) {
     const msg = err?.message || err?.toString() || "unknown";
     console.error("[generate-quiz error]", msg, "status=", err?.status, "stack=", err?.stack?.split("\n").slice(0, 3).join(" | "));
-    res.status(500).json({ error: msg || "Could not generate quiz. Please try again." });
+    res.status(500).json({ error: "Could not generate quiz. Please try again." });
   }
 });
 
@@ -621,7 +621,7 @@ router.post("/:id/writing-prompts", async (req, res) => {
     if (summary.length) contextParts.push(`\nSummary:\n${summary.slice(0, 5).map((s, i) => `${i + 1}. ${stripTags(s)}`).join("\n")}`);
   }
 
-  const context = contextParts.join("\n");
+  const context = contextParts.join("\n").slice(0, 6000);
   const prompt = `Based on this study guide, generate 5 analytical essay and writing prompts.\n\n${context}\n\nReturn ONLY a JSON array of 5 strings. Each string is a 1-2 sentence writing prompt requiring analysis, comparison, or argument — not just factual recall. Vary difficulty.\nReturn ONLY the JSON array.`;
 
   try {
@@ -654,6 +654,8 @@ router.post("/:id/teach-back", async (req, res) => {
   const { explanation } = req.body;
   if (!explanation || typeof explanation !== "string" || explanation.trim().length < 20)
     return res.status(400).json({ error: "Explanation is too short." });
+  if (explanation.trim().length > 5000)
+    return res.status(400).json({ error: "Explanation is too long. Please keep it under 5,000 characters." });
 
   const stripTags = (s) => (typeof s === "string" ? s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : "");
   const rawSections = safeParse(guide.sections || "[]", []);
@@ -673,7 +675,7 @@ router.post("/:id/teach-back", async (req, res) => {
     if (keyTerms.length) contextParts.push(`Key terms: ${keyTerms.slice(0, 8).map(t => t.term).join(", ")}`);
   }
 
-  const context = contextParts.join("\n");
+  const context = contextParts.join("\n").slice(0, 6000);
   const prompt = `A student studied this guide and explained what they learned in their own words.
 
 Study guide:

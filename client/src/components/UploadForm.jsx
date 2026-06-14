@@ -172,9 +172,12 @@ export default function UploadForm({ onSubmit, loading, loadingStage, dark }) {
 
         {/* Text */}
         {activeTab === "text" && (
-          <textarea value={transcript} onChange={e => { setTranscript(e.target.value); if (formError) setFormError(""); }} disabled={loading}
-            className={`w-full h-36 sm:h-48 border rounded-xl p-4 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm ${base.textarea}`}
-            placeholder="Paste your lecture notes or transcript here..." />
+          <div>
+            <textarea value={transcript} onChange={e => { setTranscript(e.target.value); if (formError) setFormError(""); }} disabled={loading}
+              className={`w-full h-56 sm:h-72 border rounded-xl p-4 resize-y focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm ${base.textarea}`}
+              placeholder="Paste your lecture notes or transcript here..." />
+            <p className="text-xs text-gray-500 text-right mt-1">{transcript.length.toLocaleString()} / 40,000 characters</p>
+          </div>
         )}
 
         {/* YouTube URL */}

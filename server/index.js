@@ -4,6 +4,7 @@ import "dotenv/config";
 import * as Sentry from "@sentry/node";
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 // v2
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -68,6 +69,7 @@ const corsOptions = {
 // Handle CORS preflight (OPTIONS) for every route BEFORE rate limiting
 app.options("*", cors(corsOptions));
 app.use(cors(corsOptions));
+app.use(cookieParser());
 
 // Rate limiting — disabled in test mode so Jest suites don't hit 429s
 const IS_TEST = process.env.NODE_ENV === "test";
@@ -147,6 +149,10 @@ app.use("/api/auth/account",                      passwordResetLimiter); // brut
 app.use("/api/auth", authLimiter, authRoute);
 app.use("/api/summarize", aiLimiter, summarizeRoute);
 app.use("/api/folders", foldersRoute);
+// Apply AI rate limiter to expensive guide AI endpoints before the general guides router
+app.post("/api/guides/:id/generate-quiz",    aiLimiter);
+app.post("/api/guides/:id/writing-prompts",  aiLimiter);
+app.post("/api/guides/:id/teach-back",       aiLimiter);
 app.use("/api/guides", guidesRoute);
 app.use("/api/chat", aiLimiter, chatRoute);
 app.use("/api/progress", progressRoute);
