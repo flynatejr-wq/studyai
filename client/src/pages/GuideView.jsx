@@ -579,8 +579,9 @@ function ReadAloudButton({ guide, studyMode }) {
   );
 }
 
-// ── Per-Section Listen Button ─────────────────────────────────────────────────
-function SectionListenButton({ section }) {
+// ── TTS Listen Button (reusable) ──────────────────────────────────────────────
+// Pass `text` to read an arbitrary string, or `section` to read a full section.
+function ListenButton({ text: textProp, section, label = "Listen", stopLabel = "Stop", className = "" }) {
   const [speaking, setSpeaking] = useState(false);
   const [loading, setLoading]   = useState(false);
   const audioRef = useRef(null);
@@ -594,14 +595,18 @@ function SectionListenButton({ section }) {
 
   const toggle = async () => {
     if (speaking || loading) { stop(); return; }
-    const strip = (s) => (s || "").replace(/<[^>]+>/g, "");
-    const parts = [
-      section.title,
-      strip(section.overview),
-      (section.content || []).map(strip).join(" "),
-      (section.keyPoints || []).length > 0 ? "Key points: " + section.keyPoints.map(p => strip(p)).join(". ") : "",
-    ].filter(Boolean);
-    const text = parts.join(". ").slice(0, 4096);
+    let text = textProp;
+    if (!text && section) {
+      const strip = (s) => (s || "").replace(/<[^>]+>/g, "");
+      const parts = [
+        section.title,
+        strip(section.overview),
+        (section.content || []).map(strip).join(" "),
+        (section.keyPoints || []).length > 0 ? "Key points: " + section.keyPoints.map(p => strip(p)).join(". ") : "",
+      ].filter(Boolean);
+      text = parts.join(". ");
+    }
+    text = (text || "").slice(0, 4096);
     if (!text) return;
     setLoading(true);
     try {
@@ -628,14 +633,19 @@ function SectionListenButton({ section }) {
   const active = speaking || loading;
   return (
     <button onClick={toggle}
-      title={active ? "Stop" : "Listen to this section"}
-      className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all print:hidden ${
+      title={active ? stopLabel : label}
+      className={`shrink-0 flex items-center gap-1.5 rounded-lg text-xs font-medium transition-all print:hidden ${
         active ? "bg-indigo-600 text-white border border-indigo-500" : "bg-white/5 border border-white/10 text-gray-400 hover:border-indigo-500/40 hover:text-white"
-      }`}>
+      } ${className}`}>
       {loading ? <span className="animate-spin text-[11px]">⏳</span> : active ? <VolumeX size={13} /> : <Volume2 size={13} />}
-      <span>{loading ? "Loading…" : active ? "Stop" : "Listen"}</span>
+      <span>{loading ? "Loading…" : active ? stopLabel : label}</span>
     </button>
   );
+}
+
+// Convenience wrapper keeping the old prop shape for the per-section header button
+function SectionListenButton({ section }) {
+  return <ListenButton section={section} className="px-2.5 py-1.5" />;
 }
 
 // ── Pomodoro Timer ────────────────────────────────────────────────────────────
@@ -1384,9 +1394,17 @@ function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPr
       {/* Key Points */}
       {section.keyPoints?.length > 0 && (
         <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Star size={15} className="text-yellow-400" />
-            <h3 className="text-white font-bold text-sm uppercase tracking-wider">Key Points</h3>
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <Star size={15} className="text-yellow-400" />
+              <h3 className="text-white font-bold text-sm uppercase tracking-wider">Key Points</h3>
+            </div>
+            <ListenButton
+              text={"Key points for " + section.title + ". " + section.keyPoints.map(p => (p || "").replace(/<[^>]+>/g, "")).join(". ")}
+              label="Listen"
+              stopLabel="Stop"
+              className="px-2 py-1"
+            />
           </div>
           <ul className="space-y-3">
             {section.keyPoints.map((pt, i) => (

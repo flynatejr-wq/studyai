@@ -316,12 +316,12 @@ router.post("/:id/quiz", async (req, res) => {
   )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
-  const actualQuestions = safeParse(guide.quiz_questions, []);
-  if (!actualQuestions.length)
-    return res.status(500).json({ error: "Guide quiz data is unavailable." });
-  const totalNum = actualQuestions.length;
+  // Use the client-supplied total (the actual generated quiz size), validated within safe bounds.
+  // We cannot use guide.quiz_questions.length here because AI-generated quizzes are ephemeral
+  // and can have a different count than the stored questions (e.g. guide has 5, user generated 10).
   const scoreNum = parseInt(req.body.score);
-  if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > totalNum || totalNum < 1)
+  const totalNum = parseInt(req.body.total);
+  if (isNaN(scoreNum) || isNaN(totalNum) || totalNum < 1 || totalNum > 30 || scoreNum < 0 || scoreNum > totalNum)
     return res.status(400).json({ error: "Invalid quiz score." });
 
   const xpGained = scoreNum > (guide.best_quiz_score || 0) ? scoreNum * 10 : 0;
