@@ -452,7 +452,7 @@ router.delete("/:id/share", async (req, res) => {
 
 // Generate quiz
 router.post("/:id/generate-quiz", async (req, res) => {
-  console.log(`[quiz] POST /guides/${req.params.id}/generate-quiz - count=${req.body.count}, mode=${req.body.mode}`);
+  console.log(`[quiz] POST /guides/${req.params.id}/generate-quiz - count=${req.body.count}, mode=${req.body.mode}, difficulty=${req.body.difficulty}`);
   const guide = (await pool.query(
     "SELECT * FROM guides WHERE id = $1 AND user_id = $2",
     [req.params.id, req.user.id]
@@ -487,6 +487,14 @@ router.post("/:id/generate-quiz", async (req, res) => {
   const count = Math.min(Math.max(parseInt(req.body.count) || 5, 3), 30);
   const VALID_MODES = ["mcq", "self-grade", "true-false", "fill-blank", "adaptive-mixed"];
   const mode = VALID_MODES.includes(req.body.mode) ? req.body.mode : "mcq";
+  const VALID_DIFFICULTIES = ["easy", "medium", "hard"];
+  const difficulty = VALID_DIFFICULTIES.includes(req.body.difficulty) ? req.body.difficulty : "medium";
+  const difficultyInstructions = {
+    easy:   "Focus on basic recall and definitions. Questions should be straightforward — if the student read the guide, they should answer most correctly.",
+    medium: "Mix recall and comprehension. Some questions should require understanding relationships between concepts, not just memorization.",
+    hard:   "Focus on application, inference, and analysis. Questions should require the student to reason about the material, compare concepts, identify implications, or apply knowledge to new scenarios. Avoid pure recall questions.",
+  };
+  const difficultyNote = `\n\nDifficulty: ${difficulty.toUpperCase()} — ${difficultyInstructions[difficulty]}`;
 
   const stripTags = (s) => (typeof s === "string" ? s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : "");
 
@@ -518,15 +526,15 @@ router.post("/:id/generate-quiz", async (req, res) => {
 
   let prompt;
   if (mode === "mcq") {
-    prompt = `Based on this study guide, generate exactly ${count} multiple-choice questions.\n\n${context}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have:\n- "question": the question text\n- "options": array of exactly 4 answer choices (strings)\n- "correctIndex": 0-based index of the correct option (0, 1, 2, or 3)\n- "explanation": one sentence explaining why the answer is correct\n\nVary the difficulty. Make wrong options plausible but clearly incorrect on reflection.\nReturn ONLY the JSON array, no extra text.`;
+    prompt = `Based on this study guide, generate exactly ${count} multiple-choice questions.\n\n${context}${difficultyNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have:\n- "question": the question text\n- "options": array of exactly 4 answer choices (strings)\n- "correctIndex": 0-based index of the correct option (0, 1, 2, or 3)\n- "explanation": one sentence explaining why the answer is correct\n\nMake wrong options plausible but clearly incorrect on reflection.\nReturn ONLY the JSON array, no extra text.`;
   } else if (mode === "true-false") {
-    prompt = `Based on this study guide, generate exactly ${count} true/false questions.\n\n${context}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have:\n- "statement": a factual statement that is either true or false\n- "answer": boolean true or false\n- "explanation": one sentence explaining why the statement is true or false\n\nMix true and false statements roughly equally. Avoid trick questions.\nReturn ONLY the JSON array, no extra text.`;
+    prompt = `Based on this study guide, generate exactly ${count} true/false questions.\n\n${context}${difficultyNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have:\n- "statement": a factual statement that is either true or false\n- "answer": boolean true or false\n- "explanation": one sentence explaining why the statement is true or false\n\nMix true and false statements roughly equally. Avoid trick questions.\nReturn ONLY the JSON array, no extra text.`;
   } else if (mode === "fill-blank") {
-    prompt = `Based on this study guide, generate exactly ${count} fill-in-the-blank questions.\n\n${context}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have:\n- "sentence": a sentence with exactly one blank represented as "___"\n- "answer": the single word or short phrase that fills the blank\n- "hint": a 3-5 word hint (e.g. the category or type of answer)\n\nThe blank should always replace a key term or important concept.\nReturn ONLY the JSON array, no extra text.`;
+    prompt = `Based on this study guide, generate exactly ${count} fill-in-the-blank questions.\n\n${context}${difficultyNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have:\n- "sentence": a sentence with exactly one blank represented as "___"\n- "answer": the single word or short phrase that fills the blank\n- "hint": a 3-5 word hint (e.g. the category or type of answer)\n\nThe blank should always replace a key term or important concept.\nReturn ONLY the JSON array, no extra text.`;
   } else if (mode === "adaptive-mixed") {
-    prompt = `Based on this study guide, generate exactly ${count} quiz questions as a mix of multiple-choice, true/false, and fill-in-the-blank types.\n\n${context}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have a "type" field that is one of "mcq", "true-false", or "fill-blank", plus the fields for that type:\n\nFor "mcq": "question", "options" (array of 4 strings), "correctIndex" (number 0-3), "explanation" (string)\nFor "true-false": "statement" (string), "answer" (boolean), "explanation" (string)\nFor "fill-blank": "sentence" (string with "___"), "answer" (string), "hint" (string)\n\nAim for roughly equal distribution of all three types. Vary difficulty.\nReturn ONLY the JSON array, no extra text.`;
+    prompt = `Based on this study guide, generate exactly ${count} quiz questions as a mix of multiple-choice, true/false, and fill-in-the-blank types.\n\n${context}${difficultyNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have a "type" field that is one of "mcq", "true-false", or "fill-blank", plus the fields for that type:\n\nFor "mcq": "question", "options" (array of 4 strings), "correctIndex" (number 0-3), "explanation" (string)\nFor "true-false": "statement" (string), "answer" (boolean), "explanation" (string)\nFor "fill-blank": "sentence" (string with "___"), "answer" (string), "hint" (string)\n\nAim for roughly equal distribution of all three types.\nReturn ONLY the JSON array, no extra text.`;
   } else {
-    prompt = `Based on this study guide, generate exactly ${count} quiz questions.\n\n${context}\n\nReturn ONLY a valid JSON array with exactly ${count} objects, each with "question" and "answer" fields.\nReturn ONLY the JSON array, no extra text.`;
+    prompt = `Based on this study guide, generate exactly ${count} quiz questions.\n\n${context}${difficultyNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects, each with "question" and "answer" fields.\nReturn ONLY the JSON array, no extra text.`;
   }
 
   try {

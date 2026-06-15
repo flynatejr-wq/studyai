@@ -95,7 +95,7 @@ export const api = {
     move:         (id, folder_id)      => request(`/guides/${id}/move`,{ method: "PATCH",  headers: headers(), body: JSON.stringify({ folder_id }) }),
     delete:       (id)                 => request(`/guides/${id}`,     { method: "DELETE", headers: headers() }),
     submitQuiz:   (id, score, total)   => request(`/guides/${id}/quiz`,{ method: "POST",   headers: headers(), body: JSON.stringify({ score, total }) }),
-    generateQuiz: (id, count, mode = "self-grade") => request(`/guides/${id}/generate-quiz`, { method: "POST", headers: headers(), body: JSON.stringify({ count, mode }) }),
+    generateQuiz: (id, count, mode = "self-grade", difficulty = "medium") => request(`/guides/${id}/generate-quiz`, { method: "POST", headers: headers(), body: JSON.stringify({ count, mode, difficulty }) }),
     quizHistory:  (id)                 => request(`/guides/${id}/quiz-history`, { headers: headers() }),
     logSession:   (id, duration_seconds) => request(`/guides/${id}/session`, { method: "POST", headers: headers(), body: JSON.stringify({ duration_seconds }) }),
     share:        (id)                 => request(`/guides/${id}/share`, { method: "POST",   headers: headers() }),

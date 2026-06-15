@@ -996,9 +996,16 @@ const QUIZ_TYPES = [
   { id: "adaptive-mixed", label: "🧠 Adaptive",        desc: "Mixed types, repeats wrong answers" },
 ];
 
+const DIFFICULTIES = [
+  { id: "easy",   label: "Easy",   desc: "Recall & definitions",        color: "text-green-400",  border: "border-green-500",  bg: "bg-green-500/20" },
+  { id: "medium", label: "Medium", desc: "Comprehension & connections",  color: "text-yellow-400", border: "border-yellow-500", bg: "bg-yellow-500/20" },
+  { id: "hard",   label: "Hard",   desc: "Application & analysis",       color: "text-red-400",    border: "border-red-500",    bg: "bg-red-500/20" },
+];
+
 function UnifiedQuizMode({ guideId, onXpEarned }) {
-  const [quizType, setQuizType]     = useState("mcq");
-  const [count, setCount]           = useState(10);
+  const [quizType, setQuizType]       = useState("mcq");
+  const [difficulty, setDifficulty]   = useState("medium");
+  const [count, setCount]             = useState(10);
   const [phase, setPhase]           = useState("setup");
   const [questions, setQuestions]   = useState([]);
   const [answers, setAnswers]       = useState({});
@@ -1029,7 +1036,7 @@ function UnifiedQuizMode({ guideId, onXpEarned }) {
   const generate = async () => {
     setPhase("loading"); setError("");
     try {
-      const { questions: qs } = await api.guides.generateQuiz(guideId, count, quizType);
+      const { questions: qs } = await api.guides.generateQuiz(guideId, count, quizType, difficulty);
       const allQs = Array.isArray(qs) ? qs : [];
       if (allQs.length === 0) {
         setError("No questions could be generated. Please try again.");
@@ -1102,6 +1109,22 @@ function UnifiedQuizMode({ guideId, onXpEarned }) {
           </button>
         ))}
       </div>
+      {/* Difficulty selector */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-gray-400 text-sm shrink-0">Difficulty:</span>
+        {DIFFICULTIES.map(d => (
+          <button key={d.id} onClick={() => setDifficulty(d.id)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all border ${
+              difficulty === d.id
+                ? `${d.bg} ${d.border} ${d.color}`
+                : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white"
+            }`}>
+            {d.label}
+            <span className={`text-xs font-normal hidden sm:inline ${difficulty === d.id ? "opacity-70" : "text-gray-600"}`}>— {d.desc}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-gray-400 text-sm">Questions:</span>
         {countOptions.map(n => (
@@ -1854,7 +1877,15 @@ export default function GuideView() {
           {studyMode === "notes" && (
             <>
               <section className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-5 print:border-gray-300 print:bg-white print:text-black">
-                <h2 className="text-base font-bold text-white mb-4 print:text-black">📝 Summary</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-bold text-white print:text-black">📝 Summary</h2>
+                  <ListenButton
+                    text={(guide.summary || []).map(p => (p || "").replace(/<[^>]+>/g, "")).join(" ")}
+                    label="Listen"
+                    stopLabel="Stop"
+                    className="px-2 py-1"
+                  />
+                </div>
                 <ul className="space-y-2">
                   {(guide.summary || []).map((point, i) => (
                     <motion.li key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
@@ -1867,11 +1898,21 @@ export default function GuideView() {
               </section>
 
               <section className="bg-white/5 border border-white/10 rounded-2xl p-6 print:border-gray-300 print:bg-white">
-                <button className="w-full flex items-center justify-between text-base font-bold text-white print:hidden"
-                  onClick={() => setExpandedTerms(!expandedTerms)}>
-                  <span>🔑 Key Terms</span>
-                  {expandedTerms ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-                </button>
+                <div className="flex items-center gap-2 print:hidden">
+                  <button className="flex-1 flex items-center justify-between text-base font-bold text-white"
+                    onClick={() => setExpandedTerms(!expandedTerms)}>
+                    <span>🔑 Key Terms</span>
+                    {expandedTerms ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                  </button>
+                  {terms.length > 0 && (
+                    <ListenButton
+                      text={terms.map(t => `${t.term}: ${t.definition}`).join(". ")}
+                      label="Listen"
+                      stopLabel="Stop"
+                      className="px-2 py-1 shrink-0"
+                    />
+                  )}
+                </div>
                 <h2 className="hidden print:block text-base font-bold text-black mb-4">🔑 Key Terms</h2>
                 <AnimatePresence>
                   {expandedTerms && (

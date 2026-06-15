@@ -45,13 +45,13 @@ describe("UnverifiedBanner", () => {
     useAuth.mockReturnValue({ user: { email_verified: 0, email: "a@b.com" } });
     render(<UnverifiedBanner />);
     expect(screen.getByText(/verify your email/i)).toBeInTheDocument();
-    expect(screen.getByText(/resend email/i)).toBeInTheDocument();
+    expect(screen.getByText(/resend/i)).toBeInTheDocument();
   });
 
   it("dismisses the banner when X is clicked", () => {
     useAuth.mockReturnValue({ user: { email_verified: 0, email: "a@b.com" } });
     render(<UnverifiedBanner />);
-    fireEvent.click(screen.getByTitle("Dismiss"));
+    fireEvent.click(screen.getByRole("button", { name: /dismiss/i }));
     expect(screen.queryByText(/verify your email/i)).not.toBeInTheDocument();
   });
 
@@ -59,7 +59,7 @@ describe("UnverifiedBanner", () => {
     api.auth.resendVerification.mockResolvedValue({ success: true });
     useAuth.mockReturnValue({ user: { email_verified: 0, email: "a@b.com" } });
     render(<UnverifiedBanner />);
-    fireEvent.click(screen.getByText(/resend email/i));
+    fireEvent.click(screen.getByText(/resend/i));
     await waitFor(() => {
       expect(api.auth.resendVerification).toHaveBeenCalledTimes(1);
     });
@@ -69,7 +69,7 @@ describe("UnverifiedBanner", () => {
     api.auth.resendVerification.mockResolvedValue({ success: true });
     useAuth.mockReturnValue({ user: { email_verified: 0, email: "a@b.com" } });
     render(<UnverifiedBanner />);
-    fireEvent.click(screen.getByText(/resend email/i));
+    fireEvent.click(screen.getByText(/resend/i));
     await waitFor(() => {
       expect(screen.getByText("Sent!")).toBeInTheDocument();
     });
@@ -79,7 +79,7 @@ describe("UnverifiedBanner", () => {
     api.auth.resendVerification.mockRejectedValue(new Error("Email service is not configured."));
     useAuth.mockReturnValue({ user: { email_verified: 0, email: "a@b.com" } });
     render(<UnverifiedBanner />);
-    fireEvent.click(screen.getByText(/resend email/i));
+    fireEvent.click(screen.getByText(/resend/i));
     await waitFor(() => {
       expect(screen.queryByText(/verify your email/i)).not.toBeInTheDocument();
     });
