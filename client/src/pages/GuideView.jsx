@@ -1432,9 +1432,17 @@ function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPr
       {/* Key Terms */}
       {!hideTerms && section.terms?.length > 0 && (
         <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Target size={15} className="text-violet-400" />
-            <h3 className="text-white font-bold text-sm uppercase tracking-wider">Key Terms</h3>
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <Target size={15} className="text-violet-400" />
+              <h3 className="text-white font-bold text-sm uppercase tracking-wider">Key Terms</h3>
+            </div>
+            <ListenButton
+              text={section.terms.map(t => `${t.term}: ${t.definition}`).join(". ")}
+              label="Listen"
+              stopLabel="Stop"
+              className="px-2 py-1"
+            />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {section.terms.map((t, i) => (
