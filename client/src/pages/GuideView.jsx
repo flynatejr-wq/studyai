@@ -1379,9 +1379,17 @@ function SectionDetail({ section, index, total, isComplete, onMarkComplete, onPr
       {/* Deep Dive content */}
       {section.content?.length > 0 && (
         <div className="bg-white/5 border border-white/10 rounded-2xl p-5 md:p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <BookOpen size={16} className="text-indigo-400" />
-            <h3 className="text-white font-bold text-sm uppercase tracking-wider">Notes</h3>
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <BookOpen size={16} className="text-indigo-400" />
+              <h3 className="text-white font-bold text-sm uppercase tracking-wider">Notes</h3>
+            </div>
+            <ListenButton
+              text={section.content.map(p => (p || "").replace(/<[^>]+>/g, "")).join(" ")}
+              label="Listen"
+              stopLabel="Stop"
+              className="px-2 py-1"
+            />
           </div>
           <div className="space-y-1">
             {section.content.map((para, i) => (
