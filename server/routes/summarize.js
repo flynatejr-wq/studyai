@@ -142,7 +142,8 @@ CRITICAL — Scale output to match input size. Do not pad, expand, or invent con
 - Short input (a few sentences or one topic): 1-2 sections, 1 paragraph each, 2-3 key points, 1-2 terms, 1 quiz question
 - Medium input (a page or a few topics): 2-3 sections, 1-2 paragraphs each, 2-4 key points, 2-3 terms, 1-2 quiz questions
 - Long input (multiple pages or many topics): 3-5 sections, 2-3 paragraphs each, 3-4 key points, 2-4 terms, 2-3 quiz questions
-- Very long input (full lecture, chapter, or extensive notes): 4-6 sections, 2-4 paragraphs each, 3-5 key points, 2-4 terms, 2-3 quiz questions
+- Very long input (full lecture, chapter, or extensive notes): 5-8 sections, 2-4 paragraphs each, 3-5 key points, 2-4 terms, 2-3 quiz questions
+- Structured input with explicit numbered sections, chapters, or learning objectives: create exactly one section per major division (up to 10 sections). Preserve the source structure — do not merge distinct objectives into one section.
 
 Additional rules:
 - Each section covers a distinct topic — no overlap or repetition
@@ -242,10 +243,10 @@ The output should look and function like a vocabulary study sheet.`,
 // (its richer output needs more tokens than brief/bullets even for short inputs).
 function outputTokensForInput(textLength, style = "detailed") {
   const isRich = style === "detailed" || style === "guide";
-  if (textLength < 500)   return isRich ? 3000 : 1500;
-  if (textLength < 3000)  return isRich ? 5000 : 2500;
-  if (textLength < 10000) return isRich ? 8000 : 5000;
-  return 8000;
+  if (textLength < 500)   return isRich ? 3000  : 1500;
+  if (textLength < 3000)  return isRich ? 5000  : 2500;
+  if (textLength < 10000) return isRich ? 10000 : 5000;
+  return 12000;
 }
 
 // Fields that certain styles always strip regardless of what the model returns.
