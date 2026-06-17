@@ -243,10 +243,18 @@ The output should look and function like a vocabulary study sheet.`,
 // (its richer output needs more tokens than brief/bullets even for short inputs).
 function outputTokensForInput(textLength, style = "detailed") {
   const isRich = style === "detailed" || style === "guide";
-  if (textLength < 500)   return isRich ? 3000  : 1500;
-  if (textLength < 3000)  return isRich ? 5000  : 2500;
-  if (textLength < 10000) return isRich ? 10000 : 5000;
-  return 12000;
+  if (textLength < 500)   return isRich ? 3000 : 1500;
+  if (textLength < 3000)  return isRich ? 5000 : 2500;
+  if (textLength < 10000) return isRich ? 8000 : 5000;
+  return 8000;
+}
+
+// Haiku max output is 8192 tokens — use Sonnet for large/complex inputs
+// that need more sections and richer output.
+function modelForInput(textLength, style = "detailed") {
+  const isRich = style === "detailed" || style === "guide";
+  if (isRich && textLength >= 4000) return "claude-sonnet-4-6";
+  return "claude-haiku-4-5";
 }
 
 // Fields that certain styles always strip regardless of what the model returns.
@@ -263,8 +271,10 @@ async function generateFromText(text, difficulty = "standard", style = "detailed
   const client = makeAnthropicClient();
   // MEDIUM-3: Use system parameter for the prompt so user-supplied content can't override
   // the instructions (prompt injection defence) and to separate concerns clearly.
+  const model = modelForInput(text.length, style);
+  console.log(`[generate] model=${model} textLength=${text.length} style=${style}`);
   const message = await client.messages.create({
-    model: "claude-haiku-4-5",
+    model,
     max_tokens: outputTokensForInput(text.length, style),
     system: `${STUDY_GUIDE_PROMPT}${diffNote}${styleNote}`,
     messages: [{ role: "user", content: `Lecture content:\n${text}` }],
