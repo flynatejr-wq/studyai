@@ -436,6 +436,18 @@ function MindMapMode({ guide }) {
   );
 }
 
+// ── Global TTS singleton — only one audio plays at a time ────────────────────
+// Stores the active audio element, in-flight AbortController, and the stop
+// function of whichever button is currently active. Calling stopAnyTTS() from
+// any button correctly pauses audio AND resets the previous button's UI state.
+const _tts = { audio: null, ctrl: null, stop: null };
+function stopAnyTTS() {
+  _tts.ctrl?.abort();   _tts.ctrl  = null;
+  _tts.audio?.pause();  _tts.audio = null;
+  const fn = _tts.stop; _tts.stop  = null;
+  fn?.(); // reset whichever button was active
+}
+
 // ── Read Aloud Button ─────────────────────────────────────────────────────────
 const TTS_VOICES = [
   { id: "nova",    label: "Nova",    desc: "Warm, friendly female" },
@@ -461,9 +473,15 @@ function ReadAloudButton({ guide, studyMode }) {
     return () => document.removeEventListener("mousedown", handler);
   }, [showPicker]);
 
-  useEffect(() => { stop(); }, [studyMode]); // eslint-disable-line
+  // stop is defined before the effects that reference it
+  const stop = useCallback(() => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    if (_tts.stop === stop) { _tts.audio = null; _tts.ctrl = null; _tts.stop = null; }
+    setSpeaking(false); setLoading(false);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => () => stop(), []);
+  useEffect(() => { stopAnyTTS(); }, [studyMode]); // eslint-disable-line
+  useEffect(() => () => { if (_tts.stop === stop) stopAnyTTS(); }, [stop]);
 
   const getText = () => {
     if (studyMode === "notes") {
@@ -480,15 +498,13 @@ function ReadAloudButton({ guide, studyMode }) {
     return `${guide.title}. ${(guide.summary || []).join(" ")}`;
   };
 
-  const stop = () => {
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    setSpeaking(false); setLoading(false);
-  };
-
   const toggle = async () => {
-    if (speaking || loading) { stop(); return; }
+    if (speaking || loading) { stopAnyTTS(); return; }
     const text = getText().slice(0, 4000);
     if (!text) return;
+    stopAnyTTS();
+    const ctrl = new AbortController();
+    _tts.ctrl = ctrl; _tts.stop = stop;
     setLoading(true);
     try {
       const token = getToken();
@@ -496,14 +512,16 @@ function ReadAloudButton({ guide, studyMode }) {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ text, voice: selectedVoice }),
+        signal: ctrl.signal,
       });
       if (!res.ok) throw new Error("TTS failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
+      _tts.audio = audio; _tts.ctrl = null;
       audioRef.current = audio;
-      audio.onended = () => { URL.revokeObjectURL(url); stop(); };
-      audio.onerror = () => { URL.revokeObjectURL(url); stop(); };
+      audio.onended = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); };
       await audio.play();
       setSpeaking(true);
     } catch { stop(); }
@@ -514,8 +532,9 @@ function ReadAloudButton({ guide, studyMode }) {
     setSelectedVoice(id);
     localStorage.setItem("tts-voice-ai", id);
     setShowPicker(false);
-    // Quick preview
-    stop();
+    stopAnyTTS();
+    const ctrl = new AbortController();
+    _tts.ctrl = ctrl; _tts.stop = stop;
     setLoading(true);
     try {
       const token = getToken();
@@ -523,14 +542,16 @@ function ReadAloudButton({ guide, studyMode }) {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ text: "Hi, I'm your StudyBuddi voice. How does this sound?", voice: id }),
+        signal: ctrl.signal,
       });
       if (!res.ok) throw new Error();
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
+      _tts.audio = audio; _tts.ctrl = null;
       audioRef.current = audio;
-      audio.onended = () => { URL.revokeObjectURL(url); stop(); };
-      audio.onerror = () => stop();
+      audio.onended = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); };
       await audio.play();
       setSpeaking(true);
     } catch { stop(); }
@@ -586,15 +607,16 @@ function ListenButton({ text: textProp, section, label = "Listen", stopLabel = "
   const [loading, setLoading]   = useState(false);
   const audioRef = useRef(null);
 
-  useEffect(() => () => { audioRef.current?.pause(); }, []);
-
-  const stop = () => {
+  const stop = useCallback(() => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    if (_tts.stop === stop) { _tts.audio = null; _tts.ctrl = null; _tts.stop = null; }
     setSpeaking(false); setLoading(false);
-  };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => () => { if (_tts.stop === stop) stopAnyTTS(); }, [stop]);
 
   const toggle = async () => {
-    if (speaking || loading) { stop(); return; }
+    if (speaking || loading) { stopAnyTTS(); return; }
     let text = textProp;
     if (!text && section) {
       const strip = (s) => (s || "").replace(/<[^>]+>/g, "");
@@ -608,6 +630,9 @@ function ListenButton({ text: textProp, section, label = "Listen", stopLabel = "
     }
     text = (text || "").slice(0, 4096);
     if (!text) return;
+    stopAnyTTS();
+    const ctrl = new AbortController();
+    _tts.ctrl = ctrl; _tts.stop = stop;
     setLoading(true);
     try {
       const voice = localStorage.getItem("tts-voice-ai") || "nova";
@@ -616,14 +641,16 @@ function ListenButton({ text: textProp, section, label = "Listen", stopLabel = "
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ text, voice }),
+        signal: ctrl.signal,
       });
       if (!res.ok) throw new Error();
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
+      _tts.audio = audio; _tts.ctrl = null;
       audioRef.current = audio;
-      audio.onended = () => { URL.revokeObjectURL(url); stop(); };
-      audio.onerror = () => { URL.revokeObjectURL(url); stop(); };
+      audio.onended = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); };
       await audio.play();
       setSpeaking(true);
     } catch { stop(); }
