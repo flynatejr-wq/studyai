@@ -724,13 +724,24 @@ function SectionListenButton({ section }) {
 }
 
 // ── Pomodoro Timer ────────────────────────────────────────────────────────────
+const FOCUS_OPTIONS = [15, 25, 45, 50, 90]; // minutes
+const BREAK_OPTIONS = [5, 10, 15, 20];
+const readMin = (key, fallback, allowed) => {
+  const v = parseInt(localStorage.getItem(key), 10);
+  return allowed.includes(v) ? v : fallback;
+};
+
 function PomodoroTimer() {
-  const FOCUS = 25 * 60, BREAK = 5 * 60;
-  const [remaining, setRemaining] = useState(FOCUS);
+  const [focusMin, setFocusMin] = useState(() => readMin("pomodoro-focus-min", 25, FOCUS_OPTIONS));
+  const [breakMin, setBreakMin] = useState(() => readMin("pomodoro-break-min", 5, BREAK_OPTIONS));
+  const focusSecs = focusMin * 60, breakSecs = breakMin * 60;
+
+  const [remaining, setRemaining] = useState(focusSecs);
   const [running, setRunning] = useState(false);
   const [phase, setPhase] = useState("focus");
   const [cycles, setCycles] = useState(0);
   const [collapsed, setCollapsed] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const intervalRef = useRef(null);
 
   useEffect(() => {
@@ -740,17 +751,32 @@ function PomodoroTimer() {
         if (r > 1) return r - 1;
         clearInterval(intervalRef.current);
         setRunning(false);
-        if (phase === "focus") { setCycles(c => c + 1); setPhase("break"); return BREAK; }
-        setPhase("focus"); return FOCUS;
+        if (phase === "focus") { setCycles(c => c + 1); setPhase("break"); return breakSecs; }
+        setPhase("focus"); return focusSecs;
       });
     }, 1000);
     return () => clearInterval(intervalRef.current);
-  }, [running, phase]);
+  }, [running, phase, focusSecs, breakSecs]);
 
-  const reset = () => { clearInterval(intervalRef.current); setRunning(false); setPhase("focus"); setCycles(0); setRemaining(FOCUS); };
+  // When durations change while idle, reflect the new length on the current phase
+  useEffect(() => {
+    if (!running) setRemaining(phase === "focus" ? focusSecs : breakSecs);
+  }, [focusSecs, breakSecs]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const total = phase === "focus" ? FOCUS : BREAK;
-  const pct = Math.round(((total - remaining) / total) * 100);
+  const reset = () => { clearInterval(intervalRef.current); setRunning(false); setPhase("focus"); setCycles(0); setRemaining(focusSecs); };
+
+  // End the current session early and jump to the other phase ("Done" / "Skip")
+  const skip = () => {
+    clearInterval(intervalRef.current); setRunning(false);
+    if (phase === "focus") { setCycles(c => c + 1); setPhase("break"); setRemaining(breakSecs); }
+    else { setPhase("focus"); setRemaining(focusSecs); }
+  };
+
+  const pickFocus = (min) => { setFocusMin(min); localStorage.setItem("pomodoro-focus-min", String(min)); };
+  const pickBreak = (min) => { setBreakMin(min); localStorage.setItem("pomodoro-break-min", String(min)); };
+
+  const total = phase === "focus" ? focusSecs : breakSecs;
+  const pct = total > 0 ? Math.round(((total - remaining) / total) * 100) : 0;
   const m = Math.floor(remaining / 60), s = remaining % 60;
   const display = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 
@@ -776,32 +802,68 @@ function PomodoroTimer() {
             <span className="text-xs font-bold" style={{ color }}>{phase === "focus" ? "Focus" : "Break"}</span>
             {cycles > 0 && <span className="text-gray-600 text-xs">#{cycles}</span>}
           </div>
-          <button onClick={() => setCollapsed(true)} className="text-gray-600 hover:text-white transition-colors text-sm leading-none">–</button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setShowSettings(s => !s)} title="Durations"
+              className={`text-sm leading-none px-1 transition-colors ${showSettings ? "text-indigo-400" : "text-gray-600 hover:text-white"}`}>⚙</button>
+            <button onClick={() => setCollapsed(true)} title="Minimize" className="text-gray-600 hover:text-white transition-colors text-sm leading-none px-1">–</button>
+          </div>
         </div>
-        <div className="flex items-center justify-center my-2">
-          <svg width="90" height="90" viewBox="0 0 90 90">
-            <circle cx="45" cy="45" r="38" fill="none" stroke="white" strokeOpacity="0.06" strokeWidth="6" />
-            <circle cx="45" cy="45" r="38" fill="none" stroke={color} strokeWidth="6"
-              strokeDasharray={`${2 * Math.PI * 38}`}
-              strokeDashoffset={`${2 * Math.PI * 38 * (1 - pct / 100)}`}
-              strokeLinecap="round" transform="rotate(-90 45 45)"
-              style={{ transition: "stroke-dashoffset 1s linear" }} />
-            <text x="45" y="40" textAnchor="middle" fill="white" fontSize="17" fontWeight="bold" fontFamily="monospace">{display}</text>
-            <text x="45" y="56" textAnchor="middle" fill="#6b7280" fontSize="9" fontFamily="Helvetica,Arial,sans-serif">
-              {phase === "focus" ? "stay focused" : "take a break"}
-            </text>
-          </svg>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => setRunning(r => !r)}
-            className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
-            style={running ? { background: "rgba(255,255,255,0.08)", color: "#d1d5db" } : { background: color, color: "white" }}>
-            {running ? "Pause" : "Start"}
-          </button>
-          <button onClick={reset} className="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-white hover:bg-white/10 transition-all">
-            <RotateCcw size={13} />
-          </button>
-        </div>
+
+        {showSettings ? (
+          <div className="space-y-3 py-1">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5">Focus (min)</p>
+              <div className="flex flex-wrap gap-1.5">
+                {FOCUS_OPTIONS.map(min => (
+                  <button key={min} onClick={() => pickFocus(min)}
+                    className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all ${focusMin === min ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"}`}>{min}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5">Break (min)</p>
+              <div className="flex flex-wrap gap-1.5">
+                {BREAK_OPTIONS.map(min => (
+                  <button key={min} onClick={() => pickBreak(min)}
+                    className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all ${breakMin === min ? "bg-emerald-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"}`}>{min}</button>
+                ))}
+              </div>
+            </div>
+            <button onClick={() => setShowSettings(false)}
+              className="w-full py-1.5 rounded-lg bg-white/5 text-gray-300 hover:bg-white/10 text-xs font-semibold transition-all">Done</button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-center my-2">
+              <svg width="90" height="90" viewBox="0 0 90 90">
+                <circle cx="45" cy="45" r="38" fill="none" stroke="white" strokeOpacity="0.06" strokeWidth="6" />
+                <circle cx="45" cy="45" r="38" fill="none" stroke={color} strokeWidth="6"
+                  strokeDasharray={`${2 * Math.PI * 38}`}
+                  strokeDashoffset={`${2 * Math.PI * 38 * (1 - pct / 100)}`}
+                  strokeLinecap="round" transform="rotate(-90 45 45)"
+                  style={{ transition: "stroke-dashoffset 1s linear" }} />
+                <text x="45" y="40" textAnchor="middle" fill="white" fontSize="17" fontWeight="bold" fontFamily="monospace">{display}</text>
+                <text x="45" y="56" textAnchor="middle" fill="#6b7280" fontSize="9" fontFamily="Helvetica,Arial,sans-serif">
+                  {phase === "focus" ? "stay focused" : "take a break"}
+                </text>
+              </svg>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setRunning(r => !r)}
+                className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+                style={running ? { background: "rgba(255,255,255,0.08)", color: "#d1d5db" } : { background: color, color: "white" }}>
+                {running ? "Pause" : "Start"}
+              </button>
+              <button onClick={skip} title={phase === "focus" ? "End focus, start break" : "End break, start focus"}
+                className="px-3 py-2 rounded-xl bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 text-xs font-bold transition-all">
+                {phase === "focus" ? "Break" : "Done"}
+              </button>
+              <button onClick={reset} title="Reset" className="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-white hover:bg-white/10 transition-all">
+                <RotateCcw size={13} />
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
