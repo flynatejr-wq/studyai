@@ -265,6 +265,10 @@ function ChallengeCard({ item, i }) {
 // ─── Main export ─────────────────────────────────────────────────────────────
 export default function DailyWidgets() {
   const day = getDayIndex();
+  // Collapsible — remembers the user's choice. Defaults to open (users like it,
+  // per feedback) but can be tucked away to reduce dashboard noise.
+  const [open, setOpen] = useState(() => localStorage.getItem("dash-daily-open") !== "false");
+  const toggle = () => setOpen(v => { localStorage.setItem("dash-daily-open", String(!v)); return !v; });
 
   const word      = WORDS[day % WORDS.length];
   const quote     = QUOTES[day % QUOTES.length];
@@ -280,23 +284,40 @@ export default function DailyWidgets() {
 
   return (
     <section className="mb-6">
-      {/* Section header */}
-      <div className="flex items-center gap-2 mb-3">
+      {/* Section header — click to collapse/expand */}
+      <button onClick={toggle}
+        className="flex items-center gap-2 mb-3 group"
+        aria-expanded={open}>
         <span
           className="w-1.5 h-1.5 rounded-full bg-indigo-400"
           style={{ animation: "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite" }}
         />
-        <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Today's Learning</h2>
-      </div>
+        <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest group-hover:text-gray-300 transition-colors">Today's Learning</h2>
+        <ChevronDown
+          size={13}
+          className="text-gray-600 group-hover:text-gray-400 transition-all"
+          style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)" }}
+        />
+      </button>
 
-      {/* Horizontal scroll strip — peek of next card signals scrollability */}
-      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4">
-        {cards.map(({ key, el }) => (
-          <div key={key}>{el}</div>
-        ))}
-        {/* Ghost spacer so last card never hugs the edge */}
-        <div className="shrink-0 w-2" aria-hidden="true" />
-      </div>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden">
+            {/* Horizontal scroll strip — peek of next card signals scrollability */}
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4">
+              {cards.map(({ key, el }) => (
+                <div key={key}>{el}</div>
+              ))}
+              {/* Ghost spacer so last card never hugs the edge */}
+              <div className="shrink-0 w-2" aria-hidden="true" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

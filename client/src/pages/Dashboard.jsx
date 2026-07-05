@@ -245,20 +245,12 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* ── Daily Widgets ── */}
-        <DailyWidgets />
-
-        {/* ── Plan & Usage ── */}
-        <div className="mb-5">
-          <PlanUsageCard />
-        </div>
-
-        {/* ── Create Guide ── */}
+        {/* ── Create Guide (primary action — kept at the top so it's the first thing you see) ── */}
         <motion.section
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="mb-8">
+          className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-6 h-6 rounded-lg bg-indigo-500/20 flex items-center justify-center">
               <Plus size={13} className="text-indigo-400" />
@@ -303,6 +295,14 @@ export default function Dashboard() {
             </motion.div>
           )}
         </motion.section>
+
+        {/* ── Plan & Usage (secondary — below the primary action) ── */}
+        <div className="mb-6">
+          <PlanUsageCard />
+        </div>
+
+        {/* ── Daily Widgets (collapsible engagement strip) ── */}
+        <DailyWidgets />
 
         {/* ── Quick actions (for returning users with guides) ── */}
         {!guidesLoading && recentGuides.length > 0 && (
