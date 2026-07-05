@@ -448,6 +448,15 @@ function stopAnyTTS() {
   fn?.(); // reset whichever button was active
 }
 
+// Map a failed /tts response to a short, human-readable reason so a silent
+// failure (quota exhausted, rate limited, expired session) becomes visible.
+function ttsErrorMessage(status) {
+  if (status === 401) return "Session expired — refresh the page";
+  if (status === 429) return "Too many requests — wait a moment";
+  if (status >= 500)  return "Voice unavailable — try again later";
+  return "Couldn't play audio";
+}
+
 // ── Read Aloud Button ─────────────────────────────────────────────────────────
 const TTS_VOICES = [
   { id: "nova",    label: "Nova",    desc: "Warm, friendly female" },
@@ -464,7 +473,9 @@ function ReadAloudButton({ guide, studyMode }) {
   const [selectedVoice, setSelectedVoice] = useState(() => localStorage.getItem("tts-voice-ai") || "nova");
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef(null);
+  const [err, setErr] = useState("");
   const audioRef = useRef(null);
+  const errTimer = useRef(null);
 
   useEffect(() => {
     if (!showPicker) return;
@@ -480,8 +491,17 @@ function ReadAloudButton({ guide, studyMode }) {
     setSpeaking(false); setLoading(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const showErr = useCallback((msg) => {
+    setErr(msg);
+    if (errTimer.current) clearTimeout(errTimer.current);
+    errTimer.current = setTimeout(() => setErr(""), 4000);
+  }, []);
+
   useEffect(() => { stopAnyTTS(); }, [studyMode]); // eslint-disable-line
-  useEffect(() => () => { if (_tts.stop === stop) stopAnyTTS(); }, [stop]);
+  useEffect(() => () => {
+    if (errTimer.current) clearTimeout(errTimer.current);
+    if (_tts.stop === stop) stopAnyTTS();
+  }, [stop]);
 
   const getText = () => {
     if (studyMode === "notes") {
@@ -503,6 +523,7 @@ function ReadAloudButton({ guide, studyMode }) {
     const text = getText().slice(0, 4000);
     if (!text) return;
     stopAnyTTS();
+    setErr("");
     const ctrl = new AbortController();
     _tts.ctrl = ctrl; _tts.stop = stop;
     setLoading(true);
@@ -514,17 +535,20 @@ function ReadAloudButton({ guide, studyMode }) {
         body: JSON.stringify({ text, voice: selectedVoice }),
         signal: ctrl.signal,
       });
-      if (!res.ok) throw new Error("TTS failed");
+      if (!res.ok) { const e = new Error(); e.status = res.status; throw e; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       _tts.audio = audio; _tts.ctrl = null;
       audioRef.current = audio;
       audio.onended = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); };
-      audio.onerror = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); showErr("Couldn't play audio"); };
       await audio.play();
       setSpeaking(true);
-    } catch { stop(); }
+    } catch (e) {
+      stop();
+      if (e?.name !== "AbortError") showErr(ttsErrorMessage(e?.status || 0));
+    }
     finally { setLoading(false); }
   };
 
@@ -533,6 +557,7 @@ function ReadAloudButton({ guide, studyMode }) {
     localStorage.setItem("tts-voice-ai", id);
     setShowPicker(false);
     stopAnyTTS();
+    setErr("");
     const ctrl = new AbortController();
     _tts.ctrl = ctrl; _tts.stop = stop;
     setLoading(true);
@@ -544,17 +569,20 @@ function ReadAloudButton({ guide, studyMode }) {
         body: JSON.stringify({ text: "Hi, I'm your StudyBuddi voice. How does this sound?", voice: id }),
         signal: ctrl.signal,
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) { const e = new Error(); e.status = res.status; throw e; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       _tts.audio = audio; _tts.ctrl = null;
       audioRef.current = audio;
       audio.onended = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); };
-      audio.onerror = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); showErr("Couldn't play audio"); };
       await audio.play();
       setSpeaking(true);
-    } catch { stop(); }
+    } catch (e) {
+      stop();
+      if (e?.name !== "AbortError") showErr(ttsErrorMessage(e?.status || 0));
+    }
     finally { setLoading(false); }
   };
 
@@ -564,12 +592,14 @@ function ReadAloudButton({ guide, studyMode }) {
     <div className="relative print:hidden" ref={pickerRef}>
       <div className="flex items-center">
         <button onClick={toggle}
-          title={active ? "Stop" : "Listen with AI voice"}
+          title={err || (active ? "Stop" : "Listen with AI voice")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-l-lg font-medium text-xs transition-all ${
-            active ? "bg-indigo-600 text-white border border-indigo-500" : "bg-white/5 border border-white/10 text-gray-300 hover:border-indigo-500/40"
+            err    ? "bg-red-500/15 border border-red-500/30 text-red-400"
+            : active ? "bg-indigo-600 text-white border border-indigo-500"
+            : "bg-white/5 border border-white/10 text-gray-300 hover:border-indigo-500/40"
           }`}>
-          {loading ? <span className="animate-spin inline-block text-[11px]">⏳</span> : active ? <VolumeX size={13} /> : <Volume2 size={13} />}
-          <span className="hidden sm:inline">{loading ? "Loading…" : active ? "Stop" : "Listen"}</span>
+          {err ? <XCircle size={13} /> : loading ? <span className="animate-spin inline-block text-[11px]">⏳</span> : active ? <VolumeX size={13} /> : <Volume2 size={13} />}
+          <span className={err ? "" : "hidden sm:inline"}>{err || (loading ? "Loading…" : active ? "Stop" : "Listen")}</span>
         </button>
         <button onClick={() => setShowPicker(p => !p)} title="Choose voice"
           className={`flex items-center px-1.5 py-1.5 rounded-r-lg text-xs transition-all ${
@@ -605,7 +635,9 @@ function ReadAloudButton({ guide, studyMode }) {
 function ListenButton({ text: textProp, section, label = "Listen", stopLabel = "Stop", className = "" }) {
   const [speaking, setSpeaking] = useState(false);
   const [loading, setLoading]   = useState(false);
+  const [err, setErr]           = useState("");
   const audioRef = useRef(null);
+  const errTimer = useRef(null);
 
   const stop = useCallback(() => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
@@ -613,7 +645,17 @@ function ListenButton({ text: textProp, section, label = "Listen", stopLabel = "
     setSpeaking(false); setLoading(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => () => { if (_tts.stop === stop) stopAnyTTS(); }, [stop]);
+  // Show an error label for a few seconds, then clear it
+  const showErr = useCallback((msg) => {
+    setErr(msg);
+    if (errTimer.current) clearTimeout(errTimer.current);
+    errTimer.current = setTimeout(() => setErr(""), 4000);
+  }, []);
+
+  useEffect(() => () => {
+    if (errTimer.current) clearTimeout(errTimer.current);
+    if (_tts.stop === stop) stopAnyTTS();
+  }, [stop]);
 
   const toggle = async () => {
     if (speaking || loading) { stopAnyTTS(); return; }
@@ -631,6 +673,7 @@ function ListenButton({ text: textProp, section, label = "Listen", stopLabel = "
     text = (text || "").slice(0, 4096);
     if (!text) return;
     stopAnyTTS();
+    setErr("");
     const ctrl = new AbortController();
     _tts.ctrl = ctrl; _tts.stop = stop;
     setLoading(true);
@@ -643,29 +686,34 @@ function ListenButton({ text: textProp, section, label = "Listen", stopLabel = "
         body: JSON.stringify({ text, voice }),
         signal: ctrl.signal,
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) { const e = new Error(); e.status = res.status; throw e; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       _tts.audio = audio; _tts.ctrl = null;
       audioRef.current = audio;
       audio.onended = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); };
-      audio.onerror = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); _tts.audio = null; _tts.stop = null; stop(); showErr("Couldn't play audio"); };
       await audio.play();
       setSpeaking(true);
-    } catch { stop(); }
+    } catch (e) {
+      stop();
+      if (e?.name !== "AbortError") showErr(ttsErrorMessage(e?.status || 0));
+    }
     finally { setLoading(false); }
   };
 
   const active = speaking || loading;
   return (
     <button onClick={toggle}
-      title={active ? stopLabel : label}
+      title={err || (active ? stopLabel : label)}
       className={`shrink-0 flex items-center gap-1.5 rounded-lg text-xs font-medium transition-all print:hidden ${
-        active ? "bg-indigo-600 text-white border border-indigo-500" : "bg-white/5 border border-white/10 text-gray-400 hover:border-indigo-500/40 hover:text-white"
+        err    ? "bg-red-500/15 border border-red-500/30 text-red-400"
+        : active ? "bg-indigo-600 text-white border border-indigo-500"
+        : "bg-white/5 border border-white/10 text-gray-400 hover:border-indigo-500/40 hover:text-white"
       } ${className}`}>
-      {loading ? <span className="animate-spin text-[11px]">⏳</span> : active ? <VolumeX size={13} /> : <Volume2 size={13} />}
-      <span>{loading ? "Loading…" : active ? stopLabel : label}</span>
+      {err ? <XCircle size={13} /> : loading ? <span className="animate-spin text-[11px]">⏳</span> : active ? <VolumeX size={13} /> : <Volume2 size={13} />}
+      <span>{err || (loading ? "Loading…" : active ? stopLabel : label)}</span>
     </button>
   );
 }
