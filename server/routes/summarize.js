@@ -29,10 +29,16 @@ async function fetchYouTubeTranscript(videoId) {
   const tracks = info.player_response?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
   if (!tracks?.length) throw new Error("no transcript available for this video");
 
-  // Prefer manual English captions, fall back to auto-generated, then first available
+  // Follow the video's actual spoken language instead of forcing English.
+  // The auto-generated ("asr") track's languageCode is the spoken language, so we
+  // prefer a human-made caption in that language, then the auto one, then any
+  // manual track, then whatever exists. A Spanish talk yields a Spanish transcript.
+  const asr = tracks.find(t => t.kind === "asr");
+  const spokenLang = asr?.languageCode;
   const track =
-    tracks.find(t => t.languageCode === "en" && !t.kind) ||
-    tracks.find(t => t.languageCode === "en") ||
+    (spokenLang && tracks.find(t => t.languageCode === spokenLang && t.kind !== "asr")) ||
+    asr ||
+    tracks.find(t => t.kind !== "asr") ||
     tracks[0];
 
   const xml = await fetch(track.baseUrl).then(r => r.text());
