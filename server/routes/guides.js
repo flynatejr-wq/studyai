@@ -529,17 +529,20 @@ router.post("/:id/generate-quiz", async (req, res) => {
   // students pass by pattern-matching instead of knowing the material.
   const mcqBalance = `\n\nCRITICAL — all four options must be indistinguishable in form:\n- Every option must be roughly the SAME length (within a few words of each other). The correct answer must NOT be the longest or most detailed.\n- All options must have the same level of specificity and grammatical structure. Do not make the correct one more complete, more qualified, or more textbook-worded than the wrong ones.\n- Wrong options (distractors) must be plausible and on-topic — a common misconception or a related-but-incorrect concept — never obviously silly or off-topic.\n- Distribute the correct answer randomly across positions; do not favor any index.`;
 
+  // Match the language of the study guide so a Spanish guide gets a Spanish quiz, etc.
+  const langNote = `\n\nLANGUAGE: Write all question text, options, statements, sentences, hints, and explanations in the SAME LANGUAGE as the study guide content above. Keep the JSON keys in English; translate only the values.`;
+
   let prompt;
   if (mode === "mcq") {
-    prompt = `Based on this study guide, generate exactly ${count} multiple-choice questions.\n\n${context}${difficultyNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have:\n- "question": the question text\n- "options": array of exactly 4 answer choices (strings)\n- "correctIndex": 0-based index of the correct option (0, 1, 2, or 3)\n- "explanation": one sentence explaining why the answer is correct${mcqBalance}\nReturn ONLY the JSON array, no extra text.`;
+    prompt = `Based on this study guide, generate exactly ${count} multiple-choice questions.\n\n${context}${difficultyNote}${langNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have:\n- "question": the question text\n- "options": array of exactly 4 answer choices (strings)\n- "correctIndex": 0-based index of the correct option (0, 1, 2, or 3)\n- "explanation": one sentence explaining why the answer is correct${mcqBalance}\nReturn ONLY the JSON array, no extra text.`;
   } else if (mode === "true-false") {
-    prompt = `Based on this study guide, generate exactly ${count} true/false questions.\n\n${context}${difficultyNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have:\n- "statement": a factual statement that is either true or false\n- "answer": boolean true or false\n- "explanation": one sentence explaining why the statement is true or false\n\nMix true and false statements roughly equally. Avoid trick questions.\nReturn ONLY the JSON array, no extra text.`;
+    prompt = `Based on this study guide, generate exactly ${count} true/false questions.\n\n${context}${difficultyNote}${langNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have:\n- "statement": a factual statement that is either true or false\n- "answer": boolean true or false\n- "explanation": one sentence explaining why the statement is true or false\n\nMix true and false statements roughly equally. Avoid trick questions.\nReturn ONLY the JSON array, no extra text.`;
   } else if (mode === "fill-blank") {
-    prompt = `Based on this study guide, generate exactly ${count} fill-in-the-blank questions.\n\n${context}${difficultyNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have:\n- "sentence": a sentence with exactly one blank represented as "___"\n- "answer": the single word or short phrase that fills the blank\n- "hint": a 3-5 word hint (e.g. the category or type of answer)\n\nThe blank should always replace a key term or important concept.\nReturn ONLY the JSON array, no extra text.`;
+    prompt = `Based on this study guide, generate exactly ${count} fill-in-the-blank questions.\n\n${context}${difficultyNote}${langNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have:\n- "sentence": a sentence with exactly one blank represented as "___"\n- "answer": the single word or short phrase that fills the blank\n- "hint": a 3-5 word hint (e.g. the category or type of answer)\n\nThe blank should always replace a key term or important concept.\nReturn ONLY the JSON array, no extra text.`;
   } else if (mode === "adaptive-mixed") {
-    prompt = `Based on this study guide, generate exactly ${count} quiz questions as a mix of multiple-choice, true/false, and fill-in-the-blank types.\n\n${context}${difficultyNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have a "type" field that is one of "mcq", "true-false", or "fill-blank", plus the fields for that type:\n\nFor "mcq": "question", "options" (array of 4 strings), "correctIndex" (number 0-3), "explanation" (string)\nFor "true-false": "statement" (string), "answer" (boolean), "explanation" (string)\nFor "fill-blank": "sentence" (string with "___"), "answer" (string), "hint" (string)\n\nAim for roughly equal distribution of all three types.${mcqBalance}\nReturn ONLY the JSON array, no extra text.`;
+    prompt = `Based on this study guide, generate exactly ${count} quiz questions as a mix of multiple-choice, true/false, and fill-in-the-blank types.\n\n${context}${difficultyNote}${langNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects. Each object must have a "type" field that is one of "mcq", "true-false", or "fill-blank", plus the fields for that type:\n\nFor "mcq": "question", "options" (array of 4 strings), "correctIndex" (number 0-3), "explanation" (string)\nFor "true-false": "statement" (string), "answer" (boolean), "explanation" (string)\nFor "fill-blank": "sentence" (string with "___"), "answer" (string), "hint" (string)\n\nAim for roughly equal distribution of all three types.${mcqBalance}\nReturn ONLY the JSON array, no extra text.`;
   } else {
-    prompt = `Based on this study guide, generate exactly ${count} quiz questions.\n\n${context}${difficultyNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects, each with "question" and "answer" fields.\nReturn ONLY the JSON array, no extra text.`;
+    prompt = `Based on this study guide, generate exactly ${count} quiz questions.\n\n${context}${difficultyNote}${langNote}\n\nReturn ONLY a valid JSON array with exactly ${count} objects, each with "question" and "answer" fields.\nReturn ONLY the JSON array, no extra text.`;
   }
 
   try {
@@ -635,7 +638,7 @@ router.post("/:id/writing-prompts", async (req, res) => {
   }
 
   const context = contextParts.join("\n").slice(0, 6000);
-  const prompt = `Based on this study guide, generate 5 analytical essay and writing prompts.\n\n${context}\n\nReturn ONLY a JSON array of 5 strings. Each string is a 1-2 sentence writing prompt requiring analysis, comparison, or argument — not just factual recall. Vary difficulty.\nReturn ONLY the JSON array.`;
+  const prompt = `Based on this study guide, generate 5 analytical essay and writing prompts.\n\n${context}\n\nReturn ONLY a JSON array of 5 strings. Each string is a 1-2 sentence writing prompt requiring analysis, comparison, or argument — not just factual recall. Vary difficulty.\nWrite the prompts in the SAME LANGUAGE as the study guide content above.\nReturn ONLY the JSON array.`;
 
   try {
     const client = makeAnthropicClient();
@@ -699,10 +702,12 @@ ${explanation.trim().slice(0, 2000)}
 
 Evaluate their understanding. Return ONLY a JSON object with:
 - "score": integer 1-10
-- "grade": one of "Excellent", "Good", "Needs Work", or "Try Again"
+- "grade": one of "Excellent", "Good", "Needs Work", or "Try Again" (keep these exact English values)
 - "strengths": array of 1-3 strings (what they got right, be specific)
 - "gaps": array of 1-3 strings (key concepts missed or wrong, be specific and actionable)
 - "encouragement": one short encouraging sentence
+
+Write the "strengths", "gaps", and "encouragement" text in the SAME LANGUAGE the student wrote their explanation in. Keep "grade" as the exact English value above.
 
 Return ONLY the JSON object.`;
 
