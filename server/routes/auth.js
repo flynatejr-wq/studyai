@@ -632,7 +632,12 @@ router.get("/microsoft/callback", async (req, res) => {
       }),
     });
     const tokens = await tokenRes.json();
-    if (!tokens.access_token) throw new Error("No access token returned from Microsoft");
+    if (!tokens.access_token) {
+      // TEMP — Microsoft's token error responses include the real reason
+      // (invalid_client, consent_required, etc.) in error/error_description.
+      // Surface that instead of a generic message while debugging SSO setup.
+      throw new Error(tokens.error_description || tokens.error || "No access token returned from Microsoft");
+    }
 
     // Fetch user profile from Microsoft Graph
     const profileRes = await fetch("https://graph.microsoft.com/v1.0/me", {
