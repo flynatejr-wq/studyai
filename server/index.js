@@ -10,7 +10,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import jwt from "jsonwebtoken";
 import OpenAI from "openai";
-import { initDb } from "./db.js";
+import pool, { initDb } from "./db.js";
 import summarizeRoute from "./routes/summarize.js";
 import authRoute from "./routes/auth.js";
 import foldersRoute from "./routes/folders.js";
@@ -176,12 +176,20 @@ const ttsLimiter = rateLimit({
 
 const VALID_TTS_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
 
+// Monthly character quotas — the only unmetered cost against a flat-price plan
+// otherwise. tts-1 runs ~$15/million chars; these caps bound worst-case cost
+// to a small, predictable slice of the subscription instead of leaving it open.
+const TTS_MONTHLY_CHARS_FREE = 20_000;
+const TTS_MONTHLY_CHARS_PRO  = 150_000;
+
 app.post("/api/tts", ttsLimiter, async (req, res) => {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized." });
+  let userId;
   try {
-    const jwt_ = await import("jsonwebtoken");
-    jwt_.default.verify(header.split(" ")[1], process.env.JWT_SECRET, { algorithms: ["HS256"] });
+    const decoded = jwt.verify(header.split(" ")[1], process.env.JWT_SECRET, { algorithms: ["HS256"] });
+    userId = decoded?.id;
+    if (!userId) throw new Error("no id in token");
   } catch { return res.status(401).json({ error: "Invalid token." }); }
 
   const { text, voice = "nova" } = req.body;
@@ -189,6 +197,36 @@ app.post("/api/tts", ttsLimiter, async (req, res) => {
   if (!VALID_TTS_VOICES.includes(voice)) return res.status(400).json({ error: "Invalid voice." });
 
   const safeText = text.slice(0, 4096);
+  const monthKey = new Date().toISOString().slice(0, 7); // "2026-07"
+
+  const user = (await pool.query(
+    "SELECT plan, role, is_whitelisted FROM users WHERE id = $1",
+    [userId]
+  )).rows[0] ?? null;
+  if (!user) return res.status(401).json({ error: "Invalid token." });
+
+  const isPro = user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin";
+  const cap = isPro ? TTS_MONTHLY_CHARS_PRO : TTS_MONTHLY_CHARS_FREE;
+
+  // Atomic conditional update: resets the counter on a new month, otherwise
+  // increments only if the request stays within the cap. rowCount === 0 means
+  // the request would exceed the cap — reject without spending on OpenAI.
+  const quota = await pool.query(
+    `UPDATE users
+     SET tts_chars_used = CASE WHEN tts_chars_month = $1 THEN tts_chars_used + $2 ELSE $2 END,
+         tts_chars_month = $1
+     WHERE id = $3
+       AND (tts_chars_month != $1 OR tts_chars_used + $2 <= $4)`,
+    [monthKey, safeText.length, userId, cap]
+  );
+  if (quota.rowCount === 0) {
+    return res.status(403).json({
+      error: "TTS_LIMIT_REACHED",
+      message: isPro
+        ? "Monthly voice limit reached. It resets at the start of next month."
+        : "Free accounts have a small monthly voice limit. Upgrade to Pro for a much higher limit.",
+    });
+  }
 
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -203,6 +241,12 @@ app.post("/api/tts", ttsLimiter, async (req, res) => {
     res.send(buffer);
   } catch (err) {
     console.error("[tts error]", err?.message);
+    // Refund the quota we spent above — the user got no audio for it, so it
+    // shouldn't count against their monthly cap (still bounded by monthKey).
+    pool.query(
+      "UPDATE users SET tts_chars_used = GREATEST(0, tts_chars_used - $1) WHERE id = $2 AND tts_chars_month = $3",
+      [safeText.length, userId, monthKey]
+    ).catch(() => {});
     res.status(500).json({ error: "TTS failed. Please try again." });
   }
 });

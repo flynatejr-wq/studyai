@@ -452,6 +452,7 @@ function stopAnyTTS() {
 // failure (quota exhausted, rate limited, expired session) becomes visible.
 function ttsErrorMessage(status) {
   if (status === 401) return "Session expired — refresh the page";
+  if (status === 403) return "Monthly voice limit reached";
   if (status === 429) return "Too many requests — wait a moment";
   if (status >= 500)  return "Voice unavailable — try again later";
   return "Couldn't play audio";

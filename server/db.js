@@ -148,6 +148,10 @@ export async function initDb() {
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS streak_reminder_sent_date TEXT",
     // Google OAuth
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT",
+    // TTS monthly character quota — bounds the one unmetered per-request cost
+    // (OpenAI tts-1) against the flat-price Pro subscription.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS tts_chars_used INTEGER DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS tts_chars_month TEXT DEFAULT ''",
   ];
 
   for (const sql of safeAlters) {
