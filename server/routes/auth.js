@@ -570,10 +570,14 @@ router.get("/google/callback", async (req, res) => {
 // with the school's Microsoft/Azure AD account rather than a separate password.
 const MS_CLIENT_ID     = process.env.MICROSOFT_CLIENT_ID;
 const MS_CLIENT_SECRET = process.env.MICROSOFT_CLIENT_SECRET;
-// "organizations" accepts any work/school (Azure AD) account — not personal
-// Microsoft accounts — so this works for SSU today and any future
-// institution's Microsoft-issued student accounts without reconfiguring.
-const MS_TENANT = "organizations";
+// The Azure app registration is single-tenant (Savannah State University
+// only) — multi-tenant would still need per-institution admin consent from
+// each new school's IT before their students could log in, so it doesn't
+// actually avoid per-institution setup work. A verified domain name works
+// here in place of the tenant GUID. When a second institution signs on,
+// either register a second single-tenant app or move to multi-tenant +
+// Microsoft publisher verification at that point.
+const MS_TENANT = process.env.MICROSOFT_TENANT || "savannahstate.edu";
 
 // Step 1 — redirect browser to Microsoft's consent screen
 router.get("/microsoft", (req, res) => {
