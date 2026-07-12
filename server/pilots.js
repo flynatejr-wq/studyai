@@ -4,7 +4,8 @@ import pool from "./db.js";
 // full (whitelisted) access automatically at signup, without a manual admin
 // action per student. Adjust endDate to match the real pilot start date.
 export const PILOT_PROGRAMS = [
-  { domain: "savannahstate.edu", label: "Savannah State University", endDate: "2026-10-12" },
+  { domain: "savannahstate.edu",         label: "Savannah State University",         endDate: "2026-10-12" },
+  { domain: "student.savannahstate.edu", label: "Savannah State University (student)", endDate: "2026-10-12" },
 ];
 
 function matchingPilot(email) {
