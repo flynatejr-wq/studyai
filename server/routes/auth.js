@@ -610,7 +610,12 @@ router.get("/microsoft/callback", async (req, res) => {
   const expectedState = req.cookies?.oauth_state_ms;
   res.clearCookie("oauth_state_ms");
   if (!expectedState || state !== expectedState) {
-    return res.redirect(`${frontendUrl}/login?error=microsoft_failed`);
+    // TEMP — distinguish "cookie never arrived" (browser/cookie-policy issue)
+    // from "cookie present but value mismatched" (different root cause) while
+    // debugging Microsoft SSO setup. Revert to a generic message once confirmed.
+    const reason = !expectedState ? "session cookie missing (check browser cookie/privacy settings)" : "session cookie mismatch";
+    console.error(`[microsoft/callback] state check failed: ${reason}. cookiesReceived=${JSON.stringify(Object.keys(req.cookies || {}))}`);
+    return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(`Microsoft sign-in failed: ${reason}`)}`);
   }
 
   try {
