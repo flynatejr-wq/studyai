@@ -1,4 +1,4 @@
-import { Crown, Zap, MessageSquare, BookOpen, FolderOpen, ArrowRight, Sparkles, Volume2 } from "lucide-react";
+import { Crown, Zap, MessageSquare, BookOpen, FolderOpen, ArrowRight, Sparkles, Volume2, GraduationCap } from "lucide-react";
 import { useLimits } from "../hooks/useLimits.js";
 import { api } from "../api.js";
 import { useState } from "react";
@@ -54,7 +54,8 @@ function UsageRow({ icon: Icon, label, used, max, unlimited, color = "indigo", f
 
 // ── Main card ─────────────────────────────────────────────────────────────────
 export default function PlanUsageCard({ compact = false }) {
-  const { limits, isPro, loading, error } = useLimits();
+  const { limits, isPro, plan, loading, error } = useLimits();
+  const isPilot = plan === "pilot";
   const { user } = useAuth();
   const isSSU = !!user?.email?.toLowerCase().endsWith(SSU_DOMAIN);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -95,6 +96,77 @@ export default function PlanUsageCard({ compact = false }) {
               </p>
             )}
           </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── PILOT accounts — distinct from both Free and Pro ─────────────────────────
+  // Free institutional access (e.g. SSU) — generous daily caps, not unlimited
+  // like Pro, and no upgrade nag since the individual student isn't the one
+  // who'd be paying (their institution is, via the license).
+  if (isPilot) {
+    if (compact) {
+      if (loading) {
+        return (
+          <div className="bg-white/3 border border-white/6 rounded-xl p-3 space-y-2 animate-pulse">
+            <div className="skeleton h-3 w-20 rounded" />
+            <div className="skeleton h-2 w-full rounded" />
+            <div className="skeleton h-2 w-full rounded" />
+          </div>
+        );
+      }
+      if (!limits) {
+        return (
+          <div className="bg-white/3 border border-white/6 rounded-xl p-3">
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Pilot Plan</p>
+            <p className="text-[10px] text-gray-600">Usage data unavailable.</p>
+          </div>
+        );
+      }
+      return (
+        <div className="bg-white/3 border border-white/6 rounded-xl p-3 space-y-2">
+          <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+            <GraduationCap size={11} /> Pilot Plan · Usage
+          </p>
+          <UsageRow icon={BookOpen}      label="Study Guides (today)" color="violet" {...limits.guides} />
+          <UsageRow icon={MessageSquare} label="AI Tutor (today)"     color="violet" {...limits.chat}   />
+          <UsageRow icon={Volume2}       label="Voice (month)"        color="violet" format={formatCount} {...limits.voice} />
+        </div>
+      );
+    }
+
+    return (
+      <div className="rounded-2xl bg-white/3 border border-white/8 overflow-hidden">
+        <div className="flex items-center gap-2.5 px-4 pt-4 pb-3 border-b border-white/6">
+          <div className="w-6 h-6 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+            <GraduationCap size={12} className="text-emerald-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-emerald-400">Pilot Plan</p>
+            <p className="text-[10px] text-gray-500 leading-none mt-0.5">Free institutional access</p>
+          </div>
+        </div>
+        {loading ? (
+          <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3.5 animate-pulse">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="space-y-1.5">
+                <div className="skeleton h-3 w-20 rounded" />
+                <div className="skeleton h-1.5 w-full rounded-full" />
+              </div>
+            ))}
+          </div>
+        ) : limits ? (
+          <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3.5">
+            <UsageRow icon={BookOpen}      label="Study Guides (today)" color="violet" {...limits.guides}  />
+            <UsageRow icon={MessageSquare} label="AI Tutor (today)"     color="violet" {...limits.chat}    />
+            <UsageRow icon={Zap}           label="Quizzes (today)"      color="violet" {...limits.quizzes} />
+            <UsageRow icon={Volume2}       label="Voice (this month)"   color="violet" format={formatCount} {...limits.voice} />
+          </div>
+        ) : (
+          <p className="px-4 py-3 text-xs text-gray-600">
+            {error ? "Could not load usage data." : ""}
+          </p>
         )}
       </div>
     );

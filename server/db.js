@@ -155,6 +155,11 @@ export async function initDb() {
     // (OpenAI tts-1) against the flat-price Pro subscription.
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS tts_chars_used INTEGER DEFAULT 0",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS tts_chars_month TEXT DEFAULT ''",
+    // Daily guide-creation counter for the 'pilot' plan tier — guide creation
+    // previously only had a lifetime cap (guides_created_ever), no daily-reset
+    // mechanism to bound a free institutional pilot account's cost.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS guides_created_today INTEGER DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS guides_created_date TEXT DEFAULT ''",
   ];
 
   for (const sql of safeAlters) {

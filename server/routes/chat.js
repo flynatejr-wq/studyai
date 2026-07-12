@@ -3,6 +3,7 @@ import { v4 as uuid } from "uuid";
 import Anthropic from "@anthropic-ai/sdk";
 import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
+import { PILOT_CHAT_PER_DAY } from "../limits.js";
 
 const router = express.Router();
 router.use(requireAuth);
@@ -40,7 +41,7 @@ async function checkChatLimit(userId, res) {
   )).rows[0];
   const count = Number(countRow?.c) || 0;
 
-  // Admins and whitelisted users have no limit
+  // Admins and manually-whitelisted accounts have no limit
   if (user.is_whitelisted || user.role === "admin") return false;
 
   // Pro / lifetime — generous cap to prevent abuse
@@ -49,6 +50,19 @@ async function checkChatLimit(userId, res) {
       res.status(403).json({
         error: "PRO_LIMIT_CHAT",
         message: `You've sent ${PRO_CHAT_DAILY_LIMIT} messages today. Please continue tomorrow.`,
+      });
+      return true;
+    }
+    return false;
+  }
+
+  // Pilot accounts — same safety cap as paying Pro subscribers, not unlimited
+  // like a manually-whitelisted account (pilot isn't paying for itself yet).
+  if (user.plan === "pilot") {
+    if (count >= PILOT_CHAT_PER_DAY) {
+      res.status(403).json({
+        error: "PILOT_LIMIT_CHAT",
+        message: `Pilot accounts are limited to ${PILOT_CHAT_PER_DAY} AI tutor messages per day. Please continue tomorrow.`,
       });
       return true;
     }

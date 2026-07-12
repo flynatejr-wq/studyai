@@ -3,6 +3,7 @@ import { v4 as uuid } from "uuid";
 import Anthropic from "@anthropic-ai/sdk";
 import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
+import { PILOT_GUIDES_PER_DAY, PILOT_QUIZZES_PER_DAY } from "../limits.js";
 
 const router = express.Router();
 router.use(requireAuth);
@@ -189,7 +190,7 @@ router.post("/", async (req, res) => {
     await client.query("BEGIN");
 
     const user = (await client.query(
-      "SELECT plan, role, is_whitelisted, guides_created_ever FROM users WHERE id = $1",
+      "SELECT plan, role, is_whitelisted, guides_created_ever, guides_created_today, guides_created_date FROM users WHERE id = $1",
       [req.user.id]
     )).rows[0] ?? null;
     if (!user) {
@@ -198,12 +199,26 @@ router.post("/", async (req, res) => {
     }
 
     const isUnrestricted = user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin";
-    if (!isUnrestricted && (user.guides_created_ever || 0) >= FREE_GUIDE_LIMIT) {
+    const isPilot = user.plan === "pilot";
+
+    if (!isUnrestricted && !isPilot && (user.guides_created_ever || 0) >= FREE_GUIDE_LIMIT) {
       await client.query("ROLLBACK");
       console.log(`[free-limit] user ${req.user.id} blocked at save step (guides_created_ever=${user.guides_created_ever})`);
       return res.status(403).json({
         error: "FREE_LIMIT_GUIDES",
         message: `Free accounts are limited to ${FREE_GUIDE_LIMIT} saved guide. Upgrade to Pro for unlimited guides.`,
+      });
+    }
+
+    // Pilot accounts skip the free tier's lifetime cap but get their own
+    // daily cap instead — generous enough for real studying, bounded enough
+    // to protect cost on an account that isn't paying for itself.
+    const todayGuideCount = user.guides_created_date === today ? (user.guides_created_today || 0) : 0;
+    if (isPilot && todayGuideCount >= PILOT_GUIDES_PER_DAY) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({
+        error: "PILOT_LIMIT_GUIDES",
+        message: `Pilot accounts are limited to ${PILOT_GUIDES_PER_DAY} guides per day. Try again tomorrow.`,
       });
     }
 
@@ -217,7 +232,12 @@ router.post("/", async (req, res) => {
     );
 
     await client.query(
-      "UPDATE users SET total_guides = total_guides + 1, guides_created_ever = guides_created_ever + 1, xp = xp + 50, last_study_date = $1 WHERE id = $2",
+      `UPDATE users
+       SET total_guides = total_guides + 1, guides_created_ever = guides_created_ever + 1,
+           xp = xp + 50, last_study_date = $1,
+           guides_created_today = CASE WHEN guides_created_date = $1 THEN guides_created_today + 1 ELSE 1 END,
+           guides_created_date = $1
+       WHERE id = $2`,
       [today, req.user.id]
     );
 
@@ -459,27 +479,34 @@ router.post("/:id/generate-quiz", async (req, res) => {
   )).rows[0] ?? null;
   if (!guide) return res.status(404).json({ error: "Guide not found." });
 
-  // Free-tier limit: 3 quiz generations per day
+  // Daily quiz-generation cap — differs by plan tier. Pro/lifetime/whitelisted/
+  // admin are fully unrestricted; pilot gets its own generous-but-bounded cap
+  // (distinct from the strict free-tier cap, since pilot isn't the free tier).
   const user = (await pool.query(
     "SELECT plan, role, is_whitelisted, quiz_gen_count, quiz_gen_date FROM users WHERE id = $1",
     [req.user.id]
   )).rows[0] ?? null;
   const today = new Date().toISOString().slice(0, 10);
-  const isFreeTier = user && user.plan !== "pro" && user.plan !== "lifetime" && !user.is_whitelisted && user.role !== "admin";
-  if (isFreeTier) {
+  const isUnrestricted = user && (user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin");
+  const isPilot = user && user.plan === "pilot";
+  const dailyCap = isPilot ? PILOT_QUIZZES_PER_DAY : 3;
+
+  if (!isUnrestricted) {
     // Atomically increment the counter if under the daily limit
     const result = await pool.query(`
       UPDATE users
       SET quiz_gen_count = CASE WHEN quiz_gen_date = $1 THEN quiz_gen_count + 1 ELSE 1 END,
           quiz_gen_date = $1
       WHERE id = $2
-        AND (quiz_gen_date != $1 OR quiz_gen_count < 3)
-    `, [today, req.user.id]);
+        AND (quiz_gen_date != $1 OR quiz_gen_count < $3)
+    `, [today, req.user.id, dailyCap]);
 
     if (result.rowCount === 0) {
       return res.status(403).json({
-        error: "FREE_LIMIT_QUIZZES",
-        message: "Free accounts are limited to 3 AI quiz generations per day. Upgrade to Pro for unlimited quizzes.",
+        error: isPilot ? "PILOT_LIMIT_QUIZZES" : "FREE_LIMIT_QUIZZES",
+        message: isPilot
+          ? `Pilot accounts are limited to ${PILOT_QUIZZES_PER_DAY} AI quiz generations per day. Try again tomorrow.`
+          : "Free accounts are limited to 3 AI quiz generations per day. Upgrade to Pro for unlimited quizzes.",
       });
     }
   }

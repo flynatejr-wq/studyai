@@ -201,7 +201,8 @@ app.post("/api/tts", ttsLimiter, async (req, res) => {
   if (!user) return res.status(401).json({ error: "Invalid token." });
 
   const isPro = user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin";
-  const cap = isPro ? TTS_MONTHLY_CHARS_PRO : TTS_MONTHLY_CHARS_FREE;
+  const isPilot = user.plan === "pilot";
+  const cap = (isPro || isPilot) ? TTS_MONTHLY_CHARS_PRO : TTS_MONTHLY_CHARS_FREE;
 
   // Atomic conditional update: resets the counter on a new month, otherwise
   // increments only if the request stays within the cap. rowCount === 0 means

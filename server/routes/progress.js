@@ -2,7 +2,10 @@ import express from "express";
 import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 import { FREE_CHAT_DAILY_LIMIT } from "./chat.js";
-import { TTS_MONTHLY_CHARS_FREE, TTS_MONTHLY_CHARS_PRO } from "../limits.js";
+import {
+  TTS_MONTHLY_CHARS_FREE, TTS_MONTHLY_CHARS_PRO,
+  PILOT_GUIDES_PER_DAY, PILOT_QUIZZES_PER_DAY, PILOT_CHAT_PER_DAY,
+} from "../limits.js";
 
 const router = express.Router();
 router.use(requireAuth);
@@ -91,12 +94,13 @@ router.get("/", async (req, res) => {
 router.get("/limits", async (req, res) => {
   const userId = req.user.id;
   const user = (await pool.query(
-    "SELECT plan, role, is_whitelisted, guides_created_ever, quiz_gen_count, quiz_gen_date, tts_chars_used, tts_chars_month FROM users WHERE id = $1",
+    "SELECT plan, role, is_whitelisted, guides_created_ever, guides_created_today, guides_created_date, quiz_gen_count, quiz_gen_date, tts_chars_used, tts_chars_month FROM users WHERE id = $1",
     [userId]
   )).rows[0] ?? null;
   if (!user) return res.status(404).json({ error: "User not found." });
 
   const isPro = user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin";
+  const isPilot = user.plan === "pilot";
   const today = new Date().toISOString().slice(0, 10);
   const monthKey = today.slice(0, 7);
 
@@ -115,20 +119,32 @@ router.get("/limits", async (req, res) => {
   // Quiz gens today (reset daily)
   const quizToday = user.quiz_gen_date === today ? (user.quiz_gen_count || 0) : 0;
 
-  // Voice (TTS) chars this month — reset monthly, not daily. Capped for both
-  // tiers (Pro's cap is just much higher), so this is never marked unlimited.
+  // Guides created today (reset daily) — only meaningful for the pilot tier,
+  // whose cap is daily rather than the free tier's lifetime cap.
+  const guidesToday = user.guides_created_date === today ? (user.guides_created_today || 0) : 0;
+
+  // Voice (TTS) chars this month — reset monthly, not daily. Capped for
+  // every tier (Pro's/pilot's cap is just much higher), never unlimited.
   const voiceThisMonth = user.tts_chars_month === monthKey ? (user.tts_chars_used || 0) : 0;
-  const voiceCap = isPro ? TTS_MONTHLY_CHARS_PRO : TTS_MONTHLY_CHARS_FREE;
+  const voiceCap = (isPro || isPilot) ? TTS_MONTHLY_CHARS_PRO : TTS_MONTHLY_CHARS_FREE;
 
   res.json({
     plan: user.plan || "free",
     is_pro: isPro,
     limits: {
-      guides:      { used: user.guides_created_ever || 0, max: 1,  unlimited: isPro },
-      quizzes:     { used: quizToday,                     max: 3,  unlimited: isPro },
-      chat:        { used: chatToday,                     max: FREE_CHAT_DAILY_LIMIT, unlimited: isPro },
-      folders:     { used: folderCount,                   max: 3,  unlimited: isPro },
-      voice:       { used: voiceThisMonth,                max: voiceCap, unlimited: false },
+      guides:  isPilot
+        ? { used: guidesToday, max: PILOT_GUIDES_PER_DAY,  unlimited: false }
+        : { used: user.guides_created_ever || 0, max: 1, unlimited: isPro },
+      quizzes: isPilot
+        ? { used: quizToday, max: PILOT_QUIZZES_PER_DAY, unlimited: false }
+        : { used: quizToday, max: 3, unlimited: isPro },
+      chat:    isPilot
+        ? { used: chatToday, max: PILOT_CHAT_PER_DAY, unlimited: false }
+        : { used: chatToday, max: FREE_CHAT_DAILY_LIMIT, unlimited: isPro },
+      // Folders cost nothing to serve — pilot gets the same unlimited
+      // treatment as Pro, no separate cap needed.
+      folders: { used: folderCount, max: 3, unlimited: isPro || isPilot },
+      voice:   { used: voiceThisMonth, max: voiceCap, unlimited: false },
     },
   });
 });

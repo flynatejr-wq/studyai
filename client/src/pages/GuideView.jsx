@@ -1765,7 +1765,12 @@ export default function GuideView() {
   const navigate = useNavigate();
   const { logout, refreshUser } = useAuth();
   const toast = useToast();
-  const { limits, isPro, refresh: refreshLimits } = useLimits();
+  const { limits, isPro, plan, refresh: refreshLimits } = useLimits();
+  // Print/export costs nothing extra to serve, so pilot accounts get it too —
+  // same reasoning as unlimited folders. Only affects this one feature gate,
+  // deliberately not folded into `isPro` itself (that'd break the Pilot vs
+  // Pro distinction PlanUsageCard relies on).
+  const canPrint = isPro || plan === "pilot";
   const [guide, setGuide] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [showChat, setShowChat] = useState(false);
@@ -1967,12 +1972,12 @@ export default function GuideView() {
               <ReadAloudButton guide={guide} studyMode={studyMode} />
               <button
                 onClick={() => {
-                  if (!isPro) { setUpgradeReason("FREE_LIMIT_EXPORT"); setUpgradeOpen(true); return; }
+                  if (!canPrint) { setUpgradeReason("FREE_LIMIT_EXPORT"); setUpgradeOpen(true); return; }
                   window.print();
                 }}
-                title={isPro ? "Print / Save as PDF" : "Pro feature — upgrade to print"}
+                title={canPrint ? "Print / Save as PDF" : "Pro feature — upgrade to print"}
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 hover:border-indigo-500/40 rounded-lg text-gray-400 hover:text-white text-xs font-medium transition-all print:hidden">
-                <Printer size={13} /> {isPro ? "Print" : <><Crown size={11} className="text-amber-400" /> Print</>}
+                <Printer size={13} /> {canPrint ? "Print" : <><Crown size={11} className="text-amber-400" /> Print</>}
               </button>
               <button onClick={() => setShowChat(!showChat)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-all print:hidden ${showChat ? "bg-indigo-600 text-white" : "bg-white/5 border border-white/10 text-gray-300 hover:border-indigo-500/40"}`}>

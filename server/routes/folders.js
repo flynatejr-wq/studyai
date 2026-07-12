@@ -33,7 +33,7 @@ router.post("/", async (req, res) => {
     "SELECT plan, role, is_whitelisted FROM users WHERE id = $1",
     [req.user.id]
   )).rows[0] ?? null;
-  if (user && user.plan !== "pro" && user.plan !== "lifetime" && !user.is_whitelisted && user.role !== "admin") {
+  if (user && user.plan !== "pro" && user.plan !== "lifetime" && user.plan !== "pilot" && !user.is_whitelisted && user.role !== "admin") {
     const folderCount = Number((await pool.query(
       "SELECT COUNT(*) as c FROM folders WHERE user_id = $1",
       [req.user.id]

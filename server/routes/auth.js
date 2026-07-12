@@ -532,7 +532,8 @@ router.get("/google/callback", async (req, res) => {
       if (user) {
         // Link Google to an existing password account
         await pool.query("UPDATE users SET google_id = $1, email_verified = 1 WHERE id = $2", [googleId, user.id]);
-        if (!user.is_whitelisted) await grantPilotAccessOnSignup(user.id, normEmail);
+        // Internally guarded to only touch accounts still on the default 'free' plan
+        await grantPilotAccessOnSignup(user.id, normEmail);
         user = (await pool.query("SELECT * FROM users WHERE id = $1", [user.id])).rows[0] ?? null;
       } else {
         // Brand-new Google account — create it
@@ -662,7 +663,8 @@ router.get("/microsoft/callback", async (req, res) => {
       if (user) {
         // Link Microsoft to an existing account (e.g. one created with a password)
         await pool.query("UPDATE users SET microsoft_id = $1, email_verified = 1 WHERE id = $2", [microsoftId, user.id]);
-        if (!user.is_whitelisted) await grantPilotAccessOnSignup(user.id, normEmail);
+        // Internally guarded to only touch accounts still on the default 'free' plan
+        await grantPilotAccessOnSignup(user.id, normEmail);
         user = (await pool.query("SELECT * FROM users WHERE id = $1", [user.id])).rows[0] ?? null;
       } else {
         // Brand-new Microsoft account — create it

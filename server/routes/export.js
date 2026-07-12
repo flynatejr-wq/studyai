@@ -10,13 +10,15 @@ router.get("/", async (req, res) => {
   const userId = req.user.id;
 
   const user = (await pool.query(
-    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, total_study_time, plan, role, created_at FROM users WHERE id = $1",
+    "SELECT id, name, email, streak, xp, level, total_guides, total_quizzes, total_study_time, plan, role, is_whitelisted, created_at FROM users WHERE id = $1",
     [userId]
   )).rows[0] ?? null;
   if (!user) return res.status(404).json({ error: "User not found." });
 
-  const isProUser = ["pro", "lifetime"].includes(user.plan) || user.role === "admin";
-  if (!isProUser) {
+  // Export costs nothing extra to serve, so pilot accounts (and manually
+  // whitelisted ones) get it too — same reasoning as unlimited folders/print.
+  const canExport = ["pro", "lifetime", "pilot"].includes(user.plan) || user.is_whitelisted || user.role === "admin";
+  if (!canExport) {
     return res.status(403).json({
       error: "FREE_LIMIT_EXPORT",
       message: "Export is a Pro feature. Upgrade to download your data.",

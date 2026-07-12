@@ -58,6 +58,9 @@ export default function Sidebar({ onLogout }) {
 
   const close = () => setOpen(false);
   const isPro = user?.plan === "pro";
+  // Pilot students shouldn't see an upgrade nag — their institution pays via
+  // a license, not the individual student.
+  const isPilot = user?.plan === "pilot";
 
   const handleUpgrade = async () => {
     try {
@@ -231,8 +234,8 @@ export default function Sidebar({ onLogout }) {
           {/* Plan status + usage */}
           <PlanUsageCard compact />
 
-          {/* Upgrade button — only shown for free users */}
-          {!isPro && (
+          {/* Upgrade button — only shown for free users, not Pro or pilot */}
+          {!isPro && !isPilot && (
             <button
               onClick={handleUpgrade}
               className="w-full flex items-center gap-2.5 px-3.5 py-3 rounded-xl bg-gradient-to-r from-indigo-600/15 to-violet-600/15 border border-indigo-500/25 hover:from-indigo-600/25 hover:to-violet-600/25 hover:border-indigo-500/45 transition-all group">
