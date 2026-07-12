@@ -9,6 +9,7 @@ import {
   hashValue, getClientIp, isDisposableEmail, getEmailDomain, isValidFp,
   recordSignup, archiveDeletedAccount,
 } from "../lib/abuse.js";
+import { grantPilotAccessOnSignup } from "../pilots.js";
 
 // H-7 / HIGH-2: SHA-256 hash single-use tokens before storing so a DB read can't
 // be used to take over accounts. Used for both password-reset and email-verify tokens.
@@ -57,6 +58,7 @@ router.post("/signup", async (req, res) => {
       "INSERT INTO users (id, name, email, password_hash, referral_code, referred_by) VALUES ($1, $2, $3, $4, $5, $6)",
       [id, name.trim(), email.toLowerCase().trim(), password_hash, referralCode, referredBy]
     );
+    await grantPilotAccessOnSignup(id, email.toLowerCase().trim());
 
     // Record the referral and award 1 free guide credit to the referrer
     if (referredBy) {
@@ -540,6 +542,7 @@ router.get("/google/callback", async (req, res) => {
           "INSERT INTO users (id, name, email, password_hash, google_id, email_verified, referral_code) VALUES ($1, $2, $3, $4, $5, 1, $6)",
           [newId, name, normEmail, fakeHash, googleId, referralCode]
         );
+        await grantPilotAccessOnSignup(newId, normEmail);
         user = (await pool.query("SELECT * FROM users WHERE id = $1", [newId])).rows[0] ?? null;
         if (isEmailConfigured()) {
           sendWelcomeEmail(normEmail, name).catch(err =>
