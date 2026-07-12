@@ -11,6 +11,7 @@ import rateLimit from "express-rate-limit";
 import jwt from "jsonwebtoken";
 import OpenAI from "openai";
 import pool, { initDb } from "./db.js";
+import { TTS_MONTHLY_CHARS_FREE, TTS_MONTHLY_CHARS_PRO } from "./limits.js";
 import summarizeRoute from "./routes/summarize.js";
 import authRoute from "./routes/auth.js";
 import foldersRoute from "./routes/folders.js";
@@ -175,12 +176,6 @@ const ttsLimiter = rateLimit({
 });
 
 const VALID_TTS_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
-
-// Monthly character quotas — the only unmetered cost against a flat-price plan
-// otherwise. tts-1 runs ~$15/million chars; these caps bound worst-case cost
-// to a small, predictable slice of the subscription instead of leaving it open.
-const TTS_MONTHLY_CHARS_FREE = 20_000;
-const TTS_MONTHLY_CHARS_PRO  = 150_000;
 
 app.post("/api/tts", ttsLimiter, async (req, res) => {
   const header = req.headers.authorization;

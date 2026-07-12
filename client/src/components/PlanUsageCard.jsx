@@ -1,4 +1,4 @@
-import { Crown, Zap, MessageSquare, BookOpen, FolderOpen, ArrowRight, Sparkles } from "lucide-react";
+import { Crown, Zap, MessageSquare, BookOpen, FolderOpen, ArrowRight, Sparkles, Volume2 } from "lucide-react";
 import { useLimits } from "../hooks/useLimits.js";
 import { api } from "../api.js";
 import { useState } from "react";
@@ -6,8 +6,11 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 
 const SSU_DOMAIN = "savannahstate.edu";
 
+// Compact display for large counts (character quotas): 3420 -> "3.4k", 150000 -> "150k"
+const formatCount = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : String(n));
+
 // ── Single usage row ──────────────────────────────────────────────────────────
-function UsageRow({ icon: Icon, label, used, max, unlimited, color = "indigo" }) {
+function UsageRow({ icon: Icon, label, used, max, unlimited, color = "indigo", format }) {
   if (unlimited) return null;
 
   const pct     = Math.min((used / max) * 100, 100);
@@ -26,6 +29,8 @@ function UsageRow({ icon: Icon, label, used, max, unlimited, color = "indigo" })
       ? "text-amber-400"
       : "text-gray-400";
 
+  const fmt = format || ((n) => n);
+
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
@@ -34,7 +39,7 @@ function UsageRow({ icon: Icon, label, used, max, unlimited, color = "indigo" })
           <span className="text-xs text-gray-400 truncate">{label}</span>
         </div>
         <span className={`text-xs font-bold shrink-0 tabular-nums ${countColor}`}>
-          {used}/{max}
+          {fmt(used)}/{fmt(max)}
         </span>
       </div>
       <div className="h-1.5 bg-white/6 rounded-full overflow-hidden">
@@ -65,16 +70,32 @@ export default function PlanUsageCard({ compact = false }) {
     }
   };
 
-  // ── Pro users: amber badge, no upgrade CTA ───────────────────────────────────
+  // ── Pro users: amber badge + voice usage ─────────────────────────────────────
+  // Everything except voice minutes is unlimited on Pro, so the badge still leads
+  // with "Unlimited access." Voice has a generous but real monthly cap (bounds
+  // the one per-character-metered cost), so its bar shows even for Pro.
   if (isPro) {
+    const voiceNearOrAtLimit = limits?.voice && limits.voice.used / limits.voice.max >= 0.7;
     return (
-      <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl bg-gradient-to-r from-amber-500/10 to-yellow-500/8 border border-amber-500/20">
-        <Crown size={14} className="text-amber-400 shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-amber-400 text-xs font-black leading-none">Pro Plan</p>
-          <p className="text-amber-600 text-[10px] leading-none mt-0.5">Unlimited access · No restrictions</p>
+      <div className="rounded-xl bg-gradient-to-r from-amber-500/10 to-yellow-500/8 border border-amber-500/20 overflow-hidden">
+        <div className="flex items-center gap-2.5 px-3.5 py-3">
+          <Crown size={14} className="text-amber-400 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-amber-400 text-xs font-black leading-none">Pro Plan</p>
+            <p className="text-amber-600 text-[10px] leading-none mt-0.5">Unlimited access · No restrictions</p>
+          </div>
+          <Sparkles size={12} className="text-amber-500/60 shrink-0" />
         </div>
-        <Sparkles size={12} className="text-amber-500/60 shrink-0" />
+        {limits?.voice && (
+          <div className="px-3.5 pb-3">
+            <UsageRow icon={Volume2} label="Voice (this month)" color="violet" format={formatCount} {...limits.voice} />
+            {voiceNearOrAtLimit && (
+              <p className="text-[10px] text-amber-400/90 mt-1.5 leading-relaxed">
+                Approaching your monthly voice limit — it resets next month.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -110,6 +131,7 @@ export default function PlanUsageCard({ compact = false }) {
         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Free Plan · Usage</p>
         <UsageRow icon={BookOpen}      label="Study Guides"   {...limits.guides} />
         <UsageRow icon={MessageSquare} label="AI Tutor today" {...limits.chat}   />
+        <UsageRow icon={Volume2}       label="Voice (month)"  format={formatCount} {...limits.voice} />
         {guidesAtLimit && (
           <p className="text-[10px] text-amber-400 leading-relaxed">
             Upgrade for unlimited guides, AI tutor & more.
@@ -162,6 +184,7 @@ export default function PlanUsageCard({ compact = false }) {
           <UsageRow icon={MessageSquare} label="AI Tutor (today)" {...limits.chat}    />
           <UsageRow icon={Zap}           label="Quizzes (today)"  {...limits.quizzes} />
           <UsageRow icon={FolderOpen}    label="Folders"          {...limits.folders} />
+          <UsageRow icon={Volume2}       label="Voice (this month)" format={formatCount} {...limits.voice} />
         </div>
       ) : (
         // Fetch failed — still show the upgrade button (above), just no bars

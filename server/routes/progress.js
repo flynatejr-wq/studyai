@@ -2,6 +2,7 @@ import express from "express";
 import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 import { FREE_CHAT_DAILY_LIMIT } from "./chat.js";
+import { TTS_MONTHLY_CHARS_FREE, TTS_MONTHLY_CHARS_PRO } from "../limits.js";
 
 const router = express.Router();
 router.use(requireAuth);
@@ -90,13 +91,14 @@ router.get("/", async (req, res) => {
 router.get("/limits", async (req, res) => {
   const userId = req.user.id;
   const user = (await pool.query(
-    "SELECT plan, role, is_whitelisted, guides_created_ever, quiz_gen_count, quiz_gen_date FROM users WHERE id = $1",
+    "SELECT plan, role, is_whitelisted, guides_created_ever, quiz_gen_count, quiz_gen_date, tts_chars_used, tts_chars_month FROM users WHERE id = $1",
     [userId]
   )).rows[0] ?? null;
   if (!user) return res.status(404).json({ error: "User not found." });
 
   const isPro = user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin";
   const today = new Date().toISOString().slice(0, 10);
+  const monthKey = today.slice(0, 7);
 
   // Daily chat messages sent today
   const chatToday = Number((await pool.query(
@@ -113,6 +115,11 @@ router.get("/limits", async (req, res) => {
   // Quiz gens today (reset daily)
   const quizToday = user.quiz_gen_date === today ? (user.quiz_gen_count || 0) : 0;
 
+  // Voice (TTS) chars this month — reset monthly, not daily. Capped for both
+  // tiers (Pro's cap is just much higher), so this is never marked unlimited.
+  const voiceThisMonth = user.tts_chars_month === monthKey ? (user.tts_chars_used || 0) : 0;
+  const voiceCap = isPro ? TTS_MONTHLY_CHARS_PRO : TTS_MONTHLY_CHARS_FREE;
+
   res.json({
     plan: user.plan || "free",
     is_pro: isPro,
@@ -121,6 +128,7 @@ router.get("/limits", async (req, res) => {
       quizzes:     { used: quizToday,                     max: 3,  unlimited: isPro },
       chat:        { used: chatToday,                     max: FREE_CHAT_DAILY_LIMIT, unlimited: isPro },
       folders:     { used: folderCount,                   max: 3,  unlimited: isPro },
+      voice:       { used: voiceThisMonth,                max: voiceCap, unlimited: false },
     },
   });
 });

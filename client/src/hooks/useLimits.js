@@ -6,7 +6,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
  * useLimits — fetches /progress/limits and returns current usage vs plan limits.
  *
  * Returns:
- *   limits   — { guides, quizzes, chat, folders } each with { used, max, unlimited }
+ *   limits   — { guides, quizzes, chat, folders, voice } each with { used, max, unlimited }
  *   isPro    — boolean shorthand
  *   refresh  — call after a generation/chat/folder to revalidate
  *   loading  — true while first fetch is in flight
