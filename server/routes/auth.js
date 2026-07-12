@@ -679,7 +679,12 @@ router.get("/microsoft/callback", async (req, res) => {
     res.redirect(`${frontendUrl}/auth/microsoft/callback#token=${token}`);
   } catch (err) {
     console.error("[microsoft/callback]", err.message);
-    res.redirect(`${frontendUrl}/login?error=microsoft_failed`);
+    // TEMP — surface the real error directly in the redirect during SSO setup
+    // (no secrets/tokens ever land in err.message here). Once Microsoft sign-in
+    // is confirmed working end-to-end, switch this back to a generic message
+    // so real students never see raw operational detail.
+    const detail = (err.message || "Unknown error").slice(0, 150);
+    res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(`Microsoft sign-in failed: ${detail}`)}`);
   }
 });
 
