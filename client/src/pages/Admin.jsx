@@ -4,7 +4,7 @@ import {
   Shield, Users, BarChart2, Search, RefreshCw, X, ChevronLeft,
   ChevronRight, Crown, Ban, Star, Zap, Clock, BookOpen, CheckCircle,
   AlertTriangle, Activity, Filter, RotateCcw, Save, ChevronDown,
-  Fingerprint, Trash2, Flag, Lock, Unlock, EyeOff, DollarSign,
+  Fingerprint, Trash2, Flag, Lock, Unlock, EyeOff, DollarSign, GraduationCap,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { api } from "../api.js";
@@ -32,6 +32,7 @@ const PLAN_CONFIG = {
   free:     { label: "Free",     bg: "bg-gray-500/20",   text: "text-gray-400",   border: "border-gray-500/30" },
   pro:      { label: "Pro",      bg: "bg-indigo-500/20", text: "text-indigo-400", border: "border-indigo-500/30" },
   lifetime: { label: "Lifetime", bg: "bg-amber-500/20",  text: "text-amber-400",  border: "border-amber-500/30" },
+  pilot:    { label: "Pilot",    bg: "bg-emerald-500/20",text: "text-emerald-400",border: "border-emerald-500/30" },
 };
 
 const ROLE_CONFIG = {
@@ -68,6 +69,7 @@ function StatCard({ icon: Icon, label, value, sub, color = "indigo" }) {
     rose:   "from-rose-500/15   to-rose-600/5   border-rose-500/20   text-rose-400",
     emerald:"from-emerald-500/15 to-emerald-600/5 border-emerald-500/20 text-emerald-400",
     sky:    "from-sky-500/15    to-sky-600/5    border-sky-500/20    text-sky-400",
+    teal:   "from-teal-500/15   to-teal-600/5   border-teal-500/20   text-teal-400",
   };
   const cls = colors[color] || colors.indigo;
   return (
@@ -238,7 +240,7 @@ function UserDrawer({ user, onClose, onSaved }) {
           <div>
             <label className="block text-xs font-semibold text-gray-400 mb-2">Subscription Plan</label>
             <div className="flex gap-2">
-              {["free", "pro", "lifetime"].map(p => {
+              {["free", "pro", "lifetime", "pilot"].map(p => {
                 const c = PLAN_CONFIG[p];
                 return (
                   <button
@@ -247,6 +249,7 @@ function UserDrawer({ user, onClose, onSaved }) {
                     className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${form.plan === p ? `${c.bg} ${c.text} ${c.border}` : "bg-white/4 text-gray-500 border-white/8 hover:border-white/15"}`}>
                     {p === "pro" && <Crown size={10} className="inline mr-1" />}
                     {p === "lifetime" && <Star size={10} className="inline mr-1" />}
+                    {p === "pilot" && <GraduationCap size={10} className="inline mr-1" />}
                     {c.label}
                   </button>
                 );
@@ -601,13 +604,14 @@ export default function Admin() {
 
         {/* ── Stats ── */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            <StatCard icon={Users}     label="Total Users"     value={stats.totalUsers}    color="indigo" />
-            <StatCard icon={Crown}     label="Pro / Lifetime"  value={stats.proUsers + stats.lifetimeUsers} sub={`${stats.lifetimeUsers} lifetime`} color="violet" />
-            <StatCard icon={Zap}       label="Free Users"      value={stats.freeUsers}      color="sky" />
-            <StatCard icon={Star}      label="Whitelisted"     value={stats.whitelisted}    color="amber" />
-            <StatCard icon={Ban}       label="Banned"          value={stats.bannedUsers}    color="rose" />
-            <StatCard icon={BookOpen}  label="Total Guides"    value={stats.totalGuides}    color="emerald" />
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+            <StatCard icon={Users}         label="Total Users"     value={stats.totalUsers}    color="indigo" />
+            <StatCard icon={Crown}         label="Pro / Lifetime"  value={stats.proUsers + stats.lifetimeUsers} sub={`${stats.lifetimeUsers} lifetime`} color="violet" />
+            <StatCard icon={GraduationCap} label="Pilot"           value={stats.pilotUsers ?? 0} color="teal" />
+            <StatCard icon={Zap}           label="Free Users"      value={stats.freeUsers}      color="sky" />
+            <StatCard icon={Star}          label="Whitelisted"     value={stats.whitelisted}    color="amber" />
+            <StatCard icon={Ban}           label="Banned"          value={stats.bannedUsers}    color="rose" />
+            <StatCard icon={BookOpen}      label="Total Guides"    value={stats.totalGuides}    color="emerald" />
           </div>
         )}
 
@@ -654,6 +658,7 @@ export default function Admin() {
                 <option value="free">Free</option>
                 <option value="pro">Pro</option>
                 <option value="lifetime">Lifetime</option>
+                <option value="pilot">Pilot</option>
               </select>
               <select
                 value={roleFilter}

@@ -7,7 +7,7 @@ import { raiseFlag } from "../lib/abuse.js";
 
 const router = express.Router();
 
-const VALID_PLANS = ["free", "pro", "lifetime"];
+const VALID_PLANS = ["free", "pro", "lifetime", "pilot"];
 const VALID_ROLES = ["user", "admin"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -72,6 +72,7 @@ router.get("/stats", async (req, res) => {
   const totalUsers      = Number((await pool.query("SELECT COUNT(*) as c FROM users")).rows[0].c);
   const proUsers        = Number((await pool.query("SELECT COUNT(*) as c FROM users WHERE plan = 'pro'")).rows[0].c);
   const lifetimeUsers   = Number((await pool.query("SELECT COUNT(*) as c FROM users WHERE plan = 'lifetime'")).rows[0].c);
+  const pilotUsers      = Number((await pool.query("SELECT COUNT(*) as c FROM users WHERE plan = 'pilot'")).rows[0].c);
   const freeUsers       = Number((await pool.query("SELECT COUNT(*) as c FROM users WHERE plan = 'free'")).rows[0].c);
   const bannedUsers     = Number((await pool.query("SELECT COUNT(*) as c FROM users WHERE is_banned = 1")).rows[0].c);
   const whitelisted     = Number((await pool.query("SELECT COUNT(*) as c FROM users WHERE is_whitelisted = 1")).rows[0].c);
@@ -83,7 +84,7 @@ router.get("/stats", async (req, res) => {
   )).rows[0].c);
 
   res.json({
-    totalUsers, proUsers, lifetimeUsers, freeUsers, bannedUsers,
+    totalUsers, proUsers, lifetimeUsers, pilotUsers, freeUsers, bannedUsers,
     whitelisted, adminCount, totalGuides, totalAuditLogs, newUsersToday,
   });
 });
