@@ -194,6 +194,19 @@ export default function Signup() {
             Continue with Google
           </a>
 
+          {/* Microsoft sign-up — required for institutions (e.g. SSU) whose SSO policy mandates it */}
+          <a
+            href={`${import.meta.env.VITE_API_URL || ""}/api/auth/microsoft`}
+            className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border border-white/12 bg-white/4 hover:bg-white/8 transition-all text-sm font-semibold text-white mb-5">
+            <svg width="18" height="18" viewBox="0 0 23 23">
+              <rect x="1" y="1" width="10" height="10" fill="#F25022"/>
+              <rect x="12" y="1" width="10" height="10" fill="#7FBA00"/>
+              <rect x="1" y="12" width="10" height="10" fill="#00A4EF"/>
+              <rect x="12" y="12" width="10" height="10" fill="#FFB900"/>
+            </svg>
+            Continue with Microsoft
+          </a>
+
           <div className="flex items-center gap-3 mb-5">
             <div className="flex-1 h-px bg-white/8" />
             <span className="text-gray-600 text-xs">or sign up with email</span>

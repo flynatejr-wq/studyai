@@ -565,4 +565,118 @@ router.get("/google/callback", async (req, res) => {
   }
 });
 
+// ── Microsoft OAuth (SSO) ────────────────────────────────────────────────────
+// Required by institutions (e.g. SSU) whose IT policy mandates signing in
+// with the school's Microsoft/Azure AD account rather than a separate password.
+const MS_CLIENT_ID     = process.env.MICROSOFT_CLIENT_ID;
+const MS_CLIENT_SECRET = process.env.MICROSOFT_CLIENT_SECRET;
+// "organizations" accepts any work/school (Azure AD) account — not personal
+// Microsoft accounts — so this works for SSU today and any future
+// institution's Microsoft-issued student accounts without reconfiguring.
+const MS_TENANT = "organizations";
+
+// Step 1 — redirect browser to Microsoft's consent screen
+router.get("/microsoft", (req, res) => {
+  if (!MS_CLIENT_ID) return res.status(503).json({ error: "Microsoft login is not configured." });
+  if (!BACKEND_URL)  return res.status(503).json({ error: "Microsoft login is not configured." });
+  const state = randomBytes(16).toString("hex");
+  res.cookie("oauth_state_ms", state, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 10 * 60 * 1000 });
+  const params = new URLSearchParams({
+    client_id:     MS_CLIENT_ID,
+    redirect_uri:  `${BACKEND_URL}/api/auth/microsoft/callback`,
+    response_type: "code",
+    scope:         "openid profile email User.Read",
+    response_mode: "query",
+    prompt:        "select_account",
+    state,
+  });
+  res.redirect(`https://login.microsoftonline.com/${MS_TENANT}/oauth2/v2.0/authorize?${params}`);
+});
+
+// Step 2 — Microsoft redirects here with a code
+router.get("/microsoft/callback", async (req, res) => {
+  const { code, error, state } = req.query;
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+  if (error || !code) {
+    return res.redirect(`${frontendUrl}/login?error=microsoft_cancelled`);
+  }
+
+  // Verify CSRF state nonce
+  const expectedState = req.cookies?.oauth_state_ms;
+  res.clearCookie("oauth_state_ms");
+  if (!expectedState || state !== expectedState) {
+    return res.redirect(`${frontendUrl}/login?error=microsoft_failed`);
+  }
+
+  try {
+    // Exchange code for access token
+    const tokenRes = await fetch(`https://login.microsoftonline.com/${MS_TENANT}/oauth2/v2.0/token`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id:     MS_CLIENT_ID,
+        client_secret: MS_CLIENT_SECRET,
+        redirect_uri:  `${BACKEND_URL}/api/auth/microsoft/callback`,
+        grant_type:    "authorization_code",
+      }),
+    });
+    const tokens = await tokenRes.json();
+    if (!tokens.access_token) throw new Error("No access token returned from Microsoft");
+
+    // Fetch user profile from Microsoft Graph
+    const profileRes = await fetch("https://graph.microsoft.com/v1.0/me", {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    });
+    const profile = await profileRes.json();
+    const { id: microsoftId, displayName: rawName } = profile;
+    // School/edu tenants sometimes leave `mail` null — userPrincipalName (the
+    // actual login identifier) is the reliable fallback for those accounts.
+    const email = (profile.mail || profile.userPrincipalName || "").toLowerCase().trim();
+    if (!email) throw new Error("Microsoft did not return an email address");
+    const name = (rawName || "User").slice(0, 80);
+
+    const normEmail = email;
+
+    // Find or create user
+    let user = (await pool.query("SELECT * FROM users WHERE microsoft_id = $1", [microsoftId])).rows[0] ?? null;
+
+    if (!user) {
+      user = (await pool.query("SELECT * FROM users WHERE email = $1", [normEmail])).rows[0] ?? null;
+      if (user) {
+        // Link Microsoft to an existing account (e.g. one created with a password)
+        await pool.query("UPDATE users SET microsoft_id = $1, email_verified = 1 WHERE id = $2", [microsoftId, user.id]);
+        user = (await pool.query("SELECT * FROM users WHERE id = $1", [user.id])).rows[0] ?? null;
+      } else {
+        // Brand-new Microsoft account — create it
+        const newId = uuid();
+        const referralCode = randomBytes(4).toString("hex").toUpperCase();
+        const fakeHash = await bcrypt.hash(randomBytes(32).toString("hex"), 10);
+        await pool.query(
+          "INSERT INTO users (id, name, email, password_hash, microsoft_id, email_verified, referral_code) VALUES ($1, $2, $3, $4, $5, 1, $6)",
+          [newId, name, normEmail, fakeHash, microsoftId, referralCode]
+        );
+        await grantPilotAccessOnSignup(newId, normEmail);
+        user = (await pool.query("SELECT * FROM users WHERE id = $1", [newId])).rows[0] ?? null;
+        if (isEmailConfigured()) {
+          sendWelcomeEmail(normEmail, name).catch(err =>
+            console.error("[microsoft/signup] welcome email failed:", err.message)
+          );
+        }
+      }
+    }
+
+    if (user.is_banned) {
+      return res.redirect(`${frontendUrl}/login?error=banned`);
+    }
+
+    const token = signToken({ id: user.id });
+    res.redirect(`${frontendUrl}/auth/microsoft/callback#token=${token}`);
+  } catch (err) {
+    console.error("[microsoft/callback]", err.message);
+    res.redirect(`${frontendUrl}/login?error=microsoft_failed`);
+  }
+});
+
 export default router;

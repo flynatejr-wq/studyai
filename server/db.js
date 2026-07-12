@@ -148,6 +148,9 @@ export async function initDb() {
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS streak_reminder_sent_date TEXT",
     // Google OAuth
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT",
+    // Microsoft OAuth (SSO) — required by institutions like SSU whose IT
+    // policy mandates signing in with the school's Microsoft/Azure AD account.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS microsoft_id TEXT",
     // TTS monthly character quota — bounds the one unmetered per-request cost
     // (OpenAI tts-1) against the flat-price Pro subscription.
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS tts_chars_used INTEGER DEFAULT 0",
@@ -279,6 +282,7 @@ export async function initDb() {
     "CREATE INDEX IF NOT EXISTS idx_abuse_flags_unresolved ON abuse_flags(resolved_at) WHERE resolved_at IS NULL",
     // Unique partial index for google_id
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_microsoft_id ON users(microsoft_id) WHERE microsoft_id IS NOT NULL",
   ];
 
   for (const sql of indexes) {

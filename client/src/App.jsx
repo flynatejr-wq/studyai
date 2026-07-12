@@ -40,7 +40,8 @@ const Contact        = lazyWithRetry(() => import("./pages/Contact.jsx"));
 const NotFound       = lazyWithRetry(() => import("./pages/NotFound.jsx"));
 const Admin          = lazyWithRetry(() => import("./pages/Admin.jsx"));
 const VerifyEmail    = lazyWithRetry(() => import("./pages/VerifyEmail.jsx"));
-const GoogleCallback = lazyWithRetry(() => import("./pages/GoogleCallback.jsx"));
+const GoogleCallback    = lazyWithRetry(() => import("./pages/GoogleCallback.jsx"));
+const MicrosoftCallback = lazyWithRetry(() => import("./pages/MicrosoftCallback.jsx"));
 const StudyPlans     = lazyWithRetry(() => import("./pages/StudyPlans.jsx"));
 
 // ── Shared loading fallback ───────────────────────────────────────────────────
@@ -106,7 +107,8 @@ function AppRoutes() {
           <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
           <Route path="/reset-password"  element={<ResetPassword />} />
           <Route path="/verify-email"         element={<VerifyEmail />} />
-          <Route path="/auth/google/callback" element={<GoogleCallback />} />
+          <Route path="/auth/google/callback"    element={<GoogleCallback />} />
+          <Route path="/auth/microsoft/callback" element={<MicrosoftCallback />} />
           <Route path="/share/:token"    element={<PublicGuide />} />
           <Route path="/terms"           element={<Terms />} />
           <Route path="/privacy"         element={<Privacy />} />
