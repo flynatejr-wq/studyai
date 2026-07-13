@@ -32,7 +32,7 @@ const PLAN_CONFIG = {
   free:     { label: "Free",     bg: "bg-gray-500/20",   text: "text-gray-400",   border: "border-gray-500/30" },
   pro:      { label: "Pro",      bg: "bg-indigo-500/20", text: "text-indigo-400", border: "border-indigo-500/30" },
   lifetime: { label: "Lifetime", bg: "bg-amber-500/20",  text: "text-amber-400",  border: "border-amber-500/30" },
-  pilot:    { label: "Pilot",    bg: "bg-emerald-500/20",text: "text-emerald-400",border: "border-emerald-500/30" },
+  pilot:    { label: "Pilot",    bg: "bg-emerald-500/20",text: "text-emerald-400",border: "border-emerald-500/30" }, // deploy-verify-marker-7a3f
 };
 
 const ROLE_CONFIG = {
