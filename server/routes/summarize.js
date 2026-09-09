@@ -696,8 +696,11 @@ router.post("/file", requireAuth, upload.single("file"), async (req, res) => {
              mimetype === "application/vnd.ms-powerpoint") {
       // Must pass fileType hint when parsing from a Buffer — officeparser can't
       // auto-detect file type without a file path (no magic bytes in PPTX/DOCX).
+      // officeparser 7.x returns a parsed AST object, not a plain string —
+      // call .toText() to get the flat text (changed from 7.0.x's direct string return).
       const ft = ext === "ppt" ? "ppt" : "pptx";
-      text = await parseOffice(buffer, { fileType: ft, outputErrorToConsole: false });
+      const ast = await parseOffice(buffer, { fileType: ft, outputErrorToConsole: false });
+      text = ast.toText();
     }
 
     // ── Plain text, Markdown, CSV, RTF ───────────────────────────────────────
