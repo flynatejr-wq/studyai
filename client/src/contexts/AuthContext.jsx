@@ -8,6 +8,12 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // SSU pilot users see a school-branded (blue/orange) theme instead of the
+  // default indigo/violet — see html.theme-ssu overrides in index.css.
+  useEffect(() => {
+    document.documentElement.classList.toggle("theme-ssu", user?.plan === "pilot");
+  }, [user]);
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {

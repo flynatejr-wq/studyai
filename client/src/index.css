@@ -734,3 +734,164 @@ a:focus:not(:focus-visible) {
   * { animation: none !important; transition: none !important; }
   section { break-inside: avoid; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SSU (SAVANNAH STATE UNIVERSITY) PILOT THEME
+   Applied via html.theme-ssu (toggled in AuthContext based on plan==='pilot').
+   Same override technique as the html.light block above: target the exact
+   hardcoded Tailwind indigo/violet classes used across the app and swap them
+   to SSU's Tigers blue/orange. Generated from a full class-usage scan via
+   client/scripts/gen-ssu-theme.mjs — re-run that script if new indigo/violet
+   classes are added to the app, then paste its output back in here.
+══════════════════════════════════════════════════════════════════════════ */
+html.theme-ssu .bg-indigo-100 { background-color: rgba(219,234,254,1) !important; }
+html.theme-ssu .bg-indigo-400 { background-color: rgba(59,130,246,1) !important; }
+html.theme-ssu .bg-indigo-50 { background-color: rgba(239,246,255,1) !important; }
+html.theme-ssu .bg-indigo-500 { background-color: rgba(37,99,235,1) !important; }
+html.theme-ssu .bg-indigo-500\/10 { background-color: rgba(37,99,235,0.1) !important; }
+html.theme-ssu .bg-indigo-500\/12 { background-color: rgba(37,99,235,0.12) !important; }
+html.theme-ssu .bg-indigo-500\/15 { background-color: rgba(37,99,235,0.15) !important; }
+html.theme-ssu .bg-indigo-500\/20 { background-color: rgba(37,99,235,0.2) !important; }
+html.theme-ssu .bg-indigo-500\/40 { background-color: rgba(37,99,235,0.4) !important; }
+html.theme-ssu .bg-indigo-500\/5 { background-color: rgba(37,99,235,0.05) !important; }
+html.theme-ssu .bg-indigo-500\/70 { background-color: rgba(37,99,235,0.7) !important; }
+html.theme-ssu .bg-indigo-600 { background-color: rgba(29,78,216,1) !important; }
+html.theme-ssu .bg-indigo-600\/10 { background-color: rgba(29,78,216,0.1) !important; }
+html.theme-ssu .bg-indigo-600\/12 { background-color: rgba(29,78,216,0.12) !important; }
+html.theme-ssu .bg-indigo-600\/15 { background-color: rgba(29,78,216,0.15) !important; }
+html.theme-ssu .bg-indigo-600\/20 { background-color: rgba(29,78,216,0.2) !important; }
+html.theme-ssu .bg-indigo-600\/25 { background-color: rgba(29,78,216,0.25) !important; }
+html.theme-ssu .bg-indigo-600\/30 { background-color: rgba(29,78,216,0.3) !important; }
+html.theme-ssu .bg-indigo-600\/40 { background-color: rgba(29,78,216,0.4) !important; }
+html.theme-ssu .bg-indigo-600\/5 { background-color: rgba(29,78,216,0.05) !important; }
+html.theme-ssu .bg-indigo-600\/60 { background-color: rgba(29,78,216,0.6) !important; }
+html.theme-ssu .bg-indigo-600\/8 { background-color: rgba(29,78,216,0.08) !important; }
+html.theme-ssu .bg-indigo-700\/60 { background-color: rgba(30,64,175,0.6) !important; }
+html.theme-ssu .bg-indigo-800\/12 { background-color: rgba(30,58,138,0.12) !important; }
+html.theme-ssu .bg-indigo-900\/50 { background-color: rgba(23,37,84,0.5) !important; }
+html.theme-ssu .bg-violet-500 { background-color: rgba(234,88,12,1) !important; }
+html.theme-ssu .bg-violet-500\/10 { background-color: rgba(234,88,12,0.1) !important; }
+html.theme-ssu .bg-violet-500\/15 { background-color: rgba(234,88,12,0.15) !important; }
+html.theme-ssu .bg-violet-500\/20 { background-color: rgba(234,88,12,0.2) !important; }
+html.theme-ssu .bg-violet-500\/40 { background-color: rgba(234,88,12,0.4) !important; }
+html.theme-ssu .bg-violet-600\/10 { background-color: rgba(194,65,12,0.1) !important; }
+html.theme-ssu .bg-violet-600\/12 { background-color: rgba(194,65,12,0.12) !important; }
+html.theme-ssu .bg-violet-600\/20 { background-color: rgba(194,65,12,0.2) !important; }
+html.theme-ssu .bg-violet-600\/5 { background-color: rgba(194,65,12,0.05) !important; }
+html.theme-ssu .bg-violet-600\/8 { background-color: rgba(194,65,12,0.08) !important; }
+html.theme-ssu .border-indigo-100 { border-color: rgba(219,234,254,1) !important; }
+html.theme-ssu .border-indigo-200 { border-color: rgba(191,219,254,1) !important; }
+html.theme-ssu .border-indigo-200\/70 { border-color: rgba(191,219,254,0.7) !important; }
+html.theme-ssu .border-indigo-300 { border-color: rgba(147,197,253,1) !important; }
+html.theme-ssu .border-indigo-400 { border-color: rgba(59,130,246,1) !important; }
+html.theme-ssu .border-indigo-500 { border-color: rgba(37,99,235,1) !important; }
+html.theme-ssu .border-indigo-500\/15 { border-color: rgba(37,99,235,0.15) !important; }
+html.theme-ssu .border-indigo-500\/18 { border-color: rgba(37,99,235,0.18) !important; }
+html.theme-ssu .border-indigo-500\/20 { border-color: rgba(37,99,235,0.2) !important; }
+html.theme-ssu .border-indigo-500\/25 { border-color: rgba(37,99,235,0.25) !important; }
+html.theme-ssu .border-indigo-500\/30 { border-color: rgba(37,99,235,0.3) !important; }
+html.theme-ssu .border-indigo-500\/40 { border-color: rgba(37,99,235,0.4) !important; }
+html.theme-ssu .border-indigo-500\/45 { border-color: rgba(37,99,235,0.45) !important; }
+html.theme-ssu .border-indigo-500\/50 { border-color: rgba(37,99,235,0.5) !important; }
+html.theme-ssu .border-indigo-500\/60 { border-color: rgba(37,99,235,0.6) !important; }
+html.theme-ssu .border-indigo-600 { border-color: rgba(29,78,216,1) !important; }
+html.theme-ssu .border-violet-500\/20 { border-color: rgba(234,88,12,0.2) !important; }
+html.theme-ssu .border-violet-500\/30 { border-color: rgba(234,88,12,0.3) !important; }
+html.theme-ssu .border-violet-500\/40 { border-color: rgba(234,88,12,0.4) !important; }
+html.theme-ssu .from-indigo-400 { --tw-gradient-from: rgba(59,130,246,1) !important; }
+html.theme-ssu .from-indigo-500 { --tw-gradient-from: rgba(37,99,235,1) !important; }
+html.theme-ssu .from-indigo-600 { --tw-gradient-from: rgba(29,78,216,1) !important; }
+html.theme-ssu .from-indigo-950 { --tw-gradient-from: rgba(23,37,84,1) !important; }
+html.theme-ssu .from-violet-500 { --tw-gradient-from: rgba(234,88,12,1) !important; }
+html.theme-ssu .from-violet-600 { --tw-gradient-from: rgba(194,65,12,1) !important; }
+html.theme-ssu .ring-indigo-400 { --tw-ring-color: rgba(59,130,246,1) !important; }
+html.theme-ssu .ring-indigo-500 { --tw-ring-color: rgba(37,99,235,1) !important; }
+html.theme-ssu .ring-indigo-500\/30 { --tw-ring-color: rgba(37,99,235,0.3) !important; }
+html.theme-ssu .ring-indigo-500\/60 { --tw-ring-color: rgba(37,99,235,0.6) !important; }
+html.theme-ssu .shadow-indigo-500\/10 { --tw-shadow-color: rgba(37,99,235,0.1) !important; }
+html.theme-ssu .shadow-indigo-500\/20 { --tw-shadow-color: rgba(37,99,235,0.2) !important; }
+html.theme-ssu .shadow-indigo-500\/25 { --tw-shadow-color: rgba(37,99,235,0.25) !important; }
+html.theme-ssu .shadow-indigo-500\/30 { --tw-shadow-color: rgba(37,99,235,0.3) !important; }
+html.theme-ssu .shadow-indigo-500\/40 { --tw-shadow-color: rgba(37,99,235,0.4) !important; }
+html.theme-ssu .shadow-indigo-500\/50 { --tw-shadow-color: rgba(37,99,235,0.5) !important; }
+html.theme-ssu .shadow-indigo-600\/25 { --tw-shadow-color: rgba(29,78,216,0.25) !important; }
+html.theme-ssu .shadow-indigo-600\/30 { --tw-shadow-color: rgba(29,78,216,0.3) !important; }
+html.theme-ssu .shadow-indigo-900\/50 { --tw-shadow-color: rgba(23,37,84,0.5) !important; }
+html.theme-ssu .shadow-violet-500\/10 { --tw-shadow-color: rgba(234,88,12,0.1) !important; }
+html.theme-ssu .text-indigo-300 { color: rgba(147,197,253,1) !important; }
+html.theme-ssu .text-indigo-400 { color: rgba(59,130,246,1) !important; }
+html.theme-ssu .text-indigo-500 { color: rgba(37,99,235,1) !important; }
+html.theme-ssu .text-indigo-600 { color: rgba(29,78,216,1) !important; }
+html.theme-ssu .text-indigo-700 { color: rgba(30,64,175,1) !important; }
+html.theme-ssu .text-violet-300 { color: rgba(251,146,60,1) !important; }
+html.theme-ssu .text-violet-400 { color: rgba(249,115,22,1) !important; }
+html.theme-ssu .to-indigo-400 { --tw-gradient-to: rgba(59,130,246,1) !important; }
+html.theme-ssu .to-indigo-500 { --tw-gradient-to: rgba(37,99,235,1) !important; }
+html.theme-ssu .to-indigo-500\/0 { --tw-gradient-to: rgba(37,99,235,0) !important; }
+html.theme-ssu .to-indigo-600 { --tw-gradient-to: rgba(29,78,216,1) !important; }
+html.theme-ssu .to-indigo-700 { --tw-gradient-to: rgba(30,64,175,1) !important; }
+html.theme-ssu .to-violet-400 { --tw-gradient-to: rgba(249,115,22,1) !important; }
+html.theme-ssu .to-violet-500 { --tw-gradient-to: rgba(234,88,12,1) !important; }
+html.theme-ssu .to-violet-600 { --tw-gradient-to: rgba(194,65,12,1) !important; }
+html.theme-ssu .to-violet-700 { --tw-gradient-to: rgba(154,52,18,1) !important; }
+html.theme-ssu .to-violet-950 { --tw-gradient-to: rgba(67,20,7,1) !important; }
+html.theme-ssu .via-indigo-500\/40 { --tw-gradient-stops: var(--tw-gradient-from), rgba(37,99,235,0.4), var(--tw-gradient-to) !important; }
+html.theme-ssu .via-indigo-950 { --tw-gradient-stops: var(--tw-gradient-from), rgba(23,37,84,1), var(--tw-gradient-to) !important; }
+html.theme-ssu .via-violet-400 { --tw-gradient-stops: var(--tw-gradient-from), rgba(249,115,22,1), var(--tw-gradient-to) !important; }
+html.theme-ssu .via-violet-500 { --tw-gradient-stops: var(--tw-gradient-from), rgba(234,88,12,1), var(--tw-gradient-to) !important; }
+html.theme-ssu .via-violet-600\/10 { --tw-gradient-stops: var(--tw-gradient-from), rgba(194,65,12,0.1), var(--tw-gradient-to) !important; }
+
+/* ── Raw-hex accents outside Tailwind utility classes ── */
+html.theme-ssu .glow-indigo {
+  box-shadow: 0 0 30px rgba(37,99,235,0.18), 0 0 60px rgba(37,99,235,0.07) !important;
+}
+html.theme-ssu .glow-violet {
+  box-shadow: 0 0 30px rgba(234,88,12,0.18), 0 0 60px rgba(234,88,12,0.07) !important;
+}
+html.theme-ssu .gradient-text {
+  background: linear-gradient(135deg, #60a5fa 0%, #2563eb 50%, #ea580c 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+}
+html.theme-ssu .gradient-text-cool {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #2563eb 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+}
+html.theme-ssu .typing-dot { background: #2563eb !important; }
+html.theme-ssu #root::before {
+  background: radial-gradient(circle, rgba(37,99,235,0.07) 0%, transparent 68%) !important;
+}
+html.theme-ssu #root::after {
+  background: radial-gradient(circle, rgba(234,88,12,0.055) 0%, transparent 68%) !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  html.theme-ssu .card-hover:hover {
+    box-shadow: 0 12px 40px rgba(37,99,235,0.15), 0 4px 12px rgba(0,0,0,0.3) !important;
+    border-color: rgba(37,99,235,0.22) !important;
+  }
+  html.theme-ssu .card-lift:hover {
+    box-shadow: 0 16px 48px rgba(37,99,235,0.16), 0 4px 14px rgba(0,0,0,0.35) !important;
+    border-color: rgba(37,99,235,0.25) !important;
+  }
+}
+html.theme-ssu .card-lift::before {
+  background: linear-gradient(90deg, #2563eb, #ea580c) !important;
+}
+html.theme-ssu ::-webkit-scrollbar-thumb { background: rgba(37,99,235,0.3) !important; }
+html.theme-ssu ::-webkit-scrollbar-thumb:hover { background: rgba(37,99,235,0.5) !important; }
+html.theme-ssu:focus-visible,
+html.theme-ssu :focus-visible {
+  outline-color: rgba(37,99,235,0.6) !important;
+}
+html.theme-ssu.light .rich-text em {
+  color: #1d4ed8 !important;
+}
+
+/* ── Inline SVG logo marks (Sidebar/SplashScreen/Login/Signup) bake their
+   gradient stops as literal stop-color attributes, not Tailwind classes —
+   match by attribute value so every occurrence of the brand mark recolors. ── */
+html.theme-ssu stop[stop-color="#6366f1"] { stop-color: #2563eb !important; }
+html.theme-ssu stop[stop-color="#8b5cf6"] { stop-color: #ea580c !important; }
+html.theme-ssu stop[stop-color="#818cf8"] { stop-color: #60a5fa !important; }
+html.theme-ssu stop[stop-color="#f472b6"] { stop-color: #ea580c !important; }
