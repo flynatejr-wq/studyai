@@ -112,14 +112,14 @@ router.get("/cost-stats", async (req, res) => {
       SELECT
         COUNT(*) as total_users,
         SUM(CASE WHEN plan IN ('pro', 'lifetime') THEN 1 ELSE 0 END) as paid_users,
-        SUM(COALESCE(guides_created_ever, 0))  as total_guides,
-        SUM(COALESCE(quiz_gen_ever, 0))        as total_quizzes,
-        SUM(COALESCE(tts_chars_ever, 0))       as total_tts_chars,
-        SUM(CASE WHEN plan IN ('pro', 'lifetime')
-              THEN COALESCE(guides_created_ever, 0) * $1 + COALESCE(quiz_gen_ever, 0) * $2 + COALESCE(tts_chars_ever, 0) * $3
-              ELSE 0 END) as paid_cost
+        SUM(COALESCE(guides_created_ever, 0)) as total_guides,
+        SUM(COALESCE(quiz_gen_ever, 0))       as total_quizzes,
+        SUM(COALESCE(tts_chars_ever, 0))      as total_tts_chars,
+        SUM(CASE WHEN plan IN ('pro', 'lifetime') THEN COALESCE(guides_created_ever, 0) ELSE 0 END) as paid_guides,
+        SUM(CASE WHEN plan IN ('pro', 'lifetime') THEN COALESCE(quiz_gen_ever, 0)       ELSE 0 END) as paid_quizzes,
+        SUM(CASE WHEN plan IN ('pro', 'lifetime') THEN COALESCE(tts_chars_ever, 0)      ELSE 0 END) as paid_tts_chars
       FROM users
-    `, [COST_PER_GUIDE, COST_PER_QUIZ, COST_PER_TTS_CHAR]);
+    `);
     const totals = totalsRows[0];
 
     const totalGuideCost = (Number(totals.total_guides)    || 0) * COST_PER_GUIDE;
@@ -128,10 +128,15 @@ router.get("/cost-stats", async (req, res) => {
     const totalChatCost  = totalChatMessages * COST_PER_CHAT_MSG;
     const totalCost      = totalGuideCost + totalQuizCost + totalTtsCost + totalChatCost;
 
+    const paidCost =
+      (Number(totals.paid_guides)    || 0) * COST_PER_GUIDE +
+      (Number(totals.paid_quizzes)   || 0) * COST_PER_QUIZ +
+      (Number(totals.paid_tts_chars) || 0) * COST_PER_TTS_CHAR;
+
     const totalUsers = Number(totals.total_users);
     const paidUsers  = Number(totals.paid_users);
     const avgCostPerUser = totalUsers > 0 ? totalCost / totalUsers : 0;
-    const avgCostPerPaid = paidUsers  > 0 ? (Number(totals.paid_cost) || 0) / paidUsers : 0;
+    const avgCostPerPaid = paidUsers  > 0 ? paidCost / paidUsers : 0;
 
     const topUsersRows = (await pool.query(`
       SELECT id, name, email, plan,
@@ -170,8 +175,7 @@ router.get("/cost-stats", async (req, res) => {
     });
   } catch (err) {
     console.error("[cost-stats error]", err?.message, err?.stack?.split("\n").slice(0, 3).join(" | "));
-    // TEMP: surface real error for debugging — revert to generic message once confirmed stable.
-    res.status(500).json({ error: "Could not load cost stats.", detail: err?.message });
+    res.status(500).json({ error: "Could not load cost stats." });
   }
 });
 
