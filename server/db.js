@@ -178,6 +178,12 @@ export async function initDb() {
     // accumulate forever, independent of any rate-limit window or plan tier.
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS quiz_gen_ever INTEGER DEFAULT 0",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS tts_chars_ever INTEGER DEFAULT 0",
+
+    // Per-account failed-login tracking (brute-force detection). Rate limiting
+    // in index.js is per-IP only, so a slow-rotating-IP attack against one
+    // specific account wouldn't otherwise show up anywhere.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_count INTEGER DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_since TIMESTAMPTZ",
   ];
 
   for (const sql of safeAlters) {

@@ -238,6 +238,40 @@ export async function archiveDeletedAccount(user, { ipHash = null, fpHash = null
   ]);
 }
 
+// ─── Failed-login brute-force detection ─────────────────────────────────────────
+// Per-IP rate limiting (index.js) can't catch a slow, IP-rotating attack aimed
+// at one specific account, so this tracks failed attempts on the account itself.
+const FAILED_LOGIN_WINDOW_MINUTES = 15;
+const FAILED_LOGIN_THRESHOLD = 5;
+
+/** Called after a wrong-password login attempt for an existing account. */
+export async function recordFailedLogin(userId) {
+  const { rows } = await pool.query(`
+    UPDATE users
+    SET failed_login_count = CASE
+          WHEN failed_login_since IS NULL OR failed_login_since < NOW() - INTERVAL '${FAILED_LOGIN_WINDOW_MINUTES} minutes'
+          THEN 1 ELSE failed_login_count + 1 END,
+        failed_login_since = CASE
+          WHEN failed_login_since IS NULL OR failed_login_since < NOW() - INTERVAL '${FAILED_LOGIN_WINDOW_MINUTES} minutes'
+          THEN NOW() ELSE failed_login_since END
+    WHERE id = $1
+    RETURNING failed_login_count
+  `, [userId]);
+
+  const count = rows[0]?.failed_login_count ?? 0;
+  if (count >= FAILED_LOGIN_THRESHOLD) {
+    await raiseFlag("user_id", userId, "repeated_failed_logins", "high", userId);
+  }
+}
+
+/** Called after a successful login — clears the account's failed-attempt counter. */
+export async function resetFailedLogins(userId) {
+  await pool.query(
+    "UPDATE users SET failed_login_count = 0, failed_login_since = NULL WHERE id = $1 AND failed_login_count > 0",
+    [userId]
+  );
+}
+
 // ─── Flag helpers ──────────────────────────────────────────────────────────────
 
 /**

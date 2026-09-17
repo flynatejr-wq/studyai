@@ -7,7 +7,7 @@ import { signToken, requireAuth } from "../middleware/auth.js";
 import { sendPasswordReset, sendVerificationEmail, sendWelcomeEmail, isEmailConfigured, sendStreakReminder, sendStudyPlanReminder } from "../utils/email.js";
 import {
   hashValue, getClientIp, isDisposableEmail, getEmailDomain, isValidFp,
-  recordSignup, archiveDeletedAccount,
+  recordSignup, archiveDeletedAccount, recordFailedLogin, resetFailedLogins,
 } from "../lib/abuse.js";
 import { grantPilotAccessOnSignup } from "../pilots.js";
 
@@ -141,7 +141,11 @@ router.post("/login", async (req, res) => {
     if (!user) return res.status(400).json({ error: "Invalid email or password." });
 
     const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(400).json({ error: "Invalid email or password." });
+    if (!valid) {
+      await recordFailedLogin(user.id);
+      return res.status(400).json({ error: "Invalid email or password." });
+    }
+    await resetFailedLogins(user.id);
 
     // Block login until email is verified (only when email service is configured).
     if (isEmailConfigured() && !user.email_verified) {
