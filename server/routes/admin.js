@@ -101,72 +101,77 @@ const COST_PER_TTS_CHAR = 15 / 1_000_000; // OpenAI tts-1: $15 / 1M chars
 const COST_PER_CHAT_MSG = 0.003;          // flat estimate per user chat message
 
 router.get("/cost-stats", async (req, res) => {
-  const chatCounts = (await pool.query(
-    "SELECT user_id, COUNT(*) as c FROM chat_messages WHERE role = 'user' GROUP BY user_id"
-  )).rows;
-  const chatCountByUser = new Map(chatCounts.map(r => [r.user_id, Number(r.c)]));
-  const totalChatMessages = chatCounts.reduce((sum, r) => sum + Number(r.c), 0);
+  try {
+    const chatCounts = (await pool.query(
+      "SELECT user_id, COUNT(*) as c FROM chat_messages WHERE role = 'user' GROUP BY user_id"
+    )).rows;
+    const chatCountByUser = new Map(chatCounts.map(r => [r.user_id, Number(r.c)]));
+    const totalChatMessages = chatCounts.reduce((sum, r) => sum + Number(r.c), 0);
 
-  const { rows: totalsRows } = await pool.query(`
-    SELECT
-      COUNT(*) as total_users,
-      SUM(CASE WHEN plan IN ('pro', 'lifetime') THEN 1 ELSE 0 END) as paid_users,
-      SUM(COALESCE(guides_created_ever, 0))  as total_guides,
-      SUM(COALESCE(quiz_gen_ever, 0))        as total_quizzes,
-      SUM(COALESCE(tts_chars_ever, 0))       as total_tts_chars,
-      SUM(CASE WHEN plan IN ('pro', 'lifetime')
-            THEN COALESCE(guides_created_ever, 0) * $1 + COALESCE(quiz_gen_ever, 0) * $2 + COALESCE(tts_chars_ever, 0) * $3
-            ELSE 0 END) as paid_cost
-    FROM users
-  `, [COST_PER_GUIDE, COST_PER_QUIZ, COST_PER_TTS_CHAR]);
-  const totals = totalsRows[0];
+    const { rows: totalsRows } = await pool.query(`
+      SELECT
+        COUNT(*) as total_users,
+        SUM(CASE WHEN plan IN ('pro', 'lifetime') THEN 1 ELSE 0 END) as paid_users,
+        SUM(COALESCE(guides_created_ever, 0))  as total_guides,
+        SUM(COALESCE(quiz_gen_ever, 0))        as total_quizzes,
+        SUM(COALESCE(tts_chars_ever, 0))       as total_tts_chars,
+        SUM(CASE WHEN plan IN ('pro', 'lifetime')
+              THEN COALESCE(guides_created_ever, 0) * $1 + COALESCE(quiz_gen_ever, 0) * $2 + COALESCE(tts_chars_ever, 0) * $3
+              ELSE 0 END) as paid_cost
+      FROM users
+    `, [COST_PER_GUIDE, COST_PER_QUIZ, COST_PER_TTS_CHAR]);
+    const totals = totalsRows[0];
 
-  const totalGuideCost = (Number(totals.total_guides)    || 0) * COST_PER_GUIDE;
-  const totalQuizCost  = (Number(totals.total_quizzes)   || 0) * COST_PER_QUIZ;
-  const totalTtsCost   = (Number(totals.total_tts_chars) || 0) * COST_PER_TTS_CHAR;
-  const totalChatCost  = totalChatMessages * COST_PER_CHAT_MSG;
-  const totalCost      = totalGuideCost + totalQuizCost + totalTtsCost + totalChatCost;
+    const totalGuideCost = (Number(totals.total_guides)    || 0) * COST_PER_GUIDE;
+    const totalQuizCost  = (Number(totals.total_quizzes)   || 0) * COST_PER_QUIZ;
+    const totalTtsCost   = (Number(totals.total_tts_chars) || 0) * COST_PER_TTS_CHAR;
+    const totalChatCost  = totalChatMessages * COST_PER_CHAT_MSG;
+    const totalCost      = totalGuideCost + totalQuizCost + totalTtsCost + totalChatCost;
 
-  const totalUsers = Number(totals.total_users);
-  const paidUsers  = Number(totals.paid_users);
-  const avgCostPerUser = totalUsers > 0 ? totalCost / totalUsers : 0;
-  const avgCostPerPaid = paidUsers  > 0 ? (Number(totals.paid_cost) || 0) / paidUsers : 0;
+    const totalUsers = Number(totals.total_users);
+    const paidUsers  = Number(totals.paid_users);
+    const avgCostPerUser = totalUsers > 0 ? totalCost / totalUsers : 0;
+    const avgCostPerPaid = paidUsers  > 0 ? (Number(totals.paid_cost) || 0) / paidUsers : 0;
 
-  const topUsersRows = (await pool.query(`
-    SELECT id, name, email, plan,
-           COALESCE(guides_created_ever, 0) as guides_created_ever,
-           COALESCE(quiz_gen_ever, 0)       as quiz_gen_ever,
-           COALESCE(tts_chars_ever, 0)      as tts_chars_ever
-    FROM users
-  `)).rows;
+    const topUsersRows = (await pool.query(`
+      SELECT id, name, email, plan,
+             COALESCE(guides_created_ever, 0) as guides_created_ever,
+             COALESCE(quiz_gen_ever, 0)       as quiz_gen_ever,
+             COALESCE(tts_chars_ever, 0)      as tts_chars_ever
+      FROM users
+    `)).rows;
 
-  const topUsers = topUsersRows
-    .map(u => {
-      const chatMessages = chatCountByUser.get(u.id) || 0;
-      const estimated_cost =
-        u.guides_created_ever * COST_PER_GUIDE +
-        u.quiz_gen_ever * COST_PER_QUIZ +
-        u.tts_chars_ever * COST_PER_TTS_CHAR +
-        chatMessages * COST_PER_CHAT_MSG;
-      return { ...u, chat_messages: chatMessages, estimated_cost };
-    })
-    .sort((a, b) => b.estimated_cost - a.estimated_cost)
-    .slice(0, 25);
+    const topUsers = topUsersRows
+      .map(u => {
+        const chatMessages = chatCountByUser.get(u.id) || 0;
+        const estimated_cost =
+          u.guides_created_ever * COST_PER_GUIDE +
+          u.quiz_gen_ever * COST_PER_QUIZ +
+          u.tts_chars_ever * COST_PER_TTS_CHAR +
+          chatMessages * COST_PER_CHAT_MSG;
+        return { ...u, chat_messages: chatMessages, estimated_cost };
+      })
+      .sort((a, b) => b.estimated_cost - a.estimated_cost)
+      .slice(0, 25);
 
-  res.json({
-    summary: {
-      totalCost,
-      totalGuideCost,
-      totalQuizCost,
-      totalTtsCost,
-      totalChatCost,
-      avgCostPerUser,
-      avgCostPerPaid,
-      totalUsers,
-      paidUsers,
-    },
-    topUsers,
-  });
+    res.json({
+      summary: {
+        totalCost,
+        totalGuideCost,
+        totalQuizCost,
+        totalTtsCost,
+        totalChatCost,
+        avgCostPerUser,
+        avgCostPerPaid,
+        totalUsers,
+        paidUsers,
+      },
+      topUsers,
+    });
+  } catch (err) {
+    console.error("[cost-stats error]", err?.message, err?.stack?.split("\n").slice(0, 3).join(" | "));
+    res.status(500).json({ error: "Could not load cost stats." });
+  }
 });
 
 // ── User list / search ────────────────────────────────────────────────────────
