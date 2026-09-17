@@ -11,6 +11,7 @@ import rateLimit from "express-rate-limit";
 import jwt from "jsonwebtoken";
 import OpenAI from "openai";
 import pool, { initDb } from "./db.js";
+import { checkNoGuideReminders } from "./jobs/noGuideReminder.js";
 import { TTS_MONTHLY_CHARS_FREE, TTS_MONTHLY_CHARS_PRO } from "./limits.js";
 import summarizeRoute from "./routes/summarize.js";
 import authRoute from "./routes/auth.js";
@@ -316,6 +317,14 @@ if (process.env.NODE_ENV !== "test") {
       app.listen(PORT, () => {
         console.log(`✅ Server running on http://localhost:${PORT}`);
       });
+      // Activation nudge for users who signed up but never made a guide —
+      // runs independently of any login, so it also reaches accounts that
+      // never come back on their own. Checked hourly; each account is only
+      // ever emailed once (see no_guide_reminder_sent).
+      checkNoGuideReminders().catch(err => console.error("[no-guide-reminder] initial check failed:", err?.message));
+      setInterval(() => {
+        checkNoGuideReminders().catch(err => console.error("[no-guide-reminder] check failed:", err?.message));
+      }, 60 * 60 * 1000);
     })
     .catch((err) => {
       console.error("❌ Database initialisation failed:", err);

@@ -159,6 +159,20 @@ export async function sendStudyPlanReminder(toEmail, planTitle, examDate, daysLe
   });
 }
 
+// ── No-guide activation reminder ────────────────────────────────────────────────
+export async function sendNoGuideReminder(toEmail, name) {
+  await send({
+    to: toEmail,
+    subject: "You haven't made your first study guide yet",
+    html: wrap(`
+      <h2>Your first study guide takes seconds</h2>
+      <p>Hey ${name || "there"} — you signed up for StudyBuddi but haven't created a study guide yet. Upload a lecture recording, paste your notes, or drop in a PDF and get an AI-organized guide, quiz, and tutor instantly.</p>
+      <a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/dashboard" class="btn">Create Your First Guide →</a>
+      <p class="note">It only takes one lecture to see why students switch to StudyBuddi.</p>
+    `),
+  });
+}
+
 // ── Upgrade prompt ────────────────────────────────────────────────────────────
 export async function sendUpgradePromptEmail(toEmail, name) {
   await send({

@@ -184,6 +184,11 @@ export async function initDb() {
     // specific account wouldn't otherwise show up anywhere.
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_count INTEGER DEFAULT 0",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_since TIMESTAMPTZ",
+
+    // Marks whether the one-time "you haven't made a guide yet" activation
+    // email has already gone out, so the periodic job in index.js never
+    // double-sends it to the same account.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS no_guide_reminder_sent INTEGER DEFAULT 0",
   ];
 
   for (const sql of safeAlters) {
