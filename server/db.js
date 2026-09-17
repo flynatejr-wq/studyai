@@ -160,6 +160,12 @@ export async function initDb() {
     // mechanism to bound a free institutional pilot account's cost.
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS guides_created_today INTEGER DEFAULT 0",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS guides_created_date TEXT DEFAULT ''",
+    // Lifetime counters for cost accounting (admin Cost tab). quiz_gen_count and
+    // tts_chars_used both reset periodically for rate-limiting purposes, so
+    // neither can answer "how much has this user cost us, ever" — these two
+    // accumulate forever, independent of any rate-limit window or plan tier.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS quiz_gen_ever INTEGER DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS tts_chars_ever INTEGER DEFAULT 0",
   ];
 
   for (const sql of safeAlters) {

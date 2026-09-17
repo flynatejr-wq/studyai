@@ -632,6 +632,10 @@ router.post("/:id/generate-quiz", async (req, res) => {
       return { ...q, options: opts, correctIndex: opts.indexOf(correct) };
     });
 
+    // Lifetime cost counter — increments for every tier, unlike quiz_gen_count
+    // above which is skipped entirely for isUnrestricted users.
+    await pool.query("UPDATE users SET quiz_gen_ever = quiz_gen_ever + 1 WHERE id = $1", [req.user.id]);
+
     res.json({ questions: shuffled, mode });
   } catch (err) {
     const msg = err?.message || err?.toString() || "unknown";

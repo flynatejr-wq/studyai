@@ -398,7 +398,7 @@ function CostTab() {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: "Total API Spend (all time)", value: fmtShort(summary.totalCost), sub: `Guides: ${fmtShort(summary.totalGuideCost)} · Quizzes: ${fmtShort(summary.totalQuizCost)}` },
+          { label: "Total API Spend (all time)", value: fmtShort(summary.totalCost), sub: `Guides: ${fmtShort(summary.totalGuideCost)} · Quizzes: ${fmtShort(summary.totalQuizCost)} · TTS: ${fmtShort(summary.totalTtsCost)} · Chat: ${fmtShort(summary.totalChatCost)}` },
           { label: "Avg Cost / User",            value: fmt(summary.avgCostPerUser),  sub: `Across ${summary.totalUsers} users` },
           { label: "Avg Cost / Paid User",       value: fmt(summary.avgCostPerPaid),  sub: `Across ${summary.paidUsers} paid users` },
         ].map(card => (
@@ -423,6 +423,8 @@ function CostTab() {
                 <th className="text-left px-4 py-3">Plan</th>
                 <th className="text-right px-4 py-3">Guides</th>
                 <th className="text-right px-4 py-3">Quizzes</th>
+                <th className="text-right px-4 py-3">TTS Chars</th>
+                <th className="text-right px-4 py-3">Chat Msgs</th>
                 <th className="text-right px-5 py-3">Est. Cost</th>
               </tr>
             </thead>
@@ -435,12 +437,14 @@ function CostTab() {
                   </td>
                   <td className="px-4 py-3"><PlanBadge plan={u.plan} /></td>
                   <td className="px-4 py-3 text-right text-gray-300">{u.guides_created_ever}</td>
-                  <td className="px-4 py-3 text-right text-gray-300">{u.total_quizzes}</td>
+                  <td className="px-4 py-3 text-right text-gray-300">{u.quiz_gen_ever}</td>
+                  <td className="px-4 py-3 text-right text-gray-300">{u.tts_chars_ever}</td>
+                  <td className="px-4 py-3 text-right text-gray-300">{u.chat_messages}</td>
                   <td className="px-5 py-3 text-right font-mono text-indigo-300 font-semibold">{fmt(u.estimated_cost)}</td>
                 </tr>
               ))}
               {topUsers.length === 0 && (
-                <tr><td colSpan={5} className="text-center text-gray-500 py-8">No data yet.</td></tr>
+                <tr><td colSpan={7} className="text-center text-gray-500 py-8">No data yet.</td></tr>
               )}
             </tbody>
           </table>

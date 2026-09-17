@@ -210,7 +210,8 @@ app.post("/api/tts", ttsLimiter, async (req, res) => {
   const quota = await pool.query(
     `UPDATE users
      SET tts_chars_used = CASE WHEN tts_chars_month = $1 THEN tts_chars_used + $2 ELSE $2 END,
-         tts_chars_month = $1
+         tts_chars_month = $1,
+         tts_chars_ever = tts_chars_ever + $2
      WHERE id = $3
        AND (tts_chars_month != $1 OR tts_chars_used + $2 <= $4)`,
     [monthKey, safeText.length, userId, cap]
@@ -240,7 +241,7 @@ app.post("/api/tts", ttsLimiter, async (req, res) => {
     // Refund the quota we spent above — the user got no audio for it, so it
     // shouldn't count against their monthly cap (still bounded by monthKey).
     pool.query(
-      "UPDATE users SET tts_chars_used = GREATEST(0, tts_chars_used - $1) WHERE id = $2 AND tts_chars_month = $3",
+      "UPDATE users SET tts_chars_used = GREATEST(0, tts_chars_used - $1), tts_chars_ever = GREATEST(0, tts_chars_ever - $1) WHERE id = $2 AND tts_chars_month = $3",
       [safeText.length, userId, monthKey]
     ).catch(() => {});
     res.status(500).json({ error: "TTS failed. Please try again." });
