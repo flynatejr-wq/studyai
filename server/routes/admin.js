@@ -170,7 +170,8 @@ router.get("/cost-stats", async (req, res) => {
     });
   } catch (err) {
     console.error("[cost-stats error]", err?.message, err?.stack?.split("\n").slice(0, 3).join(" | "));
-    res.status(500).json({ error: "Could not load cost stats." });
+    // TEMP: surface real error for debugging — revert to generic message once confirmed stable.
+    res.status(500).json({ error: "Could not load cost stats.", detail: err?.message });
   }
 });
 

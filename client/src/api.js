@@ -50,7 +50,7 @@ async function request(path, options = {}) {
   if (!res.ok) {
     // Propagate structured error codes (e.g. FREE_LIMIT_GUIDES, EMAIL_NOT_VERIFIED)
     // so callers can show the right UI instead of a generic error message.
-    const err = new Error(data.error || "Something went wrong. Please try again.");
+    const err = new Error(data.detail ? `${data.error} (${data.detail})` : (data.error || "Something went wrong. Please try again."));
     if (data.code)  err.code  = data.code;
     if (data.email) err.email = data.email;
     throw err;
