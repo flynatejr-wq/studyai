@@ -24,6 +24,7 @@ import adminRoute from "./routes/admin.js";
 import exportRoute from "./routes/export.js";
 import studyPlansRoute from "./routes/studyPlans.js";
 import referralsRoute from "./routes/referrals.js";
+import feedbackRoute from "./routes/feedback.js";
 
 // ── Sentry (only when SENTRY_DSN is configured) ───────────────────────────────
 if (process.env.SENTRY_DSN) {
@@ -165,6 +166,7 @@ app.use("/api/admin", adminRoute);
 app.use("/api/export", exportRoute);
 app.use("/api/study-plans", studyPlansRoute);
 app.use("/api/referrals", referralsRoute);
+app.use("/api/feedback", feedbackRoute);
 
 // ── Text-to-Speech (OpenAI) ───────────────────────────────────────────────────
 const ttsLimiter = rateLimit({

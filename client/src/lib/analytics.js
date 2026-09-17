@@ -91,4 +91,9 @@ export const Events = {
   FLASHCARDS_OPENED:    "Flashcards Opened",
   STUDY_PLAN_CREATED:   "Study Plan Created",
   FOLDER_CREATED:       "Folder Created",
+
+  // Pilot feedback
+  PILOT_FEEDBACK_SHOWN:     "Pilot Feedback Shown",
+  PILOT_FEEDBACK_SUBMITTED: "Pilot Feedback Submitted",
+  PILOT_FEEDBACK_DISMISSED: "Pilot Feedback Dismissed",
 };

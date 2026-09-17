@@ -29,6 +29,7 @@ import Results from "../components/Results.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import UpgradeModal from "../components/UpgradeModal.jsx";
 import OnboardingModal, { useOnboarding } from "../components/OnboardingModal.jsx";
+import PilotFeedbackModal, { usePilotFeedback } from "../components/PilotFeedbackModal.jsx";
 import DailyWidgets from "../components/DailyWidgets.jsx";
 import PlanUsageCard from "../components/PlanUsageCard.jsx";
 import { analytics, Events } from "../lib/analytics.js";
@@ -68,6 +69,7 @@ export default function Dashboard() {
   const toast    = useToast();
   const navigate = useNavigate();
   const { show: showOnboarding, complete: completeOnboarding, skip: skipOnboarding } = useOnboarding(user);
+  const { show: showPilotFeedback, dismiss: dismissPilotFeedback } = usePilotFeedback(user);
 
   const [folders,       setFolders]       = useState([]);
   const [recentGuides,  setRecentGuides]  = useState([]);
@@ -500,6 +502,9 @@ export default function Dashboard() {
           <OnboardingModal onComplete={completeOnboarding} onSkip={skipOnboarding} />
         )}
       </AnimatePresence>
+
+      {/* ── Pilot feedback nudge (SSU pilot users only, shown once) ── */}
+      <PilotFeedbackModal open={showPilotFeedback} onClose={dismissPilotFeedback} />
     </div>
   );
 }

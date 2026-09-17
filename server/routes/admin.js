@@ -179,6 +179,19 @@ router.get("/cost-stats", async (req, res) => {
   }
 });
 
+// ── Feedback ─────────────────────────────────────────────────────────────────
+router.get("/feedback", async (req, res) => {
+  const rows = (await pool.query(`
+    SELECT f.id, f.rating, f.message, f.source, f.created_at,
+           u.name, u.email, u.plan
+    FROM feedback f
+    JOIN users u ON u.id = f.user_id
+    ORDER BY f.created_at DESC
+    LIMIT 200
+  `)).rows;
+  res.json({ feedback: rows });
+});
+
 // ── User list / search ────────────────────────────────────────────────────────
 router.get("/users", async (req, res) => {
   const limit  = Math.min(Math.max(parseInt(req.query.limit)  || 25, 1), 100);

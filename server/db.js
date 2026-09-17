@@ -110,6 +110,18 @@ export async function initDb() {
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feedback (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      rating INTEGER NOT NULL,
+      message TEXT,
+      source TEXT NOT NULL DEFAULT 'pilot_nudge',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
   // ── ALTER TABLE: add new columns idempotently ────────────────────────────────
   const safeAlters = [
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS total_study_time INTEGER DEFAULT 0",

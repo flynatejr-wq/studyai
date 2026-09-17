@@ -148,6 +148,7 @@ export const api = {
     resetLimits: (id)           => request(`/admin/users/${id}/reset-limits`, { method: "POST", headers: headers() }),
     auditLogs:   (params = {})  => request(`/admin/audit-logs?${new URLSearchParams(params)}`, { headers: headers() }),
     costStats:   ()             => request("/admin/cost-stats",  { headers: headers() }),
+    feedback:    ()             => request("/admin/feedback",    { headers: headers() }),
     abuse: {
       stats:           ()               => request("/admin/abuse/stats",             { headers: headers() }),
       deletedAccounts: (params = {})    => request(`/admin/abuse/deleted-accounts?${new URLSearchParams(params)}`, { headers: headers() }),
@@ -157,5 +158,8 @@ export const api = {
       resolveFlag:     (id, notes = "") => request(`/admin/abuse/flags/${id}/resolve`, { method: "POST",  headers: headers(), body: JSON.stringify({ notes }) }),
       raiseFlag:       (body)           => request("/admin/abuse/flags",               { method: "POST",  headers: headers(), body: JSON.stringify(body) }),
     },
+  },
+  feedback: {
+    submit: (body) => request("/feedback", { method: "POST", headers: headers(), body: JSON.stringify(body) }),
   },
 };

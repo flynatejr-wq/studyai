@@ -454,6 +454,75 @@ function CostTab() {
   );
 }
 
+// ── Feedback Tab ─────────────────────────────────────────────────────────────
+function FeedbackTab() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState("");
+  const [fetchKey, setFetchKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true); setError(""); setData(null);
+    api.admin.feedback()
+      .then(d  => { if (!cancelled) { setData(d);          setLoading(false); } })
+      .catch(e => { if (!cancelled) { setError(e.message); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [fetchKey]);
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20 text-gray-500 text-sm">
+      <RefreshCw size={16} className="animate-spin mr-2" /> Loading feedback…
+    </div>
+  );
+  if (error) return (
+    <div className="text-red-400 text-sm py-10 text-center">{error}</div>
+  );
+
+  const feedback = data?.feedback || [];
+  const avgRating = feedback.length
+    ? (feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length).toFixed(1)
+    : "—";
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <p className="text-gray-400 text-xs uppercase tracking-widest">Avg Rating</p>
+          <p className="text-white text-lg font-bold">{avgRating} <span className="text-gray-500 text-sm font-normal">/ 5 · {feedback.length} responses</span></p>
+        </div>
+        <button onClick={() => setFetchKey(k => k + 1)}
+          className="flex items-center gap-1.5 text-gray-400 hover:text-white text-xs transition-colors">
+          <RefreshCw size={13} /> Refresh
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {feedback.map(f => (
+          <div key={f.id} className="bg-white/5 rounded-2xl border border-white/10 p-4">
+            <div className="flex items-start justify-between gap-3 mb-1.5">
+              <div>
+                <p className="text-white text-sm font-medium">{f.name || "—"}</p>
+                <p className="text-gray-500 text-xs">{f.email}</p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <Star key={n} size={13} className={n <= f.rating ? "text-amber-400 fill-amber-400" : "text-gray-700"} />
+                ))}
+              </div>
+            </div>
+            {f.message && <p className="text-gray-300 text-sm mt-2">{f.message}</p>}
+            <p className="text-gray-600 text-xs mt-2">{new Date(f.created_at).toLocaleString()}</p>
+          </div>
+        ))}
+        {feedback.length === 0 && (
+          <div className="text-center text-gray-500 py-16 text-sm">No feedback submitted yet.</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Admin page ───────────────────────────────────────────────────────────
 export default function Admin() {
   const { user, logout } = useAuth();
@@ -625,7 +694,8 @@ export default function Admin() {
             { id: "users",  label: "Users",     icon: Users    },
             { id: "audit",  label: "Audit Log", icon: Activity },
             { id: "abuse",  label: "Abuse",     icon: Shield, badge: abuseStats?.activeFlags || null },
-            { id: "cost",   label: "Cost",      icon: DollarSign },
+            { id: "cost",     label: "Cost",     icon: DollarSign },
+            { id: "feedback", label: "Feedback", icon: Star },
           ].map(t => (
             <button
               key={t.id}
@@ -1092,6 +1162,7 @@ export default function Admin() {
         )}
 
         {activeTab === "cost" && <CostTab />}
+        {activeTab === "feedback" && <FeedbackTab />}
       </main>
 
       {/* ── User Edit Drawer ── */}
