@@ -8,6 +8,7 @@ import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import SplashScreen from "./components/SplashScreen.jsx";
 import UnverifiedBanner from "./components/UnverifiedBanner.jsx";
+import InstallPrompt from "./components/InstallPrompt.jsx";
 
 // ── Eagerly loaded (critical path — on screen within 1 render) ───────────────
 import Landing        from "./pages/Landing.jsx";
@@ -96,6 +97,8 @@ function AppRoutes() {
     <>
       {/* Show banner for logged-in users who haven't verified their email */}
       <UnverifiedBanner />
+      {/* Nudge mobile visitors (mainly QR-code scans) to add the app to their home screen */}
+      <InstallPrompt />
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           <Route path="*" element={<PageTracker />} />
