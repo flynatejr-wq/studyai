@@ -24,6 +24,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import { api } from "../api.js";
 import UploadForm from "../components/UploadForm.jsx";
+import GeneratingAnimation from "../components/GeneratingAnimation.jsx";
 import Results from "../components/Results.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import UpgradeModal from "../components/UpgradeModal.jsx";
@@ -268,7 +269,11 @@ export default function Dashboard() {
             </div>
           )}
 
-          {!results ? (
+          {loading ? (
+            <div className="bg-white/3 border border-white/8 rounded-2xl">
+              <GeneratingAnimation stage={loadingStage} />
+            </div>
+          ) : !results ? (
             <UploadForm onSubmit={handleSubmit} loading={loading} loadingStage={loadingStage} dark />
           ) : (
             <motion.div
