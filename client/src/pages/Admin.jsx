@@ -680,7 +680,11 @@ export default function Admin() {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
             <StatCard icon={Users}         label="Total Users"     value={stats.totalUsers}    color="indigo" />
             <StatCard icon={Crown}         label="Pro / Lifetime"  value={stats.proUsers + stats.lifetimeUsers} sub={`${stats.lifetimeUsers} lifetime`} color="violet" />
-            <StatCard icon={GraduationCap} label="Pilot"           value={stats.pilotUsers ?? 0} color="teal" />
+            <StatCard icon={GraduationCap} label="Pilot"           value={stats.pilotUsers ?? 0}
+              sub={stats.pilotSeats?.length
+                ? `${stats.pilotSeats.reduce((s, p) => s + p.used, 0)} / ${stats.pilotSeats.reduce((s, p) => s + p.maxSeats, 0)} seats claimed`
+                : undefined}
+              color="teal" />
             <StatCard icon={Zap}           label="Free Users"      value={stats.freeUsers}      color="sky" />
             <StatCard icon={Star}          label="Whitelisted"     value={stats.whitelisted}    color="amber" />
             <StatCard icon={Ban}           label="Banned"          value={stats.bannedUsers}    color="rose" />

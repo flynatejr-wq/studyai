@@ -4,6 +4,7 @@ import { timingSafeEqual } from "crypto";
 import pool from "../db.js";
 import { requireAdmin } from "../middleware/auth.js";
 import { raiseFlag } from "../lib/abuse.js";
+import { getPilotSeatStatus } from "../pilots.js";
 
 const router = express.Router();
 
@@ -82,10 +83,11 @@ router.get("/stats", async (req, res) => {
   const newUsersToday   = Number((await pool.query(
     "SELECT COUNT(*) as c FROM users WHERE DATE(created_at) = CURRENT_DATE"
   )).rows[0].c);
+  const pilotSeats      = await getPilotSeatStatus();
 
   res.json({
     totalUsers, proUsers, lifetimeUsers, pilotUsers, freeUsers, bannedUsers,
-    whitelisted, adminCount, totalGuides, totalAuditLogs, newUsersToday,
+    whitelisted, adminCount, totalGuides, totalAuditLogs, newUsersToday, pilotSeats,
   });
 });
 
