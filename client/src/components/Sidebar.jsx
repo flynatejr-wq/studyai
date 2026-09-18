@@ -116,6 +116,7 @@ export default function Sidebar({ onLogout }) {
       {/* ── Sidebar panel ── */}
       <aside className={`
         fixed left-0 top-0 bottom-0 w-64 bg-[#0c0c18] border-r border-white/6 flex flex-col z-50
+        overflow-y-auto
         transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
         ${open ? "translate-x-0" : "-translate-x-full"}
         md:translate-x-0
@@ -147,7 +148,7 @@ export default function Sidebar({ onLogout }) {
         </div>
 
         {/* ── Navigation ── */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-0.5">
           {navItems.map(({ to, icon: Icon, label, desc }) => {
             const active = pathname === to || (to !== "/dashboard" && pathname.startsWith(to));
             return (
