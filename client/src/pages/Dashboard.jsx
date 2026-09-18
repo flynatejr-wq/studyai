@@ -110,7 +110,7 @@ export default function Dashboard() {
     // Frontend pre-check: block free users who've already used their one guide.
     // Pilot accounts are exempt from this lifetime check — their real limit is
     // a daily cap enforced server-side, not the free tier's lifetime-1 rule.
-    const isUnrestrictedOrPilot = user?.plan === "pro" || user?.plan === "lifetime" || user?.plan === "pilot" || user?.is_whitelisted || user?.role === "admin";
+    const isUnrestrictedOrPilot = user?.plan === "pro" || user?.plan === "lifetime" || user?.plan === "pilot" || user?.plan === "licensed" || user?.is_whitelisted || user?.role === "admin";
     if (!isUnrestrictedOrPilot && (user?.guides_created_ever ?? 0) >= 1) {
       setUpgradeReason("FREE_LIMIT_GUIDES"); setUpgradeOpen(true);
       return;

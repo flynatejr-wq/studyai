@@ -366,7 +366,7 @@ async function checkFreeGuideLimit(req, res) {
     [req.user.id]
   )).rows[0] ?? null;
   if (!user) return false;
-  if (user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin") return false;
+  if (user.plan === "pro" || user.plan === "lifetime" || user.plan === "licensed" || user.is_whitelisted || user.role === "admin") return false;
 
   // Layer 1: standard counter
   if ((user.guides_created_ever || 0) >= FREE_GUIDE_LIMIT) {

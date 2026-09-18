@@ -10,6 +10,7 @@ import {
   recordSignup, archiveDeletedAccount, recordFailedLogin, resetFailedLogins,
 } from "../lib/abuse.js";
 import { grantPilotAccessOnSignup } from "../pilots.js";
+import { grantLicenseAccessOnSignup } from "../licenses.js";
 
 // H-7 / HIGH-2: SHA-256 hash single-use tokens before storing so a DB read can't
 // be used to take over accounts. Used for both password-reset and email-verify tokens.
@@ -58,6 +59,7 @@ router.post("/signup", async (req, res) => {
       "INSERT INTO users (id, name, email, password_hash, referral_code, referred_by) VALUES ($1, $2, $3, $4, $5, $6)",
       [id, name.trim(), email.toLowerCase().trim(), password_hash, referralCode, referredBy]
     );
+    await grantLicenseAccessOnSignup(id, email.toLowerCase().trim());
     await grantPilotAccessOnSignup(id, email.toLowerCase().trim());
 
     // Record the referral and award 1 free guide credit to the referrer
@@ -537,6 +539,7 @@ router.get("/google/callback", async (req, res) => {
         // Link Google to an existing password account
         await pool.query("UPDATE users SET google_id = $1, email_verified = 1 WHERE id = $2", [googleId, user.id]);
         // Internally guarded to only touch accounts still on the default 'free' plan
+        await grantLicenseAccessOnSignup(user.id, normEmail);
         await grantPilotAccessOnSignup(user.id, normEmail);
         user = (await pool.query("SELECT * FROM users WHERE id = $1", [user.id])).rows[0] ?? null;
       } else {
@@ -548,6 +551,7 @@ router.get("/google/callback", async (req, res) => {
           "INSERT INTO users (id, name, email, password_hash, google_id, email_verified, referral_code) VALUES ($1, $2, $3, $4, $5, 1, $6)",
           [newId, name, normEmail, fakeHash, googleId, referralCode]
         );
+        await grantLicenseAccessOnSignup(newId, normEmail);
         await grantPilotAccessOnSignup(newId, normEmail);
         user = (await pool.query("SELECT * FROM users WHERE id = $1", [newId])).rows[0] ?? null;
         if (isEmailConfigured()) {
@@ -668,6 +672,7 @@ router.get("/microsoft/callback", async (req, res) => {
         // Link Microsoft to an existing account (e.g. one created with a password)
         await pool.query("UPDATE users SET microsoft_id = $1, email_verified = 1 WHERE id = $2", [microsoftId, user.id]);
         // Internally guarded to only touch accounts still on the default 'free' plan
+        await grantLicenseAccessOnSignup(user.id, normEmail);
         await grantPilotAccessOnSignup(user.id, normEmail);
         user = (await pool.query("SELECT * FROM users WHERE id = $1", [user.id])).rows[0] ?? null;
       } else {
@@ -679,6 +684,7 @@ router.get("/microsoft/callback", async (req, res) => {
           "INSERT INTO users (id, name, email, password_hash, microsoft_id, email_verified, referral_code) VALUES ($1, $2, $3, $4, $5, 1, $6)",
           [newId, name, normEmail, fakeHash, microsoftId, referralCode]
         );
+        await grantLicenseAccessOnSignup(newId, normEmail);
         await grantPilotAccessOnSignup(newId, normEmail);
         user = (await pool.query("SELECT * FROM users WHERE id = $1", [newId])).rows[0] ?? null;
         if (isEmailConfigured()) {

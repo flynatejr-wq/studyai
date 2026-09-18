@@ -68,9 +68,10 @@ export default function Settings() {
   const { theme, setLight, setDark, isDark } = useTheme();
   const isPro = user?.plan === "pro" || user?.plan === "lifetime" || user?.is_whitelisted || user?.role === "admin";
   const isPilot = user?.plan === "pilot";
+  const isLicensed = user?.plan === "licensed";
   // Export costs nothing extra to serve — same reasoning as print in GuideView —
-  // so pilot accounts get it too, without folding pilot into `isPro` itself.
-  const canExport = isPro || isPilot;
+  // so pilot/licensed accounts get it too, without folding them into `isPro` itself.
+  const canExport = isPro || isPilot || isLicensed;
 
   useEffect(() => {
     api.referrals.get().then(setReferralData).catch(() => {});
@@ -221,28 +222,30 @@ export default function Settings() {
         <Section delay={0}>
           <div className={`rounded-2xl p-6 mb-5 ${isPro
             ? "bg-gradient-to-br from-yellow-500/10 to-amber-500/5 border border-yellow-500/20"
-            : isPilot
+            : isPilot || isLicensed
               ? "bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border border-emerald-500/20"
               : "bg-gradient-to-br from-indigo-600/10 to-violet-600/5 border border-indigo-500/20"
           }`}>
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <Crown size={16} className={isPro ? "text-yellow-400" : isPilot ? "text-emerald-400" : "text-indigo-400"} />
-                  <h2 className="text-white font-bold text-sm">{isPro ? "Pro Plan" : isPilot ? "Pilot Plan" : "Free Plan"}</h2>
+                  <Crown size={16} className={isPro ? "text-yellow-400" : isPilot || isLicensed ? "text-emerald-400" : "text-indigo-400"} />
+                  <h2 className="text-white font-bold text-sm">{isPro ? "Pro Plan" : isPilot ? "Pilot Plan" : isLicensed ? "Institution Plan" : "Free Plan"}</h2>
                 </div>
                 <p className="text-gray-400 text-xs">
                   {isPro
                     ? "Unlimited guides, quizzes, and full AI tutor access."
                     : isPilot
                       ? "Free institutional access — generous daily limits on guides, quizzes, and AI tutor chat."
-                      : "1 free guide included. Upgrade to unlock unlimited everything."}
+                      : isLicensed
+                        ? "Unlimited access via your school's site license."
+                        : "1 free guide included. Upgrade to unlock unlimited everything."}
                 </p>
               </div>
               <div className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-black ${
-                isPro ? "bg-yellow-500/20 text-yellow-400" : isPilot ? "bg-emerald-500/20 text-emerald-400" : "bg-indigo-500/20 text-indigo-400"
+                isPro ? "bg-yellow-500/20 text-yellow-400" : isPilot || isLicensed ? "bg-emerald-500/20 text-emerald-400" : "bg-indigo-500/20 text-indigo-400"
               }`}>
-                {isPro ? "Active" : isPilot ? "Pilot" : "Free"}
+                {isPro ? "Active" : isPilot ? "Pilot" : isLicensed ? "Licensed" : "Free"}
               </div>
             </div>
 
@@ -258,6 +261,15 @@ export default function Settings() {
             ) : isPilot ? (
               <div className="space-y-2">
                 {["15 study guides / day", "30 quiz generations / day", "50 AI tutor messages / day", "Data export & printing included"].map(f => (
+                  <div key={f} className="flex items-center gap-2 text-xs text-gray-300">
+                    <Check size={13} className="text-emerald-400 shrink-0" />
+                    {f}
+                  </div>
+                ))}
+              </div>
+            ) : isLicensed ? (
+              <div className="space-y-2">
+                {["Unlimited AI study guides", "Unlimited quiz generations", "Full AI tutor access", "Data export & printing included"].map(f => (
                   <div key={f} className="flex items-center gap-2 text-xs text-gray-300">
                     <Check size={13} className="text-emerald-400 shrink-0" />
                     {f}

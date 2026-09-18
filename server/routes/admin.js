@@ -5,10 +5,11 @@ import pool from "../db.js";
 import { requireAdmin } from "../middleware/auth.js";
 import { raiseFlag } from "../lib/abuse.js";
 import { getPilotSeatStatus } from "../pilots.js";
+import { getLicenseSeatStatus } from "../licenses.js";
 
 const router = express.Router();
 
-const VALID_PLANS = ["free", "pro", "lifetime", "pilot"];
+const VALID_PLANS = ["free", "pro", "lifetime", "pilot", "licensed"];
 const VALID_ROLES = ["user", "admin"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -74,6 +75,7 @@ router.get("/stats", async (req, res) => {
   const proUsers        = Number((await pool.query("SELECT COUNT(*) as c FROM users WHERE plan = 'pro'")).rows[0].c);
   const lifetimeUsers   = Number((await pool.query("SELECT COUNT(*) as c FROM users WHERE plan = 'lifetime'")).rows[0].c);
   const pilotUsers      = Number((await pool.query("SELECT COUNT(*) as c FROM users WHERE plan = 'pilot'")).rows[0].c);
+  const licensedUsers   = Number((await pool.query("SELECT COUNT(*) as c FROM users WHERE plan = 'licensed'")).rows[0].c);
   const freeUsers       = Number((await pool.query("SELECT COUNT(*) as c FROM users WHERE plan = 'free'")).rows[0].c);
   const bannedUsers     = Number((await pool.query("SELECT COUNT(*) as c FROM users WHERE is_banned = 1")).rows[0].c);
   const whitelisted     = Number((await pool.query("SELECT COUNT(*) as c FROM users WHERE is_whitelisted = 1")).rows[0].c);
@@ -84,10 +86,11 @@ router.get("/stats", async (req, res) => {
     "SELECT COUNT(*) as c FROM users WHERE DATE(created_at) = CURRENT_DATE"
   )).rows[0].c);
   const pilotSeats      = await getPilotSeatStatus();
+  const licenseSeats    = await getLicenseSeatStatus();
 
   res.json({
-    totalUsers, proUsers, lifetimeUsers, pilotUsers, freeUsers, bannedUsers,
-    whitelisted, adminCount, totalGuides, totalAuditLogs, newUsersToday, pilotSeats,
+    totalUsers, proUsers, lifetimeUsers, pilotUsers, licensedUsers, freeUsers, bannedUsers,
+    whitelisted, adminCount, totalGuides, totalAuditLogs, newUsersToday, pilotSeats, licenseSeats,
   });
 });
 
@@ -113,13 +116,13 @@ router.get("/cost-stats", async (req, res) => {
     const { rows: totalsRows } = await pool.query(`
       SELECT
         COUNT(*) as total_users,
-        SUM(CASE WHEN plan IN ('pro', 'lifetime') THEN 1 ELSE 0 END) as paid_users,
+        SUM(CASE WHEN plan IN ('pro', 'lifetime', 'licensed') THEN 1 ELSE 0 END) as paid_users,
         SUM(COALESCE(guides_created_ever, 0)) as total_guides,
         SUM(COALESCE(quiz_gen_ever, 0))       as total_quizzes,
         SUM(COALESCE(tts_chars_ever, 0))      as total_tts_chars,
-        SUM(CASE WHEN plan IN ('pro', 'lifetime') THEN COALESCE(guides_created_ever, 0) ELSE 0 END) as paid_guides,
-        SUM(CASE WHEN plan IN ('pro', 'lifetime') THEN COALESCE(quiz_gen_ever, 0)       ELSE 0 END) as paid_quizzes,
-        SUM(CASE WHEN plan IN ('pro', 'lifetime') THEN COALESCE(tts_chars_ever, 0)      ELSE 0 END) as paid_tts_chars
+        SUM(CASE WHEN plan IN ('pro', 'lifetime', 'licensed') THEN COALESCE(guides_created_ever, 0) ELSE 0 END) as paid_guides,
+        SUM(CASE WHEN plan IN ('pro', 'lifetime', 'licensed') THEN COALESCE(quiz_gen_ever, 0)       ELSE 0 END) as paid_quizzes,
+        SUM(CASE WHEN plan IN ('pro', 'lifetime', 'licensed') THEN COALESCE(tts_chars_ever, 0)      ELSE 0 END) as paid_tts_chars
       FROM users
     `);
     const totals = totalsRows[0];

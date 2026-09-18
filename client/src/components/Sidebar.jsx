@@ -58,9 +58,9 @@ export default function Sidebar({ onLogout }) {
 
   const close = () => setOpen(false);
   const isPro = user?.plan === "pro";
-  // Pilot students shouldn't see an upgrade nag — their institution pays via
-  // a license, not the individual student.
-  const isPilot = user?.plan === "pilot";
+  // Pilot and licensed-institution students shouldn't see an upgrade nag —
+  // their institution pays via a pilot or license, not the individual student.
+  const isPilot = user?.plan === "pilot" || user?.plan === "licensed";
 
   const handleUpgrade = async () => {
     try {

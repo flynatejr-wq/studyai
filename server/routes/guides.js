@@ -198,7 +198,7 @@ router.post("/", async (req, res) => {
       return res.status(404).json({ error: "User not found." });
     }
 
-    const isUnrestricted = user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin";
+    const isUnrestricted = user.plan === "pro" || user.plan === "lifetime" || user.plan === "licensed" || user.is_whitelisted || user.role === "admin";
     const isPilot = user.plan === "pilot";
 
     if (!isUnrestricted && !isPilot && (user.guides_created_ever || 0) >= FREE_GUIDE_LIMIT) {
@@ -487,7 +487,7 @@ router.post("/:id/generate-quiz", async (req, res) => {
     [req.user.id]
   )).rows[0] ?? null;
   const today = new Date().toISOString().slice(0, 10);
-  const isUnrestricted = user && (user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin");
+  const isUnrestricted = user && (user.plan === "pro" || user.plan === "lifetime" || user.plan === "licensed" || user.is_whitelisted || user.role === "admin");
   const isPilot = user && user.plan === "pilot";
   const dailyCap = isPilot ? PILOT_QUIZZES_PER_DAY : 3;
 

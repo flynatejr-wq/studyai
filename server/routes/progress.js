@@ -99,7 +99,7 @@ router.get("/limits", async (req, res) => {
   )).rows[0] ?? null;
   if (!user) return res.status(404).json({ error: "User not found." });
 
-  const isPro = user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin";
+  const isPro = user.plan === "pro" || user.plan === "lifetime" || user.plan === "licensed" || user.is_whitelisted || user.role === "admin";
   const isPilot = user.plan === "pilot";
   const today = new Date().toISOString().slice(0, 10);
   const monthKey = today.slice(0, 7);

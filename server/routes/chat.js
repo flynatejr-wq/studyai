@@ -44,8 +44,8 @@ async function checkChatLimit(userId, res) {
   // Admins and manually-whitelisted accounts have no limit
   if (user.is_whitelisted || user.role === "admin") return false;
 
-  // Pro / lifetime — generous cap to prevent abuse
-  if (user.plan === "pro" || user.plan === "lifetime") {
+  // Pro / lifetime / licensed institution — generous cap to prevent abuse
+  if (user.plan === "pro" || user.plan === "lifetime" || user.plan === "licensed") {
     if (count >= PRO_CHAT_DAILY_LIMIT) {
       res.status(403).json({
         error: "PRO_LIMIT_CHAT",

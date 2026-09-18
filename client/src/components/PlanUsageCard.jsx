@@ -56,6 +56,7 @@ function UsageRow({ icon: Icon, label, used, max, unlimited, color = "indigo", f
 export default function PlanUsageCard({ compact = false }) {
   const { limits, isPro, plan, loading, error } = useLimits();
   const isPilot = plan === "pilot";
+  const isLicensed = plan === "licensed";
   const { user } = useAuth();
   const isSSU = !!user?.email?.toLowerCase().endsWith(SSU_DOMAIN);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -70,6 +71,34 @@ export default function PlanUsageCard({ compact = false }) {
       setCheckoutLoading(false);
     }
   };
+
+  // ── Licensed-institution users: their school pays, not them ──────────────────
+  // Unrestricted the same way Pro is (isPro is true for 'licensed' too, via
+  // useLimits), but the label must never say "Pro" — they didn't buy anything.
+  if (isLicensed) {
+    const voiceNearOrAtLimit = limits?.voice && limits.voice.used / limits.voice.max >= 0.7;
+    return (
+      <div className="rounded-xl bg-gradient-to-r from-emerald-500/10 to-teal-500/8 border border-emerald-500/20 overflow-hidden">
+        <div className="flex items-center gap-2.5 px-3.5 py-3">
+          <GraduationCap size={14} className="text-emerald-400 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-emerald-400 text-xs font-black leading-none">Institution Plan</p>
+            <p className="text-emerald-600 text-[10px] leading-none mt-0.5">Unlimited access via your school's license</p>
+          </div>
+        </div>
+        {limits?.voice && (
+          <div className="px-3.5 pb-3">
+            <UsageRow icon={Volume2} label="Voice (this month)" color="violet" format={formatCount} {...limits.voice} />
+            {voiceNearOrAtLimit && (
+              <p className="text-[10px] text-emerald-400/90 mt-1.5 leading-relaxed">
+                Approaching your monthly voice limit — it resets next month.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // ── Pro users: amber badge + voice usage ─────────────────────────────────────
   // Everything except voice minutes is unlimited on Pro, so the badge still leads

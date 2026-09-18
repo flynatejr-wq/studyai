@@ -203,7 +203,7 @@ app.post("/api/tts", ttsLimiter, async (req, res) => {
   )).rows[0] ?? null;
   if (!user) return res.status(401).json({ error: "Invalid token." });
 
-  const isPro = user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin";
+  const isPro = user.plan === "pro" || user.plan === "lifetime" || user.plan === "licensed" || user.is_whitelisted || user.role === "admin";
   const isPilot = user.plan === "pilot";
   const cap = (isPro || isPilot) ? TTS_MONTHLY_CHARS_PRO : TTS_MONTHLY_CHARS_FREE;
 

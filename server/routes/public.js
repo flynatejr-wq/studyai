@@ -89,7 +89,7 @@ router.post("/guide/:token/save", requireAuth, async (req, res) => {
       return res.status(404).json({ error: "User not found." });
     }
 
-    const isUnrestricted = user.plan === "pro" || user.plan === "lifetime" || user.is_whitelisted || user.role === "admin";
+    const isUnrestricted = user.plan === "pro" || user.plan === "lifetime" || user.plan === "licensed" || user.is_whitelisted || user.role === "admin";
     if (!isUnrestricted && (user.guides_created_ever || 0) >= FREE_GUIDE_LIMIT) {
       await client.query("ROLLBACK");
       return res.status(403).json({

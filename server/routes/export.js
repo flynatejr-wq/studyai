@@ -17,7 +17,7 @@ router.get("/", async (req, res) => {
 
   // Export costs nothing extra to serve, so pilot accounts (and manually
   // whitelisted ones) get it too — same reasoning as unlimited folders/print.
-  const canExport = ["pro", "lifetime", "pilot"].includes(user.plan) || user.is_whitelisted || user.role === "admin";
+  const canExport = ["pro", "lifetime", "pilot", "licensed"].includes(user.plan) || user.is_whitelisted || user.role === "admin";
   if (!canExport) {
     return res.status(403).json({
       error: "FREE_LIMIT_EXPORT",

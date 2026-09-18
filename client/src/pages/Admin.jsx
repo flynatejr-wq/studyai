@@ -32,7 +32,8 @@ const PLAN_CONFIG = {
   free:     { label: "Free",     bg: "bg-gray-500/20",   text: "text-gray-400",   border: "border-gray-500/30" },
   pro:      { label: "Pro",      bg: "bg-indigo-500/20", text: "text-indigo-400", border: "border-indigo-500/30" },
   lifetime: { label: "Lifetime", bg: "bg-amber-500/20",  text: "text-amber-400",  border: "border-amber-500/30" },
-  pilot:    { label: "Pilot",    bg: "bg-emerald-500/20",text: "text-emerald-400",border: "border-emerald-500/30" }, // deploy-verify-marker-7a3f
+  pilot:    { label: "Pilot",    bg: "bg-emerald-500/20",text: "text-emerald-400",border: "border-emerald-500/30" },
+  licensed: { label: "Licensed", bg: "bg-teal-500/20",   text: "text-teal-400",   border: "border-teal-500/30" },
 };
 
 const ROLE_CONFIG = {
@@ -240,7 +241,7 @@ function UserDrawer({ user, onClose, onSaved }) {
           <div>
             <label className="block text-xs font-semibold text-gray-400 mb-2">Subscription Plan</label>
             <div className="flex gap-2">
-              {["free", "pro", "lifetime", "pilot"].map(p => {
+              {["free", "pro", "lifetime", "pilot", "licensed"].map(p => {
                 const c = PLAN_CONFIG[p];
                 return (
                   <button
@@ -677,13 +678,18 @@ export default function Admin() {
 
         {/* ── Stats ── */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-3 mb-6">
             <StatCard icon={Users}         label="Total Users"     value={stats.totalUsers}    color="indigo" />
             <StatCard icon={Crown}         label="Pro / Lifetime"  value={stats.proUsers + stats.lifetimeUsers} sub={`${stats.lifetimeUsers} lifetime`} color="violet" />
             <StatCard icon={GraduationCap} label="Pilot"           value={stats.pilotUsers ?? 0}
               sub={stats.pilotSeats?.length
                 ? `${stats.pilotSeats.reduce((s, p) => s + p.used, 0)} / ${stats.pilotSeats.reduce((s, p) => s + p.maxSeats, 0)} seats claimed`
                 : undefined}
+              color="teal" />
+            <StatCard icon={GraduationCap} label="Licensed"        value={stats.licensedUsers ?? 0}
+              sub={stats.licenseSeats?.length
+                ? `${stats.licenseSeats.reduce((s, l) => s + l.used, 0)} / ${stats.licenseSeats.reduce((s, l) => s + l.maxSeats, 0)} seats used`
+                : "No active license"}
               color="teal" />
             <StatCard icon={Zap}           label="Free Users"      value={stats.freeUsers}      color="sky" />
             <StatCard icon={Star}          label="Whitelisted"     value={stats.whitelisted}    color="amber" />
@@ -737,6 +743,7 @@ export default function Admin() {
                 <option value="pro">Pro</option>
                 <option value="lifetime">Lifetime</option>
                 <option value="pilot">Pilot</option>
+                <option value="licensed">Licensed</option>
               </select>
               <select
                 value={roleFilter}

@@ -234,7 +234,7 @@ export async function archiveDeletedAccount(user, { ipHash = null, fpHash = null
     ipHash  || null,
     fpHash  || null,
     user.guides_created_ever || 0,
-    (user.plan === "pro" || user.plan === "lifetime") ? 1 : 0,
+    (user.plan === "pro" || user.plan === "lifetime" || user.plan === "licensed") ? 1 : 0,
   ]);
 }
 

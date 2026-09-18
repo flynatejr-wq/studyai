@@ -38,7 +38,7 @@ export function useLimits() {
   // isPro: prefer the API response (includes whitelisted/admin), fall back to the
   // user object plan field so we never incorrectly show "Pro" for free users.
   const isPro = data?.is_pro ?? (
-    user?.plan === "pro" || user?.plan === "lifetime"
+    user?.plan === "pro" || user?.plan === "lifetime" || user?.plan === "licensed"
   );
 
   return {
