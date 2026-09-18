@@ -28,7 +28,7 @@ import GeneratingAnimation from "../components/GeneratingAnimation.jsx";
 import Results from "../components/Results.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import UpgradeModal from "../components/UpgradeModal.jsx";
-import OnboardingModal, { useOnboarding } from "../components/OnboardingModal.jsx";
+import OnboardingModal, { useOnboarding, SAMPLE_LECTURE_TRANSCRIPT } from "../components/OnboardingModal.jsx";
 import PilotFeedbackModal, { usePilotFeedback } from "../components/PilotFeedbackModal.jsx";
 import DailyWidgets from "../components/DailyWidgets.jsx";
 import PlanUsageCard from "../components/PlanUsageCard.jsx";
@@ -69,6 +69,11 @@ export default function Dashboard() {
   const toast    = useToast();
   const navigate = useNavigate();
   const { show: showOnboarding, complete: completeOnboarding, skip: skipOnboarding } = useOnboarding(user);
+
+  const handleTrySample = () => {
+    handleSubmit({ type: "text", transcript: SAMPLE_LECTURE_TRANSCRIPT });
+    completeOnboarding();
+  };
   const { show: showPilotFeedback, dismiss: dismissPilotFeedback } = usePilotFeedback(user);
 
   const [folders,       setFolders]       = useState([]);
@@ -499,7 +504,7 @@ export default function Dashboard() {
       {/* ── Onboarding modal (first-time users only) ── */}
       <AnimatePresence>
         {showOnboarding && (
-          <OnboardingModal onComplete={completeOnboarding} onSkip={skipOnboarding} />
+          <OnboardingModal onComplete={completeOnboarding} onSkip={skipOnboarding} onTrySample={handleTrySample} sampleLoading={loading} />
         )}
       </AnimatePresence>
 

@@ -155,7 +155,25 @@ function OutputStep() {
   );
 }
 
-function ReadyStep() {
+// A short, generic lecture-style transcript so a brand-new user can see a
+// real generated guide with zero effort — no notes/PDF/video of their own
+// required during the first session, which is exactly when they're most
+// likely to bounce if they don't have material handy.
+export const SAMPLE_LECTURE_TRANSCRIPT = `Today we're covering classical conditioning, one of the foundational concepts in psychology, first described by Ivan Pavlov in the early 1900s.
+
+Pavlov was originally studying digestion in dogs, measuring how much they salivated when given food. He noticed something unexpected: the dogs began salivating before the food even arrived — just at the sound of the assistant's footsteps, or the sight of the food bowl. This accidental discovery led to one of psychology's most important experiments.
+
+Pavlov formalized this into a simple model. Food is an unconditioned stimulus — it naturally and automatically triggers salivation, which is the unconditioned response. Neither of these needs to be learned. But Pavlov started ringing a bell every time he presented food. After repeating this pairing many times, the dogs began salivating at the sound of the bell alone, even with no food present. The bell had become a conditioned stimulus, and the salivation in response to just the bell is now called the conditioned response.
+
+This process — turning a neutral stimulus into one that triggers a learned response through repeated pairing — is classical conditioning. Three key stages describe it: acquisition, where the association is first formed through repeated pairing; extinction, where the conditioned response fades if the bell keeps ringing without food ever showing up again; and spontaneous recovery, where after a rest period the conditioned response can suddenly reappear even after extinction.
+
+Classical conditioning isn't limited to lab animals. It explains a huge range of everyday human behavior. Advertisers pair products with attractive images or exciting music, hoping consumers form a positive association. Phobias can form this way too — a person bitten by a dog may develop a fear response not just to that dog, but to dogs in general, or even to the sound of barking.
+
+One important extension is stimulus generalization, where a person or animal responds not just to the exact conditioned stimulus, but to similar stimuli as well. The opposite, stimulus discrimination, is when a subject learns to respond only to the specific original stimulus and not to similar ones.
+
+Understanding classical conditioning gives us a foundation for understanding how humans and animals learn associations between events in their environment — a concept that still shapes fields from advertising to clinical treatment of phobias today.`;
+
+function ReadyStep({ onTrySample, sampleLoading }) {
   return (
     <div className="text-center space-y-5">
       <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-2xl shadow-emerald-500/30">
@@ -167,6 +185,16 @@ function ReadyStep() {
           Your streak, XP, and achievements will track your progress over time.
         </p>
       </div>
+      {onTrySample && (
+        <button
+          onClick={onTrySample}
+          disabled={sampleLoading}
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-60 rounded-xl text-white font-bold text-sm transition-all shadow-lg shadow-emerald-500/25">
+          {sampleLoading
+            ? <><span className="inline-block w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />Generating…</>
+            : <>Try a sample lecture <Sparkles size={14} /></>}
+        </button>
+      )}
       <div className="space-y-2 text-left">
         {[
           "Create your first guide",
@@ -219,7 +247,7 @@ export function useOnboarding(user) {
   return { show, complete, skip };
 }
 
-export default function OnboardingModal({ onComplete, onSkip }) {
+export default function OnboardingModal({ onComplete, onSkip, onTrySample, sampleLoading }) {
   const [step, setStep] = useState(0);
   const current = STEPS[step];
   const StepContent = current.content;
@@ -287,7 +315,7 @@ export default function OnboardingModal({ onComplete, onSkip }) {
               </div>
 
               <div className="max-h-80 overflow-y-auto pr-0.5">
-                <StepContent />
+                <StepContent onTrySample={isLast ? onTrySample : undefined} sampleLoading={sampleLoading} />
               </div>
             </motion.div>
           </AnimatePresence>
@@ -306,7 +334,7 @@ export default function OnboardingModal({ onComplete, onSkip }) {
             onClick={() => isLast ? onComplete() : setStep(s => s + 1)}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl text-white font-bold text-sm transition-all shadow-lg shadow-indigo-500/25">
             {isLast ? (
-              <>Create First Guide <Sparkles size={14} /></>
+              onTrySample ? "I'll upload my own" : <>Create First Guide <Sparkles size={14} /></>
             ) : (
               <>Next <ArrowRight size={14} /></>
             )}
