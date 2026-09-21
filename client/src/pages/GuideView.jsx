@@ -15,6 +15,7 @@ import { useToast } from "../contexts/ToastContext.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import RichText from "../components/RichText.jsx";
+import MathText from "../components/MathText.jsx";
 import ChatMessage from "../components/ChatMessage.jsx";
 import UpgradeModal from "../components/UpgradeModal.jsx";
 import { useLimits } from "../hooks/useLimits.js";
@@ -1036,7 +1037,7 @@ function MCQQuestion({ q, answered, onAnswer }) {
   const isLocked   = !onAnswer;
   return (
     <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
-      <p className="text-white font-medium mb-4">{q.question}</p>
+      <p className="text-white font-medium mb-4"><MathText text={q.question} /></p>
       <div className="flex flex-col gap-2">
         {q.options.map((opt, oi) => {
           const isSelected    = answered === oi;
@@ -1051,13 +1052,13 @@ function MCQQuestion({ q, answered, onAnswer }) {
                 : isWrong       ? "bg-red-500/20 border-red-500/50 text-red-400"
                 : isPreSelected ? "bg-indigo-600/30 border-indigo-500 text-white"
                 : "bg-white/5 border-white/10 text-gray-300 hover:bg-indigo-600/20 hover:border-indigo-500 hover:text-white"}`}>
-              <span className="mr-2 font-bold">{["A","B","C","D"][oi]}.</span>{opt}
+              <span className="mr-2 font-bold">{["A","B","C","D"][oi]}.</span><MathText text={opt} />
             </button>
           );
         })}
       </div>
       {isLocked && answered != null && q.explanation && (
-        <p className="text-gray-400 text-xs mt-3">{q.explanation}</p>
+        <p className="text-gray-400 text-xs mt-3"><MathText text={q.explanation} /></p>
       )}
     </div>
   );
@@ -1068,7 +1069,7 @@ function TrueFalseQuestion({ q, answered, onAnswer }) {
   if (!q?.statement) return null;
   return (
     <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
-      <p className="text-white font-medium mb-4">{q.statement}</p>
+      <p className="text-white font-medium mb-4"><MathText text={q.statement} /></p>
       {answered == null ? (
         <div className="flex gap-3">
           <button onClick={() => onAnswer(true)}
@@ -1083,7 +1084,7 @@ function TrueFalseQuestion({ q, answered, onAnswer }) {
       ) : (
         <div className={`rounded-xl p-3 text-sm ${answered === q.answer ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
           {answered === q.answer ? "✓ Correct!" : `✗ Incorrect — answer is ${q.answer ? "True" : "False"}`}
-          {q.explanation && <p className="text-gray-400 mt-1 text-xs">{q.explanation}</p>}
+          {q.explanation && <p className="text-gray-400 mt-1 text-xs"><MathText text={q.explanation} /></p>}
         </div>
       )}
     </div>
@@ -1100,7 +1101,7 @@ function FillBlankQuestion({ q, answered, onAnswer }) {
   return (
     <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
       <p className="text-white font-medium mb-1">
-        {q.sentence.replace("___", "________")}
+        <MathText text={q.sentence.replace("___", "________")} />
       </p>
       <p className="text-gray-500 text-xs mb-4">Hint: {q.hint}</p>
       {answered == null ? (
@@ -1432,7 +1433,7 @@ function SectionQuiz({ questions }) {
     <div className="space-y-3">
       {questions.map((q, i) => (
         <div key={i} className="border border-white/10 rounded-xl p-4">
-          <p className="text-white font-medium text-sm mb-3">{i + 1}. {q.question}</p>
+          <p className="text-white font-medium text-sm mb-3">{i + 1}. <MathText text={q.question} /></p>
           {!revealed[i] ? (
             <button onClick={() => setRevealed(r => ({ ...r, [i]: true }))}
               className="flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 text-sm underline underline-offset-2 transition-colors">

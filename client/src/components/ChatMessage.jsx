@@ -1,5 +1,8 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 
 export default function ChatMessage({ msg }) {
   const isUser = msg.role === "user";
@@ -18,7 +21,8 @@ export default function ChatMessage({ msg }) {
     <div className="flex justify-start">
       <div className="max-w-[92%] rounded-2xl rounded-bl-sm px-4 py-3 text-sm bg-white/10 text-gray-200">
         <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[rehypeKatex]}
           components={{
             // Paragraphs
             p({ children }) {

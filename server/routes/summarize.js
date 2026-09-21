@@ -144,6 +144,12 @@ Formatting rules for HTML inside JSON strings:
 - All content array items must be wrapped in a <p> tag (or <ul>/<ol> if the item is a list)
 - Keep HTML minimal and semantic — bold for terms, em for emphasis, ul/li for bullet lists
 
+MATH & SCIENCE NOTATION — the source material may include equations, formulas, or chemical notation:
+- Write inline math as \\( ... \\) and standalone/display equations as \\[ ... \\] (LaTeX syntax), e.g. "the derivative is \\(f'(x) = 2x\\)" or a display equation "\\[ E = mc^2 \\]"
+- Do NOT use a bare single $ for math — it is reserved for literal currency amounts and must never be treated as a math delimiter
+- Use standard LaTeX commands for fractions (\\frac{a}{b}), exponents (x^2), subscripts (x_1), Greek letters (\\alpha, \\beta), and chemistry (\\text{H}_2\\text{O})
+- Escape backslashes properly for valid JSON (e.g. "\\\\(x^2\\\\)" in the JSON string so it decodes to "\\(x^2\\)")
+
 CRITICAL — Scale output to match input size. Do not pad, expand, or invent content not present in the source material:
 - Short input (a few sentences or one topic): 1-2 sections, 1 paragraph each, 2-3 key points, 1-2 terms, 1 quiz question
 - Medium input (a page or a few topics): 2-3 sections, 1-2 paragraphs each, 2-4 key points, 2-3 terms, 1-2 quiz questions
