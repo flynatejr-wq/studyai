@@ -24,16 +24,18 @@ export async function checkNoGuideReminders() {
     LIMIT 200
   `);
 
+  let sent = 0;
   for (const user of candidates) {
     try {
       await sendNoGuideReminder(user.email, user.name);
       await pool.query("UPDATE users SET no_guide_reminder_sent = 1 WHERE id = $1", [user.id]);
+      sent++;
     } catch (err) {
       console.error("[no-guide-reminder] failed for", user.id, err?.message);
     }
   }
 
   if (candidates.length > 0) {
-    console.log(`[no-guide-reminder] sent ${candidates.length} activation reminder(s)`);
+    console.log(`[no-guide-reminder] sent ${sent}/${candidates.length} activation reminder(s)`);
   }
 }
