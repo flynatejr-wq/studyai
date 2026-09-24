@@ -49,10 +49,9 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
 
-// Auth is Bearer-token based (not cookies), so reflecting the request origin is safe —
-// there is no CSRF risk. `origin: true` echoes the caller's Origin header back, which
-// is compatible with credentials:true and works for every deployment environment
-// (localhost, Vercel, Railway previews) without needing FRONTEND_URL to be configured.
+// Strict allowlist — only FRONTEND_URL plus local dev ports may call the API.
+// Auth is Bearer-token based (not cookies), so there's no CSRF risk either way,
+// but we still validate against a fixed list rather than echoing any Origin back.
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   "http://localhost:5173",

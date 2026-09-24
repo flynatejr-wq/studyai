@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 
@@ -19,7 +20,8 @@ export default function MathText({ text, as: As = "span" }) {
   const html = text.replace(MATH_PATTERN, (match, display1, display2, inline) => {
     const isDisplay = display1 !== undefined || display2 !== undefined;
     const expr = display1 ?? display2 ?? inline;
-    return katex.renderToString(expr, { throwOnError: false, displayMode: isDisplay });
+    const rendered = katex.renderToString(expr, { throwOnError: false, displayMode: isDisplay });
+    return DOMPurify.sanitize(rendered);
   });
 
   return <As dangerouslySetInnerHTML={{ __html: html }} />;

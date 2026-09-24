@@ -28,7 +28,12 @@ function extractMath(html) {
     const isDisplay = display1 !== undefined || display2 !== undefined;
     const expr = display1 ?? display2 ?? inline;
     const token = `@@MATH_${placeholders.length}@@`;
-    placeholders.push(katex.renderToString(expr, { throwOnError: false, displayMode: isDisplay }));
+    const rendered = katex.renderToString(expr, { throwOnError: false, displayMode: isDisplay });
+    // KaTeX's own markup (span/svg/MathML) is spliced back in after the main
+    // sanitize pass below, so it needs its own pass here — DOMPurify's default
+    // profile (not the restrictive PURIFY_CONFIG) keeps KaTeX's tags intact
+    // while still stripping any script/event-handler payload.
+    placeholders.push(DOMPurify.sanitize(rendered));
     return token;
   });
   return { withPlaceholders, placeholders };
