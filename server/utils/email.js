@@ -24,31 +24,50 @@ export function isEmailConfigured() {
 }
 
 // ── Shared email chrome ───────────────────────────────────────────────────────
-function wrap(body) {
+// `emoji` fills the badge above the headline; `accent` tints the badge glow so
+// each email type reads distinctly at a glance in a crowded inbox.
+function wrap(body, { emoji = "🎓", accent = "#6366f1" } = {}) {
+  const site = process.env.FRONTEND_URL || "https://studybuddi.academy";
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    body { margin:0; padding:0; background:#0a0a12; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
-    .container { max-width:480px; margin:40px auto; background:#0f0f1a; border:1px solid rgba(255,255,255,0.08); border-radius:16px; overflow:hidden; }
-    .header { padding:28px 32px 20px; border-bottom:1px solid rgba(255,255,255,0.06); }
-    .logo { font-size:22px; font-weight:800; background:linear-gradient(135deg,#818cf8,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-    .body { padding:28px 32px; }
-    h2 { color:#f1f5f9; font-size:20px; margin:0 0 12px; }
-    p { color:#94a3b8; font-size:14px; line-height:1.7; margin:0 0 16px; }
-    .btn { display:inline-block; padding:13px 26px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff !important; border-radius:10px; text-decoration:none; font-weight:700; font-size:14px; margin:8px 0 20px; }
-    .note { color:#64748b; font-size:12px; line-height:1.6; }
-    .footer { padding:16px 32px; border-top:1px solid rgba(255,255,255,0.06); }
-    .footer p { color:#475569; font-size:11px; margin:0; }
+    body { margin:0; padding:0; background:#05050a; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    .wrapper { padding:40px 16px; }
+    .container { max-width:480px; margin:0 auto; background:#0f0f1a; border:1px solid rgba(255,255,255,0.08); border-radius:20px; overflow:hidden; }
+    .accent-bar { height:4px; line-height:4px; font-size:0; background:linear-gradient(90deg,#6366f1,#a78bfa,#ec4899); }
+    .header { padding:32px 32px 4px; text-align:center; }
+    .badge { width:56px; height:56px; line-height:56px; border-radius:16px; background:linear-gradient(135deg,${accent},#a78bfa); font-size:26px; margin:0 auto 16px; }
+    .logo { display:block; font-size:13px; font-weight:800; letter-spacing:1px; color:#818cf8; text-transform:uppercase; margin-bottom:4px; }
+    .body { padding:8px 32px 28px; }
+    h2 { color:#f8fafc; font-size:21px; margin:0 0 14px; font-weight:800; text-align:center; }
+    p { color:#94a3b8; font-size:14px; line-height:1.7; margin:0 0 18px; text-align:left; }
+    .btn-row { text-align:center; }
+    .btn { display:inline-block; padding:14px 30px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff !important; border-radius:12px; text-decoration:none; font-weight:700; font-size:14px; margin:6px 0 22px; }
+    .steps { text-align:left; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:18px 20px 18px 38px; margin:0 0 22px; }
+    .steps li { color:#cbd5e1; font-size:13.5px; line-height:1.9; }
+    .note { color:#64748b; font-size:12px; line-height:1.6; margin:0; }
+    .footer { padding:18px 32px; border-top:1px solid rgba(255,255,255,0.06); text-align:center; }
+    .footer p { color:#475569; font-size:11px; margin:0 0 4px; }
+    .footer a { color:#818cf8; text-decoration:none; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header"><span class="logo">StudyBuddi</span></div>
-    <div class="body">${body}</div>
-    <div class="footer"><p>© ${new Date().getFullYear()} StudyBuddi. All rights reserved.</p></div>
+  <div class="wrapper">
+    <div class="container">
+      <div class="accent-bar">&nbsp;</div>
+      <div class="header">
+        <div class="badge">${emoji}</div>
+        <span class="logo">StudyBuddi</span>
+      </div>
+      <div class="body">${body}</div>
+      <div class="footer">
+        <p>© ${new Date().getFullYear()} StudyBuddi. All rights reserved.</p>
+        <p><a href="${site}">studybuddi.academy</a></p>
+      </div>
+    </div>
   </div>
 </body>
 </html>`;
@@ -89,15 +108,14 @@ export async function sendWelcomeEmail(toEmail, name) {
     html: wrap(`
       <h2>Welcome aboard, ${name || "there"}!</h2>
       <p>You've just unlocked the fastest way to turn any lecture, note, or document into a complete study system — summaries, flashcards, quizzes, and an AI tutor, all in seconds.</p>
-      <p><strong style="color:#e2e8f0;">Here's how to get started:</strong></p>
-      <ol style="color:#94a3b8;font-size:14px;line-height:2;padding-left:20px;margin:0 0 20px;">
+      <ol class="steps">
         <li>Upload a lecture recording, image, or paste your notes</li>
         <li>Get a structured study guide instantly</li>
         <li>Quiz yourself or chat with your AI tutor</li>
       </ol>
-      <a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/dashboard" class="btn">Open StudyBuddi →</a>
+      <div class="btn-row"><a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/dashboard" class="btn">Open StudyBuddi →</a></div>
       <p class="note">Your free account includes 1 study guide. Upgrade anytime for unlimited guides, quizzes, and advanced AI features.</p>
-    `),
+    `, { emoji: "🎉", accent: "#f59e0b" }),
   });
 }
 
@@ -109,9 +127,9 @@ export async function sendVerificationEmail(toEmail, verifyLink) {
     html: wrap(`
       <h2>Verify your email</h2>
       <p>Thanks for signing up! Click the button below to verify your email address and unlock all features. This link expires in <strong style="color:#e2e8f0;">24 hours</strong>.</p>
-      <a href="${verifyLink}" class="btn">Verify Email →</a>
+      <div class="btn-row"><a href="${verifyLink}" class="btn">Verify Email →</a></div>
       <p class="note">If you didn't create a StudyBuddi account, you can safely ignore this email.</p>
-    `),
+    `, { emoji: "✉️", accent: "#22c55e" }),
   });
 }
 
@@ -123,9 +141,9 @@ export async function sendPasswordReset(toEmail, resetLink) {
     html: wrap(`
       <h2>Reset your password</h2>
       <p>We received a request to reset your password. Click the button below to choose a new one. This link expires in <strong style="color:#e2e8f0;">1 hour</strong>.</p>
-      <a href="${resetLink}" class="btn">Reset Password →</a>
+      <div class="btn-row"><a href="${resetLink}" class="btn">Reset Password →</a></div>
       <p class="note">If you didn't request this, you can safely ignore this email — your password won't change.</p>
-    `),
+    `, { emoji: "🔒", accent: "#ef4444" }),
   });
 }
 
@@ -138,9 +156,9 @@ export async function sendStreakReminder(toEmail, streakCount) {
       <h2>Your streak is at risk!</h2>
       <p>You haven't studied today — and your <strong style="color:#e2e8f0;">${streakCount}-day streak</strong> is on the line.</p>
       <p>Log in and study anything to keep it alive. Even a quick review counts!</p>
-      <a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/dashboard" class="btn">Study Now →</a>
+      <div class="btn-row"><a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/dashboard" class="btn">Study Now →</a></div>
       <p class="note">Don't let your hard-earned streak disappear. A few minutes is all it takes.</p>
-    `),
+    `, { emoji: "🔥", accent: "#f97316" }),
   });
 }
 
@@ -153,9 +171,9 @@ export async function sendStudyPlanReminder(toEmail, planTitle, examDate, daysLe
       <h2>Your exam is coming up fast!</h2>
       <p><strong style="color:#e2e8f0;">${planTitle}</strong> is on <strong style="color:#e2e8f0;">${examDate}</strong> — just <strong style="color:#e2e8f0;">${daysLeft} day${daysLeft === 1 ? "" : "s"}</strong> away.</p>
       <p>Open StudyBuddi and review your guide today. A focused session now can make all the difference.</p>
-      <a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/dashboard" class="btn">Review Now →</a>
+      <div class="btn-row"><a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/dashboard" class="btn">Review Now →</a></div>
       <p class="note">Stay on track with your study plan and walk into your exam feeling prepared.</p>
-    `),
+    `, { emoji: "📅", accent: "#0ea5e9" }),
   });
 }
 
@@ -167,9 +185,9 @@ export async function sendNoGuideReminder(toEmail, name) {
     html: wrap(`
       <h2>Your first study guide takes seconds</h2>
       <p>Hey ${name || "there"} — you signed up for StudyBuddi but haven't created a study guide yet. Upload a lecture recording, paste your notes, or drop in a PDF and get an AI-organized guide, quiz, and tutor instantly.</p>
-      <a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/dashboard" class="btn">Create Your First Guide →</a>
+      <div class="btn-row"><a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/dashboard" class="btn">Create Your First Guide →</a></div>
       <p class="note">It only takes one lecture to see why students switch to StudyBuddi.</p>
-    `),
+    `, { emoji: "🚀", accent: "#8b5cf6" }),
   });
 }
 
@@ -181,8 +199,8 @@ export async function sendUpgradePromptEmail(toEmail, name) {
     html: wrap(`
       <h2>Ready to study without limits?</h2>
       <p>Hey ${name || "there"} — you've used your free study guide. Upgrade to Pro for unlimited guides, quizzes, and your personal AI tutor.</p>
-      <a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/settings" class="btn">Upgrade to Pro →</a>
+      <div class="btn-row"><a href="${process.env.FRONTEND_URL || "https://studybuddi.academy"}/settings" class="btn">Upgrade to Pro →</a></div>
       <p class="note">Pro includes unlimited guides, advanced AI features, and priority support.</p>
-    `),
+    `, { emoji: "⭐", accent: "#eab308" }),
   });
 }
