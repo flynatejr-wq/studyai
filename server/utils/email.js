@@ -37,15 +37,15 @@ function wrap(body, { emoji = "🎓", accent = "#6366f1" } = {}) {
     body { margin:0; padding:0; background:#05050a; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
     .wrapper { padding:40px 16px; }
     .container { max-width:480px; margin:0 auto; background:#0f0f1a; border:1px solid rgba(255,255,255,0.08); border-radius:20px; overflow:hidden; }
-    .accent-bar { height:4px; line-height:4px; font-size:0; background:linear-gradient(90deg,#6366f1,#a78bfa,#ec4899); }
+    .accent-bar { height:4px; line-height:4px; font-size:0; background-color:#6366f1; background:linear-gradient(90deg,#6366f1,#a78bfa,#ec4899); }
     .header { padding:32px 32px 4px; text-align:center; }
-    .badge { width:56px; height:56px; line-height:56px; border-radius:16px; background:linear-gradient(135deg,${accent},#a78bfa); font-size:26px; margin:0 auto 16px; }
+    .badge { width:56px; height:56px; line-height:56px; border-radius:16px; background-color:${accent}; background:linear-gradient(135deg,${accent},#a78bfa); font-size:26px; margin:0 auto 16px; }
     .logo { display:block; font-size:13px; font-weight:800; letter-spacing:1px; color:#818cf8; text-transform:uppercase; margin-bottom:4px; }
     .body { padding:8px 32px 28px; }
     h2 { color:#f8fafc; font-size:21px; margin:0 0 14px; font-weight:800; text-align:center; }
     p { color:#94a3b8; font-size:14px; line-height:1.7; margin:0 0 18px; text-align:left; }
     .btn-row { text-align:center; }
-    .btn { display:inline-block; padding:14px 30px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff !important; border-radius:12px; text-decoration:none; font-weight:700; font-size:14px; margin:6px 0 22px; }
+    .btn { display:inline-block; padding:14px 30px; background-color:#6366f1; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#ffffff !important; border-radius:12px; text-decoration:none; font-weight:700; font-size:14px; margin:6px 0 22px; }
     .steps { text-align:left; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:18px 20px 18px 38px; margin:0 0 22px; }
     .steps li { color:#cbd5e1; font-size:13.5px; line-height:1.9; }
     .note { color:#64748b; font-size:12px; line-height:1.6; margin:0; }
