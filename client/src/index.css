@@ -922,3 +922,34 @@ html.theme-ssu stop[stop-color="#6366f1"] { stop-color: rgba(var(--ssu-blue-500)
 html.theme-ssu stop[stop-color="#8b5cf6"] { stop-color: rgba(var(--ssu-orange-500),1) !important; }
 html.theme-ssu stop[stop-color="#818cf8"] { stop-color: rgba(var(--ssu-blue-300),1) !important; }
 html.theme-ssu stop[stop-color="#f472b6"] { stop-color: rgba(var(--ssu-orange-500),1) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SPARK — AI tutor mascot animation (SparkAvatar.jsx). Pure CSS, no API cost.
+═══════════════════════════════════════════════════════════════════════════ */
+@keyframes spark-bob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.03); }
+}
+.spark-idle {
+  animation: spark-bob 3.2s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+@keyframes spark-wiggle {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-6deg) scale(1.05); }
+  75% { transform: rotate(6deg) scale(1.05); }
+}
+.spark-thinking {
+  animation: spark-wiggle 0.9s ease-in-out infinite;
+  transform-origin: center center;
+}
+@keyframes spark-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.1); }
+}
+.spark-eye {
+  animation: spark-blink 4.5s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.spark-eye:nth-of-type(2) { animation-delay: 0.05s; }

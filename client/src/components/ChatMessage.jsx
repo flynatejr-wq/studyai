@@ -3,6 +3,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
+import SparkAvatar from "./SparkAvatar.jsx";
 
 export default function ChatMessage({ msg }) {
   const isUser = msg.role === "user";
@@ -18,7 +19,8 @@ export default function ChatMessage({ msg }) {
   }
 
   return (
-    <div className="flex justify-start">
+    <div className="flex justify-start items-end gap-2">
+      <SparkAvatar size={26} className="mb-1 shrink-0" />
       <div className="max-w-[92%] rounded-2xl rounded-bl-sm px-4 py-3 text-sm bg-white/10 text-gray-200">
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkMath]}

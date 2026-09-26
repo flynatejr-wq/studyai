@@ -17,6 +17,7 @@ import ConfirmModal from "../components/ConfirmModal.jsx";
 import RichText from "../components/RichText.jsx";
 import MathText from "../components/MathText.jsx";
 import ChatMessage from "../components/ChatMessage.jsx";
+import SparkAvatar from "../components/SparkAvatar.jsx";
 import UpgradeModal from "../components/UpgradeModal.jsx";
 import { useLimits } from "../hooks/useLimits.js";
 
@@ -2138,7 +2139,7 @@ export default function GuideView() {
             <div className="flex items-center justify-between px-5 border-b border-white/10"
               style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "1rem" }}>
               <div>
-                <h3 className="font-bold text-white flex items-center gap-2"><MessageCircle size={15} className="text-indigo-400" /> AI Tutor</h3>
+                <h3 className="font-bold text-white flex items-center gap-2"><SparkAvatar size={20} /> AI Tutor</h3>
                 {!isPro && limits?.chat && (
                   <p className={`text-xs mt-0.5 tabular-nums ${limits.chat.used >= limits.chat.max ? "text-red-400" : limits.chat.used >= limits.chat.max * 0.7 ? "text-amber-400" : "text-gray-400"}`}>
                     {limits.chat.max - limits.chat.used} of {limits.chat.max} messages remaining today
@@ -2156,7 +2157,7 @@ export default function GuideView() {
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.length === 0 && (
                 <div className="text-center text-gray-500 text-sm mt-8">
-                  <MessageCircle size={32} className="mx-auto mb-3 opacity-30" />
+                  <SparkAvatar size={56} className="mx-auto mb-3" />
                   <p>Ask me anything about <span className="text-indigo-400">{guide.title}</span>.</p>
                   <div className="mt-4 space-y-2">
                     {["Explain the key concepts simply", "What's most important for the exam?", "Give me a real-world example"].map(s => (
@@ -2170,8 +2171,9 @@ export default function GuideView() {
                 <ChatMessage key={msg.id} msg={msg} />
               ))}
               {chatLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-white/10 rounded-2xl px-4 py-3 text-sm text-gray-400 animate-pulse">Thinking...</div>
+                <div className="flex justify-start items-end gap-2">
+                  <SparkAvatar size={26} variant="thinking" className="mb-1 shrink-0" />
+                  <div className="bg-white/10 rounded-2xl px-4 py-3 text-sm text-gray-400">Thinking...</div>
                 </div>
               )}
               <div ref={chatEndRef} />
