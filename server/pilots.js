@@ -8,8 +8,8 @@ import pool from "./db.js";
 // subdomain) — printed materials advertise a hard seat count, so this must
 // actually be enforced, not just a marketing claim.
 export const PILOT_PROGRAMS = [
-  { domain: "savannahstate.edu",         label: "Savannah State University", endDate: "2026-10-12", maxSeats: 200 },
-  { domain: "student.savannahstate.edu", label: "Savannah State University", endDate: "2026-10-12", maxSeats: 200 },
+  { domain: "savannahstate.edu",         label: "Savannah State University", endDate: "2026-12-25", maxSeats: 200 },
+  { domain: "student.savannahstate.edu", label: "Savannah State University", endDate: "2026-12-25", maxSeats: 200 },
 ];
 
 function matchingPilot(email) {
